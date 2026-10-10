@@ -1,0 +1,182 @@
+# The whole platform on one machine, shaped like production, with mock
+# providers instead of J&T, Meta and Payload so real fashion journeys can run.
+#
+#   bash docker/e2e/run.sh up       # build image, start everything, seed demo data
+#   bash docker/e2e/run.sh test     # run the use-case journeys against it
+#   bash docker/e2e/run.sh chaos    # worker/Redis/carrier failures mid-flow
+#   bash docker/e2e/run.sh down     # stop and delete all data
+#
+# What is real: Postgres, Redis (event bus, cache, locks, workflow engine,
+# sessions), the production image, the server/worker split (workers can be
+# scaled), migrations, jobs, subscribers, webhooks, RBAC.
+# What is simulated: J&T, Meta Messenger and Payload CMS (docker/e2e/mock-providers.mjs),
+# S3 (local files), email (written to the log), PostHog (off). LOCAL_STACK=true.
+name: fashion-e2e
+
+x-secrets: &secrets
+  JWT_SECRET: e2e-jwt-secret
+  COOKIE_SECRET: e2e-cookie-secret
+  METRICS_TOKEN: e2e-metrics-token
+  SANDBOX_WEBHOOK_SECRET: unused
+
+x-medusa-env: &medusa-env
+  <<: *secrets
+  NODE_ENV: production
+  LOCAL_STACK: "true"
+  DATABASE_URL: postgresql://fashion:fashion@postgres:5432/fashion
+  REDIS_URL: redis://redis:6379
+  STORE_CORS: http://localhost:8000
+  ADMIN_CORS: http://localhost:9100
+  AUTH_CORS: http://localhost:9100,http://localhost:8000
+  BACKEND_URL: http://localhost:9100
+  DB_POOL_MAX: "8"
+  # SaaS integrations pointed at the mock providers (never a real service)
+  PAYLOAD_SERVER_URL: http://mock-providers:7000
+  PAYLOAD_API_KEY: local
+  ALGOLIA_APP_ID: local
+  ALGOLIA_ADMIN_API_KEY: local
+  ALGOLIA_PRODUCT_INDEX_NAME: local
+  # Fashion platform: every integration ON, against the mocks
+  MANUFACTURING_ENABLED: "true"
+  MTO_ENABLED: "true"
+  MTO_PAYMENT_GATE: captured
+  FG_SYNC_TO_MEDUSA_ENABLED: "true"
+  JT_FULFILLMENT_ENABLED: "true"
+  JT_AUTO_CREATE_SHIPMENT: "true"
+  JT_TRACKING_CALLBACK_ENABLED: "true"
+  JT_RECONCILIATION_ENABLED: "true"
+  JT_API_BASE_URL: http://mock-providers:7000
+  JT_API_ACCOUNT: e2e
+  JT_PRIVATE_KEY: jt-private-key
+  JT_WEBHOOK_SECRET: jt-webhook-secret
+  JT_TIMEOUT_MS: "2500"
+  CARRIER_COD_ENABLED: "true"
+  CARRIER_SENDER_NAME: FECS Warehouse
+  CARRIER_SENDER_PHONE: "0281234567"
+  CARRIER_SENDER_ADDRESS: 1 Le Loi, District 1
+  CARRIER_SENDER_PROVINCE: Ho Chi Minh
+  META_MESSENGER_ENABLED: "true"
+  META_SHIPMENT_NOTIFICATION_ENABLED: "true"
+  AGENT_READ_TOOLS_ENABLED: "true"
+  AGENT_STATE_CHANGE_ENABLED: "true"
+  META_APP_SECRET: meta-app-secret
+  META_VERIFY_TOKEN: meta-verify-token
+  META_PAGE_ID: page_local
+  META_PAGE_ACCESS_TOKEN: page-token
+  META_GRAPH_BASE_URL: http://mock-providers:7000
+  SOCIAL_LINK_SECRET: e2e-social-link-secret
+  SOCIAL_DEFAULT_LOCALE: en
+  STOREFRONT_URL: http://localhost:8000
+  RETURN_WINDOW_DAYS: "14"
+
+x-medusa: &medusa
+  build:
+    context: ..
+    dockerfile: infra/docker/medusa.Dockerfile
+  image: fashion-medusa:local
+  environment: *medusa-env
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    mock-providers: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: fashion
+      POSTGRES_PASSWORD: fashion
+      POSTGRES_DB: fashion
+    ports: ["5544:5432"] # for psql / tooling; not needed by the stack itself
+    volumes: [e2e_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fashion"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  mock-providers:
+    image: node:22-slim
+    command: ["node", "/mock/mock-providers.mjs"]
+    environment:
+      PORT: "7000"
+      JT_PRIVATE_KEY: jt-private-key
+      JT_WEBHOOK_SECRET: jt-webhook-secret
+      PLATFORM_URL: http://medusa-server:9000
+      TIMEOUT_DELAY_MS: "6000"
+    volumes: ["./e2e:/mock:ro"]
+    ports: ["7070:7000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7000/__health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  # One-shot: migrations (also syncs module links).
+  migrate:
+    <<: *medusa
+    command: ["npx", "medusa", "db:migrate"]
+    restart: "no"
+  # One-shot: demo users (one per role) and the Vietnam demo store.
+  bootstrap:
+    <<: *medusa
+    command:
+      - sh
+      - -c
+      - "npx medusa exec ./src/scripts/seed-demo-users.js && npx medusa exec ./src/scripts/seed-fashion-demo.js"
+    restart: "no"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      mock-providers: { condition: service_healthy }
+  medusa-server:
+    <<: *medusa
+    environment: { <<: *medusa-env, MEDUSA_WORKER_MODE: server }
+    ports: ["9100:9000"]
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      mock-providers: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9000/internal/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  # Jobs (outbox publisher, inbox processor, retries, polling) and subscribers.
+  # Scale with: docker compose ... up -d --scale medusa-worker=2
+  medusa-worker:
+    <<: *medusa
+    environment: { <<: *medusa-env, MEDUSA_WORKER_MODE: worker }
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      mock-providers: { condition: service_healthy }
+  # Runs the journeys from inside the network (profile: only with `run.sh test`).
+  e2e:
+    image: node:22-slim
+    profiles: ["e2e"]
+    working_dir: /e2e
+    command: ["node", "/e2e/fashion-journeys.mjs"]
+    environment:
+      BASE_URL: http://medusa-server:9000
+      MOCK_URL: http://mock-providers:7000
+      META_APP_SECRET: meta-app-secret
+      METRICS_TOKEN: e2e-metrics-token
+      JT_WEBHOOK_SECRET: jt-webhook-secret
+    volumes:
+      - ../apps/medusa/integration-tests/e2e:/e2e:ro
+      - ../apps/medusa/src/api:/src-api:ro
+    depends_on:
+      medusa-server: { condition: service_healthy }
+
+volumes:
+  e2e_postgres:

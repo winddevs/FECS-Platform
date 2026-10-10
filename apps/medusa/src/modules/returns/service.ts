@@ -69,7 +69,9 @@ const ALLOWED: Record<ReturnStatus, readonly ReturnStatus[]> = {
 
 class ReturnsModuleService extends MedusaService({
   ReturnAuthorization,
-  ReturnItem,
+  // Keyed by the model name (rma_item): query.graph derives list/retrieve method
+  // names from it, so `RmaItem` must match for `listRmaItems` to exist.
+  RmaItem: ReturnItem,
   ReturnsOutboxEvent,
   ReturnsIdempotencyRecord,
 }) {
@@ -190,7 +192,7 @@ class ReturnsModuleService extends MedusaService({
           },
           ctx
         );
-        const items = await this.createReturnItems(
+        const items = await this.createRmaItems(
           input.items.map((i) => ({
             return_id: rma.id,
             order_line_id: i.order_line_id,
@@ -364,7 +366,7 @@ class ReturnsModuleService extends MedusaService({
       );
     }
 
-    await this.updateReturnItems(
+    await this.updateRmaItems(
       {
         id: item.id,
         disposition: input.disposition,
@@ -412,7 +414,7 @@ class ReturnsModuleService extends MedusaService({
     itemId: string,
     @MedusaContext() ctx: Context = {}
   ) {
-    await this.updateReturnItems({ id: itemId, stock_posted: true }, ctx);
+    await this.updateRmaItems({ id: itemId, stock_posted: true }, ctx);
     return { id: itemId };
   }
 
@@ -590,6 +592,9 @@ class ReturnsModuleService extends MedusaService({
       `SELECT i.order_line_id, SUM(i.qty) AS qty
        FROM "rma_item" i JOIN "return_authorization" r ON r.id = i.return_id AND r.deleted_at IS NULL
        WHERE r.order_id = ? AND r.status NOT IN ('REJECTED', 'CANCELLED') AND i.deleted_at IS NULL
+         -- A request that failed the eligibility check and was never authorized
+         -- must not use up quantity the customer can still legitimately return.
+         AND (r.status <> 'REQUESTED' OR COALESCE((r.eligibility->>'eligible')::boolean, true))
        GROUP BY i.order_line_id`,
       [orderId]
     );

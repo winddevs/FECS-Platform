@@ -12,6 +12,7 @@ import { domainError, ErrorCodes } from "../../lib/errors";
 import { isEnabled } from "../../lib/feature-flags";
 import { senderFromEnv } from "../../lib/fulfillment/build-request";
 import { createCarrierShipment } from "../../lib/fulfillment/create-shipment";
+import { lineQuantity, toNumber } from "../../lib/medusa-number";
 import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
 import type FinishedGoodsModuleService from "../../modules/finishedGoods/service";
 import { FASHION_FULFILLMENT_MODULE } from "../../modules/fulfillment";
@@ -62,7 +63,7 @@ export const requestReturnStep = wrapStep(
         "id",
         "customer_id",
         "items.id",
-        "items.quantity",
+        "items.detail.quantity",
         "items.variant_sku",
         "items.variant.metadata",
         "items.variant.product.metadata",
@@ -84,7 +85,7 @@ export const requestReturnStep = wrapStep(
     const finalSale: string[] = [];
     const skuByLine = new Map<string, string>();
     for (const item of order.items ?? []) {
-      purchased[item.id] = Number(item.quantity);
+      purchased[item.id] = lineQuantity(item);
       if (item.variant_sku) {
         skuByLine.set(item.id, item.variant_sku);
       }
@@ -198,7 +199,7 @@ export const createReturnShipmentStep = wrapStep(
     const [authorization] = await rma(c).listReturnAuthorizations({
       id: i.return_id,
     });
-    const items = await rma(c).listReturnItems({ return_id: i.return_id });
+    const items = await rma(c).listRmaItems({ return_id: i.return_id });
     const provider = getCarrierProvider(DEFAULT_CARRIER);
     const shipment = await createCarrierShipment(
       c.resolve<FulfillmentModuleService>(FASHION_FULFILLMENT_MODULE),
@@ -254,7 +255,7 @@ export const reserveExchangeStep = wrapStep(
     if (authorization.type !== "EXCHANGE" || !authorization.exchange_sku) {
       return { skipped: true as const };
     }
-    const items = await rma(c).listReturnItems({ return_id: i.return_id });
+    const items = await rma(c).listRmaItems({ return_id: i.return_id });
     const qty = items.reduce((sum, it) => sum + Number(it.qty), 0);
     const result = await c
       .resolve<FinishedGoodsModuleService>(FINISHED_GOODS_MODULE)
@@ -289,7 +290,7 @@ export const inspectAndPostStep = wrapStep(
       ...i,
       destination_is_commerce: isCommerce,
     });
-    const [item] = await rma(c).listReturnItems({ id: i.return_item_id });
+    const [item] = await rma(c).listRmaItems({ id: i.return_item_id });
     if (
       item.disposition === "SCRAP" ||
       item.stock_posted ||
@@ -377,14 +378,15 @@ export const refundReturnStep = wrapStep(
         "Return not found"
       );
     }
-    const items = await rma(c).listReturnItems({ return_id: i.return_id });
+    const items = await rma(c).listRmaItems({ return_id: i.return_id });
     const query = c.resolve<QueryGraph>(ContainerRegistrationKeys.QUERY);
     const { data } = await query.graph({
       entity: "order",
       fields: [
         "id",
+        "version",
         "items.id",
-        "items.quantity",
+        "items.detail.quantity",
         "items.total",
         "items.unit_price",
         "payment_collections.payments.id",
@@ -416,9 +418,12 @@ export const refundReturnStep = wrapStep(
         }) => [
           line.id,
           {
-            quantity: Number(line.quantity),
-            total: Number(line.total ?? line.unit_price * line.quantity),
-            unit_price: Number(line.unit_price),
+            quantity: lineQuantity(line),
+            total: toNumber(
+              line.total,
+              toNumber(line.unit_price) * lineQuantity(line)
+            ),
+            unit_price: toNumber(line.unit_price),
           },
         ]
       )

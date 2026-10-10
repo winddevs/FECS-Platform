@@ -8,6 +8,7 @@ import {
   MedusaNextFunction,
   MedusaRequest,
   MedusaResponse,
+  type MiddlewareRoute,
 } from "@medusajs/framework/http";
 import { MedusaError } from "@medusajs/framework/utils";
 import * as Sentry from "@sentry/node";
@@ -23,7 +24,7 @@ import { SearchSchema } from "./store/products/search/route";
 const originalErrorHandler = errorHandler();
 // Webhooks verify an HMAC over the exact bytes the provider sent, so the raw
 // body must be preserved for these routes.
-const webhookMiddlewares = [
+const webhookMiddlewares: MiddlewareRoute[] = [
   {
     matcher: "/webhooks/jt/tracking",
     methods: ["POST" as const],
@@ -88,7 +89,7 @@ const adminOnly = (
  * Medusa's own user and invite routes let any admin write `metadata`, where
  * the fashion roles live. Writing the role key needs `roles:manage`.
  */
-const roleMetadataGuards = [
+const roleMetadataGuards: MiddlewareRoute[] = [
   "/admin/users",
   "/admin/users/*",
   "/admin/invites",
@@ -96,11 +97,11 @@ const roleMetadataGuards = [
 ].map((matcher) => ({
   matcher,
   methods: ["POST" as const],
-  middlewares: [protectRoleMetadata],
+  middlewares: [protectRoleMetadata] as never,
 }));
 
 /** Legacy commerce-admin routes: every one needs an explicit permission. */
-const legacyAdminGuards = [
+const legacyAdminGuards: MiddlewareRoute[] = [
   adminOnly("/admin/algolia/sync", ["POST"], "commerce:admin"),
   adminOnly("/admin/payload/sync/:collection", ["POST"], "commerce:admin"),
   adminOnly("/admin/analytics", ["GET", "POST"], "commerce:admin"),
@@ -134,10 +135,12 @@ export default defineMiddlewares({
   },
   routes: [
     // Latency histogram for every API call (SLO alerts are computed from it).
-    ...["/admin/*", "/store/*", "/webhooks/*", "/auth/*"].map((matcher) => ({
-      matcher,
-      middlewares: [httpMetricsMiddleware],
-    })),
+    ...["/admin/*", "/store/*", "/webhooks/*", "/auth/*"].map(
+      (matcher): MiddlewareRoute => ({
+        matcher,
+        middlewares: [httpMetricsMiddleware],
+      })
+    ),
     ...fashionMiddlewares,
     ...opsMiddlewares,
     ...webhookMiddlewares,

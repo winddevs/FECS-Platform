@@ -51,7 +51,7 @@ const PRODUCTION_WORD = word(
 );
 // An order reference needs a keyword ("đơn 1234", "order #1234") or a "#".
 const ORDER_REF = new RegExp(
-  "(?:(?<![\\p{L}\\p{N}])(?:order|đơn hàng|đơn|don hang|don|vận đơn|van don|shipment|tracking|track|delivery|giao hàng|giao hang)\\s*(?:số|so)?\\s*#?\\s*|#)(\\d{3,10})(?!\\d)",
+  "(?:(?<![\\p{L}\\p{N}])(?:order|đơn hàng|đơn|don hang|don|vận đơn|van don|shipment|tracking|track|delivery|giao hàng|giao hang)\\s*(?:số|so)?\\s*#?\\s*|#)(\\d{1,10})(?!\\d)",
   "u"
 );
 

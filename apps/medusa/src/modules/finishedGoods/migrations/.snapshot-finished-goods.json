@@ -1155,6 +1155,15 @@
           "expression": "CREATE UNIQUE INDEX IF NOT EXISTS \"IDX_fg_location_code_unique\" ON \"fg_location\" (\"code\") WHERE deleted_at IS NULL"
         },
         {
+          "keyName": "IDX_fg_location_medusa_stock_location_unique",
+          "columnNames": [],
+          "composite": false,
+          "constraint": false,
+          "primary": false,
+          "unique": false,
+          "expression": "CREATE UNIQUE INDEX IF NOT EXISTS \"IDX_fg_location_medusa_stock_location_unique\" ON \"fg_location\" (\"medusa_stock_location_id\") WHERE deleted_at IS NULL AND medusa_stock_location_id IS NOT NULL"
+        },
+        {
           "keyName": "fg_location_pkey",
           "columnNames": ["id"],
           "composite": false,

@@ -122,6 +122,13 @@ if (process.env.INTEGRATION_TEST === "true") {
       ]
     : [];
 
+  // LOCAL_STACK=true: the production topology (Redis event bus, cache,
+  // locks and workflow engine, separate server/worker) with local stand-ins for
+  // the SaaS pieces that cannot run on a laptop: files on disk instead of S3,
+  // notifications written to the log instead of Resend, no PostHog. Used by
+  // docker/docker-compose.e2e.yml. Never set it in production.
+  const localStack = process.env.LOCAL_STACK === "true";
+
   module.exports = defineConfig({
     modules: [
       {
@@ -167,19 +174,25 @@ if (process.env.INTEGRATION_TEST === "true") {
         resolve: "@medusajs/medusa/file",
         options: {
           providers: [
-            {
-              resolve: "@medusajs/medusa/file-s3",
-              id: "s3",
-              options: {
-                file_url: process.env.S3_FILE_URL,
-                access_key_id: process.env.S3_ACCESS_KEY_ID,
-                secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
-                region: process.env.S3_REGION,
-                bucket: process.env.S3_BUCKET,
-                endpoint: process.env.S3_ENDPOINT,
-                // other options...
-              },
-            },
+            localStack
+              ? {
+                  resolve: "@medusajs/medusa/file-local",
+                  id: "local",
+                  options: {},
+                }
+              : {
+                  resolve: "@medusajs/medusa/file-s3",
+                  id: "s3",
+                  options: {
+                    file_url: process.env.S3_FILE_URL,
+                    access_key_id: process.env.S3_ACCESS_KEY_ID,
+                    secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
+                    region: process.env.S3_REGION,
+                    bucket: process.env.S3_BUCKET,
+                    endpoint: process.env.S3_ENDPOINT,
+                    // other options...
+                  },
+                },
           ],
         },
       },
@@ -187,15 +200,21 @@ if (process.env.INTEGRATION_TEST === "true") {
         resolve: "@medusajs/medusa/analytics",
         options: {
           providers: [
-            {
-              resolve: "@medusajs/analytics-posthog",
-              id: "posthog",
-              options: {
-                posthogEventsKey: process.env.POSTHOG_EVENTS_API_KEY,
-                posthogHost:
-                  process.env.POSTHOG_HOST || "https://eu.i.posthog.com",
-              },
-            },
+            localStack
+              ? {
+                  resolve: "@medusajs/medusa/analytics-local",
+                  id: "local",
+                  options: {},
+                }
+              : {
+                  resolve: "@medusajs/analytics-posthog",
+                  id: "posthog",
+                  options: {
+                    posthogEventsKey: process.env.POSTHOG_EVENTS_API_KEY,
+                    posthogHost:
+                      process.env.POSTHOG_HOST || "https://eu.i.posthog.com",
+                  },
+                },
           ],
         },
       },
@@ -203,15 +222,21 @@ if (process.env.INTEGRATION_TEST === "true") {
         resolve: "@medusajs/medusa/notification",
         options: {
           providers: [
-            {
-              resolve: "./src/modules/resend",
-              id: "resend",
-              options: {
-                channels: ["email"],
-                api_key: process.env.RESEND_API_KEY,
-                from: process.env.RESEND_FROM_EMAIL,
-              },
-            },
+            localStack
+              ? {
+                  resolve: "@medusajs/medusa/notification-local",
+                  id: "local",
+                  options: { channels: ["email"] },
+                }
+              : {
+                  resolve: "./src/modules/resend",
+                  id: "resend",
+                  options: {
+                    channels: ["email"],
+                    api_key: process.env.RESEND_API_KEY,
+                    from: process.env.RESEND_FROM_EMAIL,
+                  },
+                },
           ],
         },
       },

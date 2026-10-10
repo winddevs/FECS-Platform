@@ -30,6 +30,15 @@ export const FgLocation = model
       unique: true,
       where: "deleted_at IS NULL",
     },
+    // The sellable projection writes one Medusa stock level per stock location.
+    // Two FG locations mapped to the same one would overwrite each other's
+    // quantity, and a fulfilment could not tell which one to ship from.
+    {
+      name: "IDX_fg_location_medusa_stock_location_unique",
+      on: ["medusa_stock_location_id"],
+      unique: true,
+      where: "deleted_at IS NULL AND medusa_stock_location_id IS NOT NULL",
+    },
   ]);
 
 /** An FG receipt keeps full traceability back to the MO and packing (FR-FG-002). */

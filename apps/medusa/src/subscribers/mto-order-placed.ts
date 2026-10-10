@@ -2,6 +2,7 @@ import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { isEnabled } from "../lib/feature-flags";
+import { lineQuantity } from "../lib/medusa-number";
 import { MANUFACTURING_MODULE } from "../modules/manufacturing";
 import type ManufacturingModuleService from "../modules/manufacturing/service";
 
@@ -32,7 +33,7 @@ export default async function mtoOrderPlaced({
     fields: [
       "id",
       "items.id",
-      "items.quantity",
+      "items.detail.quantity",
       "items.variant_sku",
       "items.variant.metadata",
       "items.variant.product.metadata",
@@ -50,7 +51,7 @@ export default async function mtoOrderPlaced({
             order_line_id: item.id as string,
             sku: item.variant_sku as string,
             product_sku: style,
-            qty: Number(item.quantity),
+            qty: lineQuantity(item),
           }
         : null;
     })

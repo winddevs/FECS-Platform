@@ -10,6 +10,7 @@ import {
   type OrderLike,
 } from "../../lib/fulfillment/build-request";
 import { createCarrierShipment } from "../../lib/fulfillment/create-shipment";
+import { lineQuantity, toNumber } from "../../lib/medusa-number";
 import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
 import type FinishedGoodsModuleService from "../../modules/finishedGoods/service";
 import { FASHION_FULFILLMENT_MODULE } from "../../modules/fulfillment";
@@ -39,6 +40,7 @@ const loadFulfillmentContext = async (
     entity: "order",
     fields: [
       "id",
+      "version",
       "display_id",
       "total",
       "shipping_address.*",
@@ -47,7 +49,8 @@ const loadFulfillmentContext = async (
       "fulfillments.location_id",
       "fulfillments.items.*",
       "fulfillments.delivery_address.*",
-      "items.quantity",
+      "items.id",
+      "items.detail.quantity",
     ],
     filters: { id: input.order_id },
   });
@@ -81,8 +84,8 @@ const loadFulfillmentContext = async (
     payment_status: paid ? "paid" : "not_paid",
     shipping_address: order.shipping_address,
     units_ordered: (order.items ?? []).reduce(
-      (sum: number, item: { quantity?: number }) =>
-        sum + Number(item.quantity ?? 0),
+      (sum: number, item: Parameters<typeof lineQuantity>[0]) =>
+        sum + lineQuantity(item),
       0
     ),
     units_in_other_shipments: active.reduce(
@@ -160,17 +163,12 @@ export const shipFinishedGoodsForFulfillmentStep = wrapStep(
     const shipped: string[] = [];
     const failed: Array<{ sku: string; error: string }> = [];
     if (!location) {
-      return {
-        shipped,
-        failed: [
-          {
-            sku: "*",
-            error: `no FG location mapped to stock location ${stockLocationId}`,
-          },
-        ],
-      };
+      failed.push({
+        sku: "*",
+        error: `no FG location mapped to stock location ${stockLocationId}`,
+      });
     }
-    for (const item of context.fulfillment.items ?? []) {
+    for (const item of location ? (context.fulfillment.items ?? []) : []) {
       if (!item.sku || !item.quantity) {
         continue;
       }
@@ -180,8 +178,8 @@ export const shipFinishedGoodsForFulfillmentStep = wrapStep(
           correlation_id: input.correlation_id,
           idempotency_key: `ful:${input.fulfillment_id}:${item.sku}`,
           sku: item.sku,
-          location_id: location.id,
-          qty: Number(item.quantity),
+          location_id: (location as { id: string }).id,
+          qty: toNumber(item.quantity),
           reference_type: "FULFILLMENT",
           reference_id: input.fulfillment_id,
           order_id: input.order_id,
@@ -193,6 +191,15 @@ export const shipFinishedGoodsForFulfillmentStep = wrapStep(
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    }
+    if (failed.length > 0) {
+      // Shipping must not be blocked by a stock discrepancy, but it must never
+      // be silent either: warehouse and finance reconcile from this line.
+      c.resolve<{ error: (message: string) => void }>("logger").error(
+        `[fulfillment] FG ship-out incomplete for fulfillment ${input.fulfillment_id}: ${failed
+          .map((f) => `${f.sku}: ${f.error}`)
+          .join("; ")}`
+      );
     }
     return { shipped, failed };
   }

@@ -2,6 +2,7 @@ import type {
   CarrierParty,
   CreateShipmentRequest,
 } from "../../integrations/carrier/provider";
+import { toNumber } from "../medusa-number";
 
 type AddressLike = {
   first_name?: string | null;
@@ -76,11 +77,11 @@ export const buildShipmentRequest = (
 ): CreateShipmentRequest => {
   const items = (fulfillment.items ?? []).map((item) => ({
     name: item.title ?? item.sku ?? "Item",
-    qty: Number(item.quantity ?? 1),
+    qty: toNumber(item.quantity, 1),
     sku: item.sku ?? null,
   }));
   const units = items.reduce((sum, item) => sum + item.qty, 0);
-  const orderTotal = Number(order.total ?? 0);
+  const orderTotal = toNumber(order.total);
   const { value: total, last } = shareOfOrder(order, units, orderTotal);
   const unpaid =
     order.payment_status !== "captured" && order.payment_status !== "paid";

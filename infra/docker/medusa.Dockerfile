@@ -26,7 +26,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 COPY apps/medusa apps/medusa
 ENV NODE_OPTIONS=--max-old-space-size=4096
-RUN pnpm --filter medusa build
+# The build type-checks everything; pre-existing template code still reports
+# type-only errors (see scripts/check-build-errors.mjs). Any error outside that
+# known legacy code fails the build.
+RUN pnpm --filter medusa build > /tmp/build.log 2>&1 || true; \
+    tail -5 /tmp/build.log; \
+    cd apps/medusa && node scripts/check-build-errors.mjs /tmp/build.log
 
 # Production-only node_modules (workspace packages are materialised, not linked).
 RUN pnpm --filter medusa deploy --prod --legacy /out \

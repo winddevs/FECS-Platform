@@ -8,6 +8,7 @@ import { FASHION_FULFILLMENT_MODULE } from "../../modules/fulfillment";
 import type FulfillmentModuleService from "../../modules/fulfillment/service";
 import { MANUFACTURING_MODULE } from "../../modules/manufacturing";
 import type ManufacturingModuleService from "../../modules/manufacturing/service";
+import { toNumber } from "../medusa-number";
 import { productionStatusForOrder } from "../mto/production-status";
 import { signCheckoutToken } from "./checkout-link";
 import type { SocialReaders } from "./tools";
@@ -35,7 +36,15 @@ export const createMedusaReaders = (
     async findOrder(customerId, ref) {
       const { data } = await query.graph({
         entity: "order",
-        fields: ["id", "display_id", "total", "currency_code", "created_at"],
+        // `version` is required for Medusa to compute `total` on filtered queries.
+        fields: [
+          "id",
+          "version",
+          "display_id",
+          "total",
+          "currency_code",
+          "created_at",
+        ],
         filters: {
           customer_id: customerId,
           ...(ref ? { display_id: Number(ref) } : {}),
@@ -47,7 +56,7 @@ export const createMedusaReaders = (
         ? {
             id: order.id,
             display_id: order.display_id,
-            total: order.total,
+            total: toNumber(order.total),
             currency_code: order.currency_code,
           }
         : null;
@@ -92,10 +101,29 @@ export const createMedusaReaders = (
     },
     async createCheckoutLink(customerId, sku, qty) {
       const secret = env.SOCIAL_LINK_SECRET;
-      const regionId = env.SOCIAL_REGION_ID;
       const storefront = env.STOREFRONT_URL;
-      const salesChannelId = env.SOCIAL_SALES_CHANNEL_ID;
-      if (!secret || !regionId || !storefront || !salesChannelId) {
+      if (!secret || !storefront) {
+        return null;
+      }
+      // Region and sales channel default to the store's own when not pinned.
+      const regionId =
+        env.SOCIAL_REGION_ID ??
+        (
+          await query.graph({
+            entity: "region",
+            fields: ["id"],
+            pagination: { take: 1 },
+          })
+        ).data[0]?.id;
+      const salesChannelId =
+        env.SOCIAL_SALES_CHANNEL_ID ??
+        (
+          await query.graph({
+            entity: "store",
+            fields: ["default_sales_channel_id"],
+          })
+        ).data[0]?.default_sales_channel_id;
+      if (!regionId || !salesChannelId) {
         return null;
       }
       // Only published products can be bought, exactly like product search.

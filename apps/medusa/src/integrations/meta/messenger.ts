@@ -17,7 +17,12 @@ export type MetaConfig = {
 };
 
 const DEFAULT_TIMEOUT_MS = 8000;
-const GRAPH_HOST = "https://graph.facebook.com";
+/** Overridable so the local docker stack can point at a mock Graph API. */
+const graphHost = (): string =>
+  (process.env.META_GRAPH_BASE_URL || "https://graph.facebook.com").replace(
+    /\/$/,
+    ""
+  );
 
 /**
  * Meta Messenger adapter. Secrets (app secret, page tokens) are read from
@@ -125,7 +130,7 @@ export class MetaMessengerChannel implements MessageChannel {
     let response: Response;
     try {
       response = await fetch(
-        `${GRAPH_HOST}/${this.config.graphVersion}/me/messages`,
+        `${graphHost()}/${this.config.graphVersion}/me/messages`,
         {
           method: "POST",
           headers: {

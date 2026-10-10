@@ -54,7 +54,9 @@ export type CarrierErrorKind = "RETRYABLE" | "AMBIGUOUS" | "FINAL";
 export class CarrierError extends Error {
   constructor(
     public readonly kind: CarrierErrorKind,
-    message: string
+    message: string,
+    /** HTTP status when the error came from a response, else undefined. */
+    public readonly httpStatus?: number
   ) {
     super(message);
     this.name = "CarrierError";

@@ -127,7 +127,8 @@ export const refundReturnWorkflow = createWorkflow(
       action: "returns.refund",
       resource_type: "return_authorization",
       resource_id: input.return_id,
-      after: { payment_id: input.payment_id, amount: input.amount ?? null },
+      after: { payment_id: input.payment_id, amount: input.amount },
+      reason: input.note ?? null,
       correlation_id: input.correlation_id ?? null,
     }));
     recordAuditStep(audit);

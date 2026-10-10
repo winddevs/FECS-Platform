@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
+import { OUTBOX_ALERT_ATTEMPTS } from "../../../lib/outbox/outbox";
 import { OUTBOX_TABLES } from "../../../lib/retention";
 
 type Knex = {
@@ -63,6 +64,13 @@ export async function GET(
       `SELECT count(*)::int AS n FROM "${table}" WHERE status = 'FAILED' AND deleted_at IS NULL`
     );
     out.push(line("fashion_outbox_failed", labels, f.n));
+    // Rows that keep failing to publish (they retry forever, so this is the
+    // signal that the event bus has been unavailable for a while).
+    const [stuck] = await rows(
+      `SELECT count(*)::int AS n FROM "${table}"
+       WHERE status = 'PENDING' AND attempts >= ${OUTBOX_ALERT_ATTEMPTS} AND deleted_at IS NULL`
+    );
+    out.push(line("fashion_outbox_retrying_stuck", labels, stuck.n));
   }
 
   out.push("# TYPE fashion_inbox_events gauge");

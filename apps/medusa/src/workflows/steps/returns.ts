@@ -21,6 +21,7 @@ import {
   evaluateReturnEligibility,
   type RequestedItem,
 } from "../../modules/returns/lib/eligibility";
+import { returnedValue } from "../../modules/returns/lib/refund-cap";
 import type ReturnsModuleService from "../../modules/returns/service";
 import type { InspectItemInput } from "../../modules/returns/types";
 import { wrapStep, type Resolver } from "./wrap";
@@ -81,13 +82,44 @@ export const requestReturnStep = wrapStep(
     }
     const purchased: Record<string, number> = {};
     const finalSale: string[] = [];
+    const skuByLine = new Map<string, string>();
     for (const item of order.items ?? []) {
       purchased[item.id] = Number(item.quantity);
+      if (item.variant_sku) {
+        skuByLine.set(item.id, item.variant_sku);
+      }
       const flag =
         item.variant?.metadata?.final_sale ??
         item.variant?.product?.metadata?.final_sale;
       if ((flag === true || flag === "true") && item.variant_sku) {
         finalSale.push(item.variant_sku);
+      }
+    }
+    // The SKU decides final-sale policy and where returned stock is posted, so
+    // it comes from the order line, never from the request.
+    const trustedItems: RequestedItem[] = input.items.map((item) => {
+      const sku = skuByLine.get(item.order_line_id);
+      if (!sku) {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `Order line ${item.order_line_id} is not part of this order or has no SKU`
+        );
+      }
+      return { ...item, sku };
+    });
+    if (input.exchange_sku) {
+      const { data: variants } = await query.graph({
+        entity: "product_variant",
+        fields: ["id", "sku"],
+        filters: { sku: input.exchange_sku },
+      });
+      if (variants.length === 0) {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `Exchange SKU ${input.exchange_sku} does not exist`
+        );
       }
     }
     const shipments = await c
@@ -110,10 +142,11 @@ export const requestReturnStep = wrapStep(
         already_returned: await rma(c).alreadyReturned(input.order_id),
         final_sale_skus: finalSale,
       },
-      input.items
+      trustedItems
     );
     return await rma(c).requestReturn({
       ...input,
+      items: trustedItems,
       customer_id: order.customer_id ?? input.customer_id ?? null,
       eligibility,
     });
@@ -297,39 +330,166 @@ export const inspectAndPostStep = wrapStep(
   }
 );
 
-/** Refund is executed by Medusa's payment workflow; we gate it and record the outcome. */
+type RefundRequest = Actor & {
+  return_id: string;
+  payment_id: string;
+  amount: number;
+  note?: string | null;
+};
+
+/** Marker stored in the refund note so an unresolved refund can be found again. */
+const refundMarker = (returnId: string) => `rma:${returnId}`;
+
+/** Does the payment already carry a refund created for this RMA? */
+const hasMarkedRefund = async (
+  c: Resolver,
+  paymentId: string,
+  returnId: string
+): Promise<boolean> => {
+  const query = c.resolve<QueryGraph>(ContainerRegistrationKeys.QUERY);
+  const { data } = await query.graph({
+    entity: "payment",
+    fields: ["id", "refunds.id", "refunds.note"],
+    filters: { id: paymentId },
+  });
+  const refunds: Array<{ note?: string | null }> = data[0]?.refunds ?? [];
+  return refunds.some((r) => r.note?.startsWith(refundMarker(returnId)));
+};
+
+/**
+ * Refund is executed by Medusa's payment workflow; we gate it and record the
+ * outcome. The payment must belong to the RMA's order, the amount is capped by
+ * the value of the returned pieces, and only one caller can win the
+ * NONE/FAILED -> REQUESTED step. If an earlier attempt was left unresolved,
+ * the payment is checked for a refund tagged with this RMA before refunding
+ * again, so a crash can never lead to a second refund.
+ */
 export const refundReturnStep = wrapStep(
   "returns-refund",
-  async (
-    i: Actor & {
-      return_id: string;
-      payment_id: string;
-      amount?: number | null;
-      note?: string | null;
-    },
-    c
-  ) => {
-    const requested = await rma(c).requestRefund(i);
+  async (i: RefundRequest, c) => {
+    const [authorization] = await rma(c).listReturnAuthorizations({
+      id: i.return_id,
+    });
+    if (!authorization) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Return not found"
+      );
+    }
+    const items = await rma(c).listReturnItems({ return_id: i.return_id });
+    const query = c.resolve<QueryGraph>(ContainerRegistrationKeys.QUERY);
+    const { data } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "items.id",
+        "items.quantity",
+        "items.total",
+        "items.unit_price",
+        "payment_collections.payments.id",
+      ],
+      filters: { id: authorization.order_id },
+    });
+    const order = data[0];
+    const paymentIds: string[] = (order?.payment_collections ?? []).flatMap(
+      (collection: { payments?: Array<{ id: string }> }) =>
+        (collection.payments ?? []).map((p) => p.id)
+    );
+    if (!paymentIds.includes(i.payment_id)) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "That payment does not belong to the order of this return"
+      );
+    }
+    const lineById = new Map<
+      string,
+      { quantity: number; total: number; unit_price: number }
+    >(
+      (order?.items ?? []).map(
+        (line: {
+          id: string;
+          quantity: number;
+          total?: number;
+          unit_price: number;
+        }) => [
+          line.id,
+          {
+            quantity: Number(line.quantity),
+            total: Number(line.total ?? line.unit_price * line.quantity),
+            unit_price: Number(line.unit_price),
+          },
+        ]
+      )
+    );
+    const returned = returnedValue(
+      items.map((item) => {
+        const line = lineById.get(item.order_line_id);
+        return {
+          qty: Number(item.qty),
+          // Per-piece value including tax and discounts when available.
+          unit_total: line ? line.total / Math.max(1, line.quantity) : 0,
+        };
+      })
+    );
+
+    const requested = await rma(c).requestRefund({
+      actor_id: i.actor_id,
+      correlation_id: i.correlation_id,
+      return_id: i.return_id,
+      payment_id: i.payment_id,
+      amount: i.amount,
+      returned_value: returned,
+    });
     if (requested.replay) {
       return requested;
+    }
+    if (
+      requested.needs_reconcile &&
+      (await hasMarkedRefund(c, i.payment_id, i.return_id))
+    ) {
+      return await rma(c).completeRefund({
+        actor_id: i.actor_id,
+        correlation_id: i.correlation_id,
+        return_id: i.return_id,
+        ok: true,
+      });
     }
     try {
       await refundPaymentWorkflow(c as never).run({
         input: {
           payment_id: i.payment_id,
           created_by: i.actor_id,
-          amount: i.amount ?? undefined,
-          note: i.note ?? undefined,
+          amount: i.amount,
+          note: `${refundMarker(i.return_id)}${i.note ? ` ${i.note}` : ""}`,
         },
       });
     } catch (error) {
+      // The provider may have refunded before failing: only mark FAILED when
+      // no tagged refund exists, otherwise a retry would double refund.
+      const refunded = await hasMarkedRefund(
+        c,
+        i.payment_id,
+        i.return_id
+      ).catch(() => false);
       await rma(c).completeRefund({
-        ...i,
-        ok: false,
+        actor_id: i.actor_id,
+        correlation_id: i.correlation_id,
+        return_id: i.return_id,
+        ok: refunded,
         error: (error as Error).message,
       });
-      throw error;
+      if (!refunded) {
+        throw error;
+      }
+      return { id: i.return_id, refund_status: "COMPLETED" };
     }
-    return await rma(c).completeRefund({ ...i, ok: true });
+    return await rma(c).completeRefund({
+      actor_id: i.actor_id,
+      correlation_id: i.correlation_id,
+      return_id: i.return_id,
+      ok: true,
+    });
   }
 );

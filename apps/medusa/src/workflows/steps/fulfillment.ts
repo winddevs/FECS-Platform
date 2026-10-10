@@ -36,25 +36,52 @@ export const cancelCarrierShipmentStep = wrapStep(
     },
     c
   ) => {
-    const [shipment] = await svc(c).listCarrierShipments({
-      id: input.shipment_id,
-    });
-    if (!shipment) {
-      throw domainError(
-        MedusaError.Types.NOT_FOUND,
-        ErrorCodes.NOT_FOUND,
-        "Shipment not found"
-      );
+    // 1. Decide under the row lock BEFORE touching the carrier.
+    const shipment = await svc(c).assertCancellable(input.shipment_id);
+    if (shipment.already_cancelled) {
+      return { applied: false as const, reason: "ALREADY_CANCELLED" };
     }
-    if (shipment.tracking_number) {
-      await getCarrierProvider(shipment.carrier_code).cancelShipment(
-        shipment.tracking_number
-      );
+    const provider = getCarrierProvider(shipment.carrier_code);
+
+    // 2. Find out whether a parcel exists. A creation that is still unresolved
+    // (no tracking number yet) is reconciled by merchant reference first; if
+    // the carrier cannot answer, the cancel is refused rather than guessed.
+    let tracking = shipment.tracking_number;
+    if (
+      !tracking &&
+      (shipment.create_state === "UNKNOWN" ||
+        shipment.create_state === "PENDING")
+    ) {
+      let found;
+      try {
+        found = await provider.findByMerchantReference(
+          shipment.merchant_reference
+        );
+      } catch {
+        throw domainError(
+          MedusaError.Types.UNEXPECTED_STATE,
+          ErrorCodes.INVALID_STATE,
+          "The carrier could not confirm whether a parcel exists; retry the cancel"
+        );
+      }
+      if (found) {
+        await svc(c).recordCreateOutcome({
+          actor_id: input.actor_id,
+          correlation_id: input.correlation_id,
+          shipment_id: shipment.id,
+          outcome: { kind: "SUCCESS", ...found },
+        });
+        tracking = found.tracking_number;
+      }
     }
+    if (tracking) {
+      await provider.cancelShipment(tracking);
+    }
+
+    // 3. Mark it cancelled; from now on no job may create it.
     return await svc(c).markCancelled(input);
   }
 );
-
 export type SerializedCarrierEvent = {
   tracking_number: string;
   carrier_status: string;

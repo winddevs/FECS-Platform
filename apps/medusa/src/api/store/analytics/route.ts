@@ -56,7 +56,6 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     console.error("Analytics tracking error:", error);
     res.status(500).json({
       error: "Failed to track analytics event",
-      details: error.message,
     });
   }
 };

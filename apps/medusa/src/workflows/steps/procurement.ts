@@ -35,6 +35,29 @@ export const transitionPurchaseOrderStep = createStep(
 );
 
 /** Records the receipt; compensation voids it if inventory posting fails. */
+/**
+ * Decides the fate of a receipt that is still PENDING_INVENTORY. Stock is the
+ * part that cannot be undone here, so the ledger decides:
+ * - stock was already posted -> roll the receipt forward to POSTED (voiding it
+ *   would roll the PO back while the stock stays);
+ * - nothing was posted -> void it and restore the PO quantities.
+ */
+export const settlePendingReceipt = async (
+  c: Resolver,
+  receiptId: string
+): Promise<"POSTED" | "VOID"> => {
+  const posted = await inventory(c).listMaterialStockMovements(
+    { reference_type: "GOODS_RECEIPT", reference_id: receiptId },
+    { take: 1 }
+  );
+  if (posted.length > 0) {
+    await procurement(c).markGoodsReceiptPosted(receiptId);
+    return "POSTED";
+  }
+  await procurement(c).voidGoodsReceipt(receiptId);
+  return "VOID";
+};
+
 export const postGoodsReceiptStep = createStep(
   "procurement-post-goods-receipt",
   async (input: PostGoodsReceiptInput, { container }) => {
@@ -43,7 +66,7 @@ export const postGoodsReceiptStep = createStep(
   },
   async (receiptId, { container }) => {
     if (receiptId) {
-      await procurement(container).voidGoodsReceipt(receiptId);
+      await settlePendingReceipt(container, receiptId);
     }
   }
 );

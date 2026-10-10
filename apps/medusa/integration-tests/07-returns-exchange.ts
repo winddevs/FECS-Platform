@@ -240,6 +240,15 @@ export default async function test({ container }: ExecArgs) {
   assert(rd.result.stock_posted === false, "scrap posts no stock");
   [state] = await rma.listReturnAuthorizations({ id: req.id });
   assert(state.status === "INSPECTED", "all items inspected -> INSPECTED");
+  // Retrying the LAST inspection (e.g. after a stock posting failure) must be a
+  // replay, not "the return is no longer RECEIVED".
+  const lastRetry = await rma.inspectReturnItem({
+    ...actor,
+    idempotency_key: k("insp-d-retry"),
+    return_item_id: d.id,
+    disposition: "SCRAP",
+  });
+  assert(lastRetry.replay === true, "retry of the last inspection is a replay");
 
   console.log("# refund gate and close");
   const early = await rma.requestReturn({
@@ -250,17 +259,52 @@ export default async function test({ container }: ExecArgs) {
   });
   await expectFail(
     () =>
-      rma.requestRefund({ ...actor, return_id: early.id, payment_id: "pay_1" }),
+      rma.requestRefund({
+        ...actor,
+        return_id: early.id,
+        payment_id: "pay_1",
+        amount: 10,
+        returned_value: 1000,
+      }),
     "after return QC",
     "no refund before return QC"
   );
-  const refund = await rma.requestRefund({
-    ...actor,
-    return_id: req.id,
-    payment_id: "pay_1",
-    amount: 100,
-  });
-  assert(refund.refund_status === "REQUESTED", "refund requested after QC");
+  await expectFail(
+    () =>
+      rma.requestRefund({
+        ...actor,
+        return_id: req.id,
+        payment_id: "pay_1",
+        amount: 5000,
+        returned_value: 300,
+      }),
+    "exceeds the refundable value",
+    "refund above the value of the returned pieces is refused"
+  );
+  // Two concurrent refund requests: exactly one may reach the provider.
+  const racers = await Promise.allSettled(
+    Array.from({ length: 4 }, () =>
+      rma.requestRefund({
+        ...actor,
+        return_id: req.id,
+        payment_id: "pay_1",
+        amount: 100,
+        returned_value: 300,
+      })
+    )
+  );
+  assert(
+    racers.filter((r) => r.status === "fulfilled").length === 1,
+    "only one of 4 concurrent refund requests wins the compare-and-set"
+  );
+  assert(
+    racers
+      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      .every((r) => String(r.reason?.message).includes("already in progress")),
+    "the others are told a refund is in progress"
+  );
+  [state] = await rma.listReturnAuthorizations({ id: req.id });
+  assert(state.refund_status === "REQUESTED", "refund is REQUESTED");
   const done = await rma.completeRefund({
     ...actor,
     return_id: req.id,
@@ -275,6 +319,8 @@ export default async function test({ container }: ExecArgs) {
         ...actor,
         return_id: req.id,
         payment_id: "pay_1",
+        amount: 100,
+        returned_value: 300,
       })
     ).replay === true,
     "refund cannot be requested twice"

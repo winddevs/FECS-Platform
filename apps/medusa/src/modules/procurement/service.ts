@@ -20,7 +20,7 @@ import {
   type OutboxPublishFn,
 } from "../../lib/outbox/outbox";
 import { assertPositiveQty, fromUnits, toUnits } from "../../lib/quantity";
-import type { SqlExecutor } from "../../lib/sql";
+import { safeTable, type SqlExecutor } from "../../lib/sql";
 import { GoodsReceipt, GoodsReceiptLine } from "./models/goods-receipt";
 import {
   PROCUREMENT_IDEMPOTENCY_TABLE,
@@ -563,8 +563,9 @@ class ProcurementModuleService extends MedusaService({
       id: string;
       status: string;
       purchase_order_id: string;
+      idempotency_key: string | null;
     }>(
-      `SELECT id, status, purchase_order_id FROM "goods_receipt"
+      `SELECT id, status, purchase_order_id, idempotency_key FROM "goods_receipt"
        WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
       [goodsReceiptId]
     );
@@ -602,7 +603,31 @@ class ProcurementModuleService extends MedusaService({
     }
     await this.applyReceiptToPo(ctx, po.id, poLines, qtyByLine, -1);
     await this.updateGoodsReceipts({ id: goodsReceiptId, status: "VOID" }, ctx);
+    // The voided receipt must not be replayed to a client that retries with
+    // the same key: forget the key so the retry posts a fresh receipt.
+    if (receipt.idempotency_key) {
+      await ex.execute(
+        `DELETE FROM ${safeTable(PROCUREMENT_IDEMPOTENCY_TABLE)}
+         WHERE scope = 'post-grn' AND idempotency_key = ?`,
+        [receipt.idempotency_key]
+      );
+    }
     return { id: goodsReceiptId, status: "VOID" };
+  }
+
+  /** Receipts whose inventory posting never completed (crashed workflow). */
+  @InjectTransactionManager()
+  async listStalePendingReceipts(
+    input: { older_than_seconds: number; limit: number },
+    @MedusaContext() ctx: Context = {}
+  ): Promise<Array<{ id: string; receipt_no: string }>> {
+    return await this.executor(ctx).execute<{ id: string; receipt_no: string }>(
+      `SELECT id, receipt_no FROM "goods_receipt"
+       WHERE status = 'PENDING_INVENTORY' AND deleted_at IS NULL
+         AND created_at < now() - (? || ' seconds')::interval
+       ORDER BY created_at LIMIT ?`,
+      [String(input.older_than_seconds), input.limit]
+    );
   }
 
   /** Confirmed incoming quantity (ordered - received) of open POs per material. */

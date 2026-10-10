@@ -1,6 +1,6 @@
 # Runbook: outbox backlog / events not flowing
 
-**Alerts:** `OutboxLagHigh`, `OutboxEventsFailed`.
+**Alerts:** `OutboxLagHigh`, `OutboxPublishRetriesStuck`, `OutboxEventsFailed`.
 **Impact:** domain state is correct and durable; downstream reactions (Medusa
 stock sync, notifications) are delayed. Nothing is lost.
 
@@ -9,9 +9,14 @@ stock sync, notifications) are delayed. Nothing is lost.
    job runs every 2s on each worker.
 3. Redis down? The event bus needs Redis; check `REDIS_URL` health. Events stay
    in the outbox and drain when it returns.
-4. `FAILED` rows (10 attempts exhausted): read `last_error` on the row. Fix the
-   cause (usually a bad subscriber), then reset:
-   `UPDATE <table> SET status='PENDING', attempts=0, available_at=now() WHERE status='FAILED';`
+4. Publishing never gives up: a row whose publish fails stays `PENDING` and
+   retries with a backoff capped at 5 minutes, so an event bus outage of any
+   length loses nothing. `OutboxPublishRetriesStuck` fires when rows have failed
+   10+ times; read `last_error` on the row (usually the bus or a bad subscriber).
+   Events of one aggregate are published in order, so one stuck row also holds
+   back later events of the same aggregate (that is intended).
+   `FAILED` is only used when an operator parks a poison event by hand; to
+   release those: `UPDATE <table> SET status='PENDING', attempts=0, available_at=now() WHERE status='FAILED';`
 5. Scale workers (`kubectl scale deploy medusa-worker --replicas=N`); claiming
    uses `SKIP LOCKED`, so extra replicas just add throughput.
 

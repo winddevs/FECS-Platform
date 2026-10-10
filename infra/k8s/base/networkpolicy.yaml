@@ -22,6 +22,21 @@ spec:
             matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
       ports: [{ port: 9000 }]
 ---
+# Prometheus scrapes /internal/metrics (token protected) from its own namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: medusa, app.kubernetes.io/component: server }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: monitoring }
+      ports: [{ port: 9000 }]
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -37,3 +52,5 @@ spec:
     - ports: [{ port: 5432 }, { port: 6379 }, { port: 6380 }]
     # HTTPS to providers: J&T, Meta Graph API, S3, email, payment, Sentry/OTLP
     - ports: [{ port: 443 }]
+    # OTLP traces to an in-cluster collector (gRPC 4317, HTTP 4318)
+    - ports: [{ port: 4317 }, { port: 4318 }]

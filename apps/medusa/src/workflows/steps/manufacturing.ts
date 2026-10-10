@@ -6,6 +6,7 @@ import {
 } from "@medusajs/framework/workflows-sdk";
 
 import { domainError, ErrorCodes } from "../../lib/errors";
+import { fromUnits, toUnits } from "../../lib/quantity";
 import { MANUFACTURING_MODULE } from "../../modules/manufacturing";
 import type ManufacturingModuleService from "../../modules/manufacturing/service";
 import type {
@@ -143,6 +144,7 @@ export const checkMaterialStep = wrap(
 );
 
 type ReserveInput = MoActor & { planner_approved?: boolean };
+/** Per requirement: what the MO now holds in total (new and pre-existing). */
 type Reserved = Array<{
   material_id: string;
   reservation_id: string;
@@ -151,8 +153,15 @@ type Reserved = Array<{
 
 /**
  * Manufacturing never touches stock directly (FR-MFG-004): it asks Material
- * Inventory to reserve. If any requirement fails, reservations already made by
- * this step are released before the error is rethrown.
+ * Inventory to reserve.
+ *
+ * Inventory is the source of truth for what the MO already holds. Only the
+ * missing quantity is reserved, under a key that includes how many
+ * reservations this MO/material has had so far. A retry after a compensated
+ * attempt therefore gets a fresh reservation instead of replaying the
+ * released one, while a retry of the same attempt still replays safely.
+ * If a requirement fails, only reservations created by this attempt are
+ * released before the error is rethrown.
  */
 export const reserveMoMaterialsStep = createStep(
   "mfg-reserve-materials",
@@ -160,62 +169,84 @@ export const reserveMoMaterialsStep = createStep(
     const requirements = await mfg(container).listMoMaterialRequirements({
       mo_id: input.mo_id,
     });
-    const made: Reserved = [];
+    const created: Array<{ reservation_id: string }> = [];
+    const totals: Reserved = [];
     const actor = {
       actor_id: input.actor_id,
       correlation_id: input.correlation_id,
     };
     try {
       for (const req of requirements) {
-        const missing = Number(req.required_qty) - Number(req.reserved_qty);
+        const existing = await inv(container).reservationsForReference(
+          "MO",
+          input.mo_id,
+          req.material_id
+        );
+        // Quantity still held for the MO, including what was already issued.
+        const held = existing.reduce(
+          (sum, r) => sum + toUnits(r.requested) - toUnits(r.released),
+          0
+        );
+        const missing = toUnits(req.required_qty) - held;
+        const withStock = existing.filter((r) => r.outstanding > 0);
+        const latest = withStock[withStock.length - 1];
         if (missing <= 0) {
-          made.push({
+          totals.push({
             material_id: req.material_id,
-            reservation_id: req.reservation_id as string,
-            qty: Number(req.reserved_qty),
+            reservation_id: (latest ?? existing[existing.length - 1])
+              ?.id as string,
+            qty: fromUnits(held),
           });
           continue;
         }
         const result = await inv(container).reserveMaterial({
           ...actor,
-          idempotency_key: `mo:${input.mo_id}:reserve:${req.material_id}`,
+          idempotency_key: `mo:${input.mo_id}:reserve:${req.material_id}:${existing.length}`,
           material_id: req.material_id,
-          qty: missing,
+          qty: fromUnits(missing),
           reference_type: "MO",
           reference_id: input.mo_id,
           reference_line: req.id,
           planner_approved: input.planner_approved,
         });
-        made.push({
+        created.push({ reservation_id: result.reservation.id });
+        totals.push({
           material_id: req.material_id,
           reservation_id: result.reservation.id,
-          qty: Number(req.reserved_qty) + missing,
+          qty: fromUnits(held + missing),
         });
       }
     } catch (error) {
-      await releaseAll(container, made, actor, input.mo_id);
+      await releaseCreated(container, created, actor, input.mo_id);
       throw error;
     }
-    return new StepResponse(made, {
-      made,
+    return new StepResponse(totals, {
+      created,
       actor,
       mo_id: input.mo_id,
     });
   },
   async (comp, { container }) => {
     if (comp) {
-      await releaseAll(container, comp.made, comp.actor, comp.mo_id);
+      await releaseCreated(container, comp.created, comp.actor, comp.mo_id);
     }
   }
 );
 
-const releaseAll = async (
+const releaseCreated = async (
   c: Resolver,
-  reservations: Reserved,
+  reservations: Array<{ reservation_id: string }>,
   actor: { actor_id: string; correlation_id?: string | null },
   moId: string
 ): Promise<void> => {
   for (const r of reservations) {
+    const [row] = (await inv(c).reservationsForReference("MO", moId)).filter(
+      (x) => x.id === r.reservation_id
+    );
+    // Already released or issued (e.g. compensation ran twice): nothing to do.
+    if (!row || row.outstanding <= 0) {
+      continue;
+    }
     await inv(c).releaseReservation({
       ...actor,
       idempotency_key: `mo:${moId}:release:${r.reservation_id}`,
@@ -232,35 +263,28 @@ export const recordReservationsStep = wrap(
 );
 
 // ---- cancel ---------------------------------------------------------------
+/**
+ * Runs AFTER the MO is cancelled. The cancel itself validates first (state,
+ * stranded material, open WIP), so a refused cancel never touches stock.
+ * Releasing is driven by inventory's own records and is safe to repeat.
+ */
 export const releaseMoReservationsStep = wrap(
   "mfg-release-reservations",
   async (i: MoActor, c) => {
-    const requirements = await mfg(c).listMoMaterialRequirements({
-      mo_id: i.mo_id,
-    });
+    const reservations = await inv(c).reservationsForReference("MO", i.mo_id);
     const released: string[] = [];
-    for (const req of requirements) {
-      if (!req.reservation_id) {
-        continue;
-      }
-      const [reservation] = await inv(c).listMaterialReservations({
-        id: req.reservation_id,
-      });
-      if (
-        !reservation ||
-        reservation.status === "RELEASED" ||
-        reservation.status === "ISSUED"
-      ) {
+    for (const reservation of reservations) {
+      if (reservation.outstanding <= 0) {
         continue;
       }
       await inv(c).releaseReservation({
         actor_id: i.actor_id,
         correlation_id: i.correlation_id,
-        idempotency_key: `mo:${i.mo_id}:cancel-release:${req.reservation_id}`,
-        reservation_id: req.reservation_id,
+        idempotency_key: `mo:${i.mo_id}:cancel-release:${reservation.id}`,
+        reservation_id: reservation.id,
         reason: "manufacturing order cancelled",
       });
-      released.push(req.reservation_id);
+      released.push(reservation.id);
     }
     return released;
   }
@@ -281,29 +305,118 @@ type IssueToMoInput = MoActor & {
   qty: number;
   idempotency_key: string;
 };
-export const issueToMoStep = wrap(
+type IssuedLine = {
+  balance_id: string;
+  roll_id: string | null;
+  qty: number;
+};
+
+/**
+ * Validates against the MO BEFORE any stock moves (state and cap), then issues
+ * from the MO's reservations in order. If a later step fails, the compensation
+ * returns exactly what this step issued.
+ */
+export const issueToMoStep = createStep(
   "mfg-issue-to-mo",
-  async (i: IssueToMoInput, c) => {
-    const [req] = await mfg(c).listMoMaterialRequirements({
+  async (i: IssueToMoInput, { container }) => {
+    await mfg(container).assertCanIssue({
       mo_id: i.mo_id,
       material_id: i.material_id,
+      qty: i.qty,
+      record_idempotency_key: `${i.idempotency_key}:mo`,
     });
-    if (!req?.reservation_id) {
+    const reservations = (
+      await inv(container).reservationsForReference(
+        "MO",
+        i.mo_id,
+        i.material_id
+      )
+    ).filter((r) => r.outstanding > 0);
+    // An earlier attempt of this same request may have issued part of it.
+    const keyPrefix = `${i.idempotency_key}:inventory:`;
+    const already = toUnits(
+      await inv(container).issuedUnderKeyPrefix(keyPrefix)
+    );
+    let remaining = toUnits(i.qty) - already;
+    if (remaining <= 0) {
+      return new StepResponse([] as IssuedLine[], { issued: [], request: i });
+    }
+    if (reservations.length === 0) {
       throw domainError(
         MedusaError.Types.NOT_ALLOWED,
         ErrorCodes.INVALID_STATE,
         "Material is not reserved for this MO"
       );
     }
-    return await inv(c).issueMaterial({
+    const issued: IssuedLine[] = [];
+    const actor = {
       actor_id: i.actor_id,
       correlation_id: i.correlation_id,
-      idempotency_key: `${i.idempotency_key}:inventory`,
-      reservation_id: req.reservation_id,
-      qty: i.qty,
-    });
+    };
+    try {
+      for (const reservation of reservations) {
+        if (remaining <= 0) {
+          break;
+        }
+        const take = Math.min(toUnits(reservation.outstanding), remaining);
+        const result = await inv(container).issueMaterial({
+          ...actor,
+          idempotency_key: `${keyPrefix}${reservation.id}`,
+          reservation_id: reservation.id,
+          qty: fromUnits(take),
+        });
+        issued.push(...result.lines);
+        remaining -= take;
+      }
+      if (remaining > 0) {
+        throw domainError(
+          MedusaError.Types.NOT_ALLOWED,
+          ErrorCodes.INSUFFICIENT_STOCK,
+          "Cannot issue more than is reserved for this MO"
+        );
+      }
+    } catch (error) {
+      await returnIssuedLines(container, issued, i);
+      throw error;
+    }
+    return new StepResponse(issued, { issued, request: i });
+  },
+  async (comp, { container }) => {
+    if (comp?.issued.length) {
+      await returnIssuedLines(container, comp.issued, comp.request);
+    }
   }
 );
+
+/** Puts back exactly what this step issued (same locations, GOOD bucket). */
+const returnIssuedLines = async (
+  c: Resolver,
+  issued: IssuedLine[],
+  request: IssueToMoInput
+): Promise<void> => {
+  for (const line of issued) {
+    const [balance] = await inv(c).listMaterialBalances({
+      id: line.balance_id,
+    });
+    if (!balance) {
+      continue;
+    }
+    await inv(c).returnMaterial({
+      actor_id: request.actor_id,
+      correlation_id: request.correlation_id ?? null,
+      idempotency_key: `issue-compensation:${request.idempotency_key}:${line.balance_id}`,
+      material_id: balance.material_id,
+      lot_id: balance.lot_id,
+      roll_id: balance.roll_id,
+      location_id: balance.location_id,
+      qty: line.qty,
+      bucket: "GOOD",
+      reference_type: "MO",
+      reference_id: request.mo_id,
+    });
+  }
+};
+
 export const recordMoIssueStep = wrap(
   "mfg-record-issue",
   (i: IssueToMoInput, c) =>
@@ -328,8 +441,28 @@ type CompleteCutRequest = Omit<CompleteCutInput, "settlement"> & {
 export const completeCutStep = wrap(
   "mfg-complete-cut",
   async (i: CompleteCutRequest, c) => {
+    // The fabric being reconciled is the one the cut plan names, never a
+    // client-supplied id: a wrong id would yield an empty settlement.
+    const [plan] = await mfg(c).listCutPlans({ batch_id: i.batch_id });
+    if (!plan) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        "Create a cut plan for this batch before cutting"
+      );
+    }
+    if (
+      i.fabric_material_id &&
+      i.fabric_material_id !== plan.fabric_material_id
+    ) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "fabric_material_id does not match the cut plan of this batch"
+      );
+    }
     const summary = await inv(c).summarizeReference("MO", i.mo_id);
-    const settlement = summary[i.fabric_material_id] ?? {
+    const settlement = summary[plan.fabric_material_id] ?? {
       issued: 0,
       returned: 0,
       scrapped: 0,

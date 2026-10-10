@@ -14,6 +14,7 @@ import {
 import { evaluateOutbound } from "../../modules/socialCommerce/lib/policy";
 import type SocialCommerceModuleService from "../../modules/socialCommerce/service";
 import type { IdentityView } from "../../modules/socialCommerce/service";
+import { flushDeferredNotifications } from "./notify";
 import type { SocialReaders } from "./tools";
 
 export type SocialDeps = {
@@ -92,20 +93,32 @@ export const handleInboundMessage = async (
       bypassPolicy = true; // acknowledge before going silent
       break;
     case "LINK": {
+      // A redelivered LINK message whose identity is already linked means the
+      // first attempt consumed the code but its reply could not be sent. The
+      // code is single-use, so running it again would answer "invalid" and
+      // count a failed attempt toward the lockout.
+      if (recorded.duplicate && identity.customer_id) {
+        reply = t("linked", locale);
+        break;
+      }
       const result = await service.consumeLinkCode({
         identity_id: identity.id,
         code: intent.code,
       });
       if (result.status === "LINKED") {
-        // Linking proves ownership and is the opt-in for transactional updates.
-        await service.setConsent({
-          identity_id: identity.id,
-          status: "OPTED_IN",
-        });
+        // Linking proves ownership and is the opt-in for transactional
+        // updates, but it must never override an explicit opt-out.
+        const optIn = identity.consent_status === "UNKNOWN";
+        if (optIn) {
+          await service.setConsent({
+            identity_id: identity.id,
+            status: "OPTED_IN",
+          });
+        }
         current = {
           ...identity,
           customer_id: result.customer_id ?? null,
-          consent_status: "OPTED_IN",
+          consent_status: optIn ? "OPTED_IN" : identity.consent_status,
         };
         reply = t("linked", locale);
       } else {
@@ -238,5 +251,10 @@ export const handleInboundMessage = async (
     identity_id: identity.id,
     message_id: inbound.message_id,
   });
+  // The customer is reachable again: send what was waiting for the window.
+  await flushDeferredNotifications(
+    { service, channel, now: deps.now },
+    current
+  );
   return { status: "REPLIED", reply, intent: intent.name };
 };

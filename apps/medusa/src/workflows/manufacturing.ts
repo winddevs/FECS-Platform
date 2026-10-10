@@ -196,12 +196,17 @@ export const resumeManufacturingOrderWorkflow = createWorkflow(
   }
 );
 
-/** Releases reservations first, then refuses unless nothing is stranded. */
+/**
+ * Validates and cancels first (state, stranded material, open WIP). Only a
+ * cancelled MO has its reservations released, so a refused cancel never
+ * touches stock. Repeating the call finishes any unfinished release.
+ */
 export const cancelManufacturingOrderWorkflow = createWorkflow(
   "mfg-cancel-mo-workflow",
   function (input: MoActor & { reason: string }) {
-    releaseMoReservationsStep(input);
     const result = cancelMoStep(input);
+    const releaseInput = transform({ input, result }, ({ input }) => input);
+    releaseMoReservationsStep(releaseInput);
     const audit = transform({ input }, ({ input }) => ({
       actor_id: input.actor_id,
       action: "manufacturing.mo.cancel",

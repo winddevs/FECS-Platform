@@ -16,6 +16,7 @@ import {
   type OutboxPublishFn,
 } from "../../lib/outbox/outbox";
 import { assertPositiveQty, fromUnits, toUnits } from "../../lib/quantity";
+import { safeTable } from "../../lib/sql";
 import {
   executorOf,
   flushOf,
@@ -921,6 +922,11 @@ class ManufacturingModuleService extends MedusaService({
     @MedusaContext() ctx: Context = {}
   ) {
     const mo = await this.lockMo(ctx, input.mo_id);
+    // Repeating a cancel must succeed so the workflow can finish releasing
+    // reservations after a partial failure.
+    if (mo.status === "CANCELLED") {
+      return { id: mo.id, status: "CANCELLED" };
+    }
     const stranded = Object.entries(input.settlement)
       .map(([material_id, s]) => ({
         material_id,
@@ -951,6 +957,57 @@ class ManufacturingModuleService extends MedusaService({
     }
     await this.moveMo(ctx, mo, "CANCELLED", input, { notes: input.reason });
     return { id: mo.id, status: "CANCELLED" };
+  }
+
+  /**
+   * Read-only pre-check used BEFORE stock is issued: the MO must be on the
+   * shop floor and the issue must fit what is reserved for it. It does not
+   * replace the check in `recordMaterialIssue`; it only keeps stock from
+   * moving when that check would certainly fail.
+   */
+  @InjectTransactionManager()
+  async assertCanIssue(
+    input: {
+      mo_id: string;
+      material_id: string;
+      qty: number;
+      /** Key the MO-side record will use; an existing one means a replay. */
+      record_idempotency_key?: string;
+    },
+    @MedusaContext() ctx: Context = {}
+  ): Promise<void> {
+    if (input.record_idempotency_key) {
+      const [done] = await executorOf(ctx).execute<{ id: string }>(
+        `SELECT id FROM ${safeTable(MANUFACTURING_IDEMPOTENCY_TABLE)}
+         WHERE scope = 'mo-issue' AND idempotency_key = ? AND deleted_at IS NULL`,
+        [input.record_idempotency_key]
+      );
+      if (done) {
+        return;
+      }
+    }
+    const mo = await this.lockMo(ctx, input.mo_id);
+    this.assertShopFloor(mo);
+    const qty = assertPositiveQty(input.qty);
+    const [req] = await this.listMoMaterialRequirements(
+      { mo_id: mo.id, material_id: input.material_id },
+      {},
+      ctx
+    );
+    if (!req) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "No requirement for that material"
+      );
+    }
+    if (toUnits(req.issued_qty) + qty > toUnits(req.reserved_qty)) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INSUFFICIENT_STOCK,
+        "Cannot issue more than reserved for this MO"
+      );
+    }
   }
 
   @InjectTransactionManager()
@@ -1146,17 +1203,47 @@ class ManufacturingModuleService extends MedusaService({
       );
       await this.updateProductionBatches({ id: batch.id, status: "CUT" }, ctx);
 
-      // Fabric reconciliation.
+      // Fabric reconciliation. Issues are booked per MO, not per batch, so the
+      // book-vs-physical comparison is cumulative: all fabric consumed by the
+      // MO's cut batches against what was issued. It is only meaningful once
+      // the last open batch is cut; earlier batches must merely not consume
+      // more than was issued.
       const consumed = toUnits(input.actual_consumption);
       const issued = toUnits(input.settlement.issued);
-      const explained =
-        consumed +
-        toUnits(input.settlement.returned) +
-        toUnits(input.settlement.scrapped);
-      const variance = issued - explained;
+      const returned = toUnits(input.settlement.returned);
+      const scrapped = toUnits(input.settlement.scrapped);
       const tolerance = Math.floor(
         (issued * (input.tolerance_pct ?? DEFAULT_FABRIC_TOLERANCE_PCT)) / 100
       );
+      if (issued <= 0) {
+        throw domainError(
+          MedusaError.Types.NOT_ALLOWED,
+          ErrorCodes.INVALID_STATE,
+          "No fabric has been issued to this MO; issue it before cutting"
+        );
+      }
+      const [others] = await executorOf(ctx).execute<{
+        consumed: string;
+        open_batches: string;
+      }>(
+        `SELECT
+           COALESCE((SELECT SUM(actual_consumption) FROM "cut_plan"
+                     WHERE mo_id = ? AND status = 'CUT' AND batch_id <> ? AND deleted_at IS NULL), 0) AS consumed,
+           (SELECT count(*) FROM "production_batch"
+            WHERE mo_id = ? AND status = 'OPEN' AND id <> ? AND deleted_at IS NULL) AS open_batches`,
+        [mo.id, batch.id, mo.id, batch.id]
+      );
+      const consumedAll = toUnits(others?.consumed ?? 0) + consumed;
+      if (consumedAll > issued - returned - scrapped + tolerance) {
+        throw domainError(
+          MedusaError.Types.NOT_ALLOWED,
+          ErrorCodes.INVALID_STATE,
+          `Cut would consume ${fromUnits(consumedAll)} of fabric but only ${fromUnits(issued - returned - scrapped)} is still issued to this MO`
+        );
+      }
+      const isLastBatch = Number(others?.open_batches ?? 0) === 0;
+      const explained = consumedAll + returned + scrapped;
+      const variance = isLastBatch ? issued - explained : 0;
       const withinTolerance = Math.abs(variance) <= tolerance;
       const [plan] = await this.listCutPlans({ batch_id: batch.id }, {}, ctx);
       if (plan) {

@@ -92,9 +92,14 @@ export const NotificationLog = model
     dedupe_key: model.text(),
     event_type: model.text(),
     status: model
-      .enum(["PENDING", "SENT", "SKIPPED", "FAILED"])
+      .enum(["PENDING", "SENT", "SKIPPED", "FAILED", "DEFERRED"])
       .default("PENDING"),
     reason: model.text().nullable(),
+    /**
+     * Message body kept while the notification waits (DEFERRED) for the
+     * messaging window to reopen or for a retry after a channel outage.
+     */
+    text: model.text().nullable(),
   })
   .indexes([
     {

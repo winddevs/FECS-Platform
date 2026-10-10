@@ -54,9 +54,28 @@ side effect is idempotent and retried from durable state.
 
 ### Access control
 
-Roles are stored on the admin user (`metadata.fashion_roles`). Grant with
-`pnpm --filter medusa grant-role <email> <ROLE...>`. Users with no role cannot
-call any fashion endpoint. Roles and permissions: `src/lib/authz/permissions.ts`.
+Roles are stored on the admin user (`metadata.fashion_roles`). Grant the first
+ERP_ADMIN from the CLI: `pnpm --filter medusa grant-role <email> <ROLE...>`.
+
+Medusa lets any admin edit `metadata` on `POST /admin/users/:id` and
+`POST /admin/invites`, so writing the `fashion_roles` key is itself guarded: it
+needs the `roles:manage` permission (ERP_ADMIN only). Other metadata stays
+editable by everyone.
+
+Users with no role cannot call any fashion endpoint, and also not the legacy
+commerce admin routes: Algolia/Payload sync, analytics, invoice config and
+invoice PDFs need `commerce:admin` (ERP_ADMIN, COMMERCE_ADMIN) or `order:read`.
+Existing admins who used those screens need a role granted first.
+Roles and permissions: `src/lib/authz/permissions.ts`.
+
+### Sandbox providers
+
+`CARRIER_SANDBOX` / `CHANNEL_SANDBOX` swap in in-process providers (staging, CI).
+They still require a signed webhook: HMAC-SHA256 of the body with
+`SANDBOX_WEBHOOK_SECRET`, in the same header the real provider uses
+(`x-signature` for the carrier, `x-hub-signature-256` for Messenger). Without
+that secret every webhook is rejected, so a mis-set flag in production cannot
+open the webhook routes.
 
 ## Deploying
 

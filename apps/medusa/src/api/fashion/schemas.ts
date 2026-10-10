@@ -516,7 +516,8 @@ export type InspectReturnItemBody = z.infer<typeof InspectReturnItemSchema>;
 
 export const RefundReturnSchema = z.object({
   payment_id: idText,
-  amount: z.number().positive().optional(),
+  // Required: Medusa refunds the whole payment when no amount is given.
+  amount: z.number().positive(),
   note: optionalText(),
 });
 export type RefundReturnBody = z.infer<typeof RefundReturnSchema>;

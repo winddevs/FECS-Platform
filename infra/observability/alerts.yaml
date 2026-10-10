@@ -29,7 +29,14 @@ spec:
           for: 10m
           labels: { severity: ticket }
           annotations:
-            summary: "Outbox {{ $labels.table }} has events that exhausted their retries"
+            summary: "Outbox {{ $labels.table }} has events parked as FAILED"
+            runbook: docs/runbooks/outbox-backlog.md
+        - alert: OutboxPublishRetriesStuck
+          expr: sum by (table) (fashion_outbox_retrying_stuck) > 0
+          for: 10m
+          labels: { severity: page }
+          annotations:
+            summary: "Outbox {{ $labels.table }} has events that failed to publish 10+ times (event bus down?)"
             runbook: docs/runbooks/outbox-backlog.md
         - alert: InboxDeadLetters
           expr: sum by (provider) (fashion_inbox_events{status="DLQ"}) > 0

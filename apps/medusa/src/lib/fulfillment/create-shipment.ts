@@ -65,23 +65,34 @@ export const createCarrierShipment = async (
       return claim.shipment;
     }
     if (found) {
-      return await service.recordCreateOutcome({
+      const recorded = await service.recordCreateOutcome({
         ...actor,
         shipment_id: claim.shipment.id,
         outcome: { kind: "SUCCESS", ...found },
       });
+      await cancelIfCancelledMeanwhile(provider, recorded);
+      return recorded;
     }
-    await service.confirmAbsentAtCarrier(claim.shipment.id);
+    const confirmed = await service.confirmAbsentAtCarrier(claim.shipment.id);
+    if (!confirmed.changed) {
+      // Another worker resolved or cancelled it meanwhile: do not create.
+      return await service.shipmentView(claim.shipment.id);
+    }
     claim = await service.claimShipment(claimInput);
+    if (claim.action !== "CREATE") {
+      return claim.shipment;
+    }
   }
 
   try {
     const created = await provider.createShipment(input.request);
-    return await service.recordCreateOutcome({
+    const recorded = await service.recordCreateOutcome({
       ...actor,
       shipment_id: claim.shipment.id,
       outcome: { kind: "SUCCESS", ...created },
     });
+    await cancelIfCancelledMeanwhile(provider, recorded);
+    return recorded;
   } catch (error) {
     const kind = error instanceof CarrierError ? error.kind : "AMBIGUOUS";
     const message = error instanceof Error ? error.message : String(error);
@@ -99,15 +110,36 @@ export const createCarrierShipment = async (
         input.request.merchant_reference
       );
       if (found) {
-        return await service.recordCreateOutcome({
+        const resolved = await service.recordCreateOutcome({
           ...actor,
           shipment_id: claim.shipment.id,
           outcome: { kind: "SUCCESS", ...found },
         });
+        await cancelIfCancelledMeanwhile(provider, resolved);
+        return resolved;
       }
     } catch {
       // stay UNKNOWN
     }
     return recorded;
+  }
+};
+
+/**
+ * A cancel can win the race against an in-flight create: the shipment is
+ * CANCELLED locally but the carrier then accepted the parcel. Cancel it there
+ * too so no orphan parcel is picked up. Best effort; a failure is logged by the
+ * caller's job and leaves the parcel visible for manual follow-up.
+ */
+const cancelIfCancelledMeanwhile = async (
+  provider: CarrierProvider,
+  shipment: ShipmentView
+): Promise<void> => {
+  if (shipment.status === "CANCELLED" && shipment.tracking_number) {
+    try {
+      await provider.cancelShipment(shipment.tracking_number);
+    } catch {
+      // Left for manual follow-up; the shipment is already CANCELLED locally.
+    }
   }
 };

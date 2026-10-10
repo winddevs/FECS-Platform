@@ -205,6 +205,17 @@ class FulfillmentModuleService extends MedusaService({
     }
 
     const shipment = this.view(existing);
+    // A cancelled shipment must never be (re)created at the carrier.
+    if (
+      existing.status === "CANCELLED" &&
+      existing.create_state !== "SUCCEEDED"
+    ) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        "Shipment was cancelled; it will not be created at the carrier"
+      );
+    }
     switch (existing.create_state) {
       case "SUCCEEDED":
         return { action: "DONE", shipment, request: existing.request };
@@ -297,6 +308,11 @@ class FulfillmentModuleService extends MedusaService({
       };
     }
 
+    // A late failure (e.g. from a slower concurrent attempt) must not undo a
+    // creation that already succeeded.
+    if (row.create_state === "SUCCEEDED") {
+      return this.view(row);
+    }
     const state: CreateState =
       outcome.kind === "RETRYABLE"
         ? "FAILED_RETRYABLE"
@@ -327,21 +343,80 @@ class FulfillmentModuleService extends MedusaService({
     return { ...this.view(row), create_state: state };
   }
 
-  /** The carrier confirmed it has no parcel for our reference: safe to retry. */
+  /**
+   * The carrier confirmed it has no parcel for our reference: safe to retry.
+   * Conditional on the shipment still being unresolved, so a concurrent
+   * reconciler that already recorded SUCCESS is never overwritten.
+   */
   @InjectTransactionManager()
   async confirmAbsentAtCarrier(
     shipmentId: string,
     @MedusaContext() ctx: Context = {}
-  ) {
-    await this.updateCarrierShipments(
-      {
-        id: shipmentId,
-        create_state: "FAILED_RETRYABLE",
-        last_error: "reconciled: not found at carrier",
-      },
-      ctx
+  ): Promise<{ id: string; changed: boolean }> {
+    const rows = await executorOf(ctx).execute<{ id: string }>(
+      `UPDATE "carrier_shipment"
+       SET create_state = 'FAILED_RETRYABLE', last_error = 'reconciled: not found at carrier',
+           updated_at = now()
+       WHERE id = ? AND create_state IN ('UNKNOWN', 'PENDING') AND status <> 'CANCELLED'
+         AND deleted_at IS NULL
+       RETURNING id`,
+      [shipmentId]
     );
-    return { id: shipmentId, create_state: "FAILED_RETRYABLE" as const };
+    return { id: shipmentId, changed: rows.length > 0 };
+  }
+
+  /** Current state of one shipment, for callers that lost a race. */
+  @InjectTransactionManager()
+  async shipmentView(
+    shipmentId: string,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<ShipmentView> {
+    const [row] = await executorOf(ctx).execute<ShipmentRow>(
+      `SELECT ${SHIPMENT_COLUMNS} FROM "carrier_shipment" WHERE id = ? AND deleted_at IS NULL`,
+      [shipmentId]
+    );
+    if (!row) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Shipment not found"
+      );
+    }
+    return this.view(row);
+  }
+
+  /**
+   * Decides, under the row lock and BEFORE the carrier is contacted, whether a
+   * cancel is allowed. Returns what the caller must do at the carrier.
+   */
+  @InjectTransactionManager()
+  async assertCancellable(
+    shipmentId: string,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<ShipmentView & { already_cancelled: boolean }> {
+    const [row] = await executorOf(ctx).execute<ShipmentRow>(
+      `SELECT ${SHIPMENT_COLUMNS} FROM "carrier_shipment" WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [shipmentId]
+    );
+    if (!row) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Shipment not found"
+      );
+    }
+    if (row.status === "CANCELLED") {
+      return { ...this.view(row), already_cancelled: true };
+    }
+    const decision = decideTransition(row.status, "CANCELLED");
+    if (!decision.apply) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `Shipment is ${row.status} and can no longer be cancelled`
+      );
+    }
+    return { ...this.view(row), already_cancelled: false };
   }
 
   @InjectTransactionManager()
@@ -553,6 +628,7 @@ class FulfillmentModuleService extends MedusaService({
               create_state, request
        FROM "carrier_shipment"
        WHERE create_state IN ('PENDING', 'UNKNOWN', 'FAILED_RETRYABLE') AND deleted_at IS NULL
+         AND status <> 'CANCELLED'
          AND updated_at < now() - (? || ' seconds')::interval
        ORDER BY updated_at LIMIT ?`,
       [String(input.older_than_seconds), input.limit]

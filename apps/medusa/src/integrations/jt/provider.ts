@@ -122,23 +122,32 @@ export class JTCarrierProvider implements CarrierProvider {
       clearTimeout(timer);
     }
 
-    if (response.status === 429) {
-      throw new CarrierError("RETRYABLE", "J&T rate limited");
+    const status = response.status;
+    if (status === 429) {
+      throw new CarrierError("RETRYABLE", "J&T rate limited", status);
     }
-    if (response.status >= 500) {
+    // The request was refused before any parcel logic ran: safe to retry once
+    // credentials are fixed.
+    if (status === 401 || status === 403) {
       throw new CarrierError(
-        "AMBIGUOUS",
-        `J&T server error ${response.status}`
+        "RETRYABLE",
+        `J&T refused our credentials (${status})`,
+        status
       );
+    }
+    // Timeouts and server errors: the carrier may or may not have acted.
+    if (status === 408 || status === 425 || status >= 500) {
+      throw new CarrierError("AMBIGUOUS", `J&T error ${status}`, status);
     }
     const json = (await response.json().catch(() => ({}))) as Record<
       string,
       unknown
     >;
-    if (response.status >= 400 || json.success === false) {
+    if (status >= 400 || json.success === false) {
       throw new CarrierError(
         "FINAL",
-        `J&T rejected request: ${String(json.message ?? response.status)}`
+        `J&T rejected request: ${String(json.message ?? status)}`,
+        status
       );
     }
     return json as T;
@@ -222,8 +231,10 @@ export class JTCarrierProvider implements CarrierProvider {
           }
         : null;
     } catch (error) {
-      // A definite "not found" from the carrier means the parcel was never created.
-      if (error instanceof CarrierError && error.kind === "FINAL") {
+      // Only an explicit 404 proves the parcel was never created. Any other
+      // failure (auth, validation, "system busy") says nothing about the
+      // parcel, so it must stay unresolved instead of triggering a re-create.
+      if (error instanceof CarrierError && error.httpStatus === 404) {
         return null;
       }
       throw error;

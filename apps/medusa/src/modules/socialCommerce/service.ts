@@ -354,15 +354,65 @@ class SocialCommerceModuleService extends MedusaService({
     input: {
       identity_id: string;
       dedupe_key: string;
-      status: "SENT" | "SKIPPED" | "FAILED";
+      status: "SENT" | "SKIPPED" | "FAILED" | "DEFERRED";
       reason?: string | null;
+      /** Kept only while DEFERRED, so the message can be sent later. */
+      text?: string | null;
     },
     @MedusaContext() ctx: Context = {}
   ) {
     await executorOf(ctx).execute(
-      `UPDATE "notification_log" SET status = ?, reason = ?, updated_at = now()
+      `UPDATE "notification_log"
+       SET status = ?, reason = ?, text = CASE WHEN ? = 'DEFERRED' THEN ? ELSE NULL END,
+           updated_at = now()
        WHERE identity_id = ? AND dedupe_key = ?`,
-      [input.status, input.reason ?? null, input.identity_id, input.dedupe_key]
+      [
+        input.status,
+        input.reason ?? null,
+        input.status,
+        input.text ?? null,
+        input.identity_id,
+        input.dedupe_key,
+      ]
+    );
+  }
+
+  /** Notifications waiting for the messaging window or a channel recovery. */
+  @InjectTransactionManager()
+  async listDeferred(
+    identityId: string,
+    limit: number,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<
+    Array<{
+      dedupe_key: string;
+      event_type: string;
+      text: string;
+      created_at: Date;
+    }>
+  > {
+    return await executorOf(ctx).execute(
+      `SELECT dedupe_key, event_type, text, created_at FROM "notification_log"
+       WHERE identity_id = ? AND status = 'DEFERRED' AND text IS NOT NULL AND deleted_at IS NULL
+       ORDER BY created_at LIMIT ?`,
+      [identityId, limit]
+    );
+  }
+
+  /** Identities that have deferred notifications (for the retry sweeper). */
+  @InjectTransactionManager()
+  async identitiesWithDeferred(
+    limit: number,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<IdentityView[]> {
+    return await executorOf(ctx).execute<IdentityView>(
+      `SELECT DISTINCT i.id, i.channel, i.account_id, i.external_user_id, i.customer_id,
+              i.consent_status, i.handoff_state, i.last_inbound_at
+       FROM "customer_channel_identity" i
+       JOIN "notification_log" n ON n.identity_id = i.id
+       WHERE n.status = 'DEFERRED' AND n.deleted_at IS NULL AND i.deleted_at IS NULL
+       LIMIT ?`,
+      [limit]
     );
   }
 

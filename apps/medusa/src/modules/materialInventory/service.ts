@@ -1090,6 +1090,12 @@ class MaterialInventoryModuleService extends MedusaService({
       await this.assertActiveLocation(ctx, input.location_id);
       const ex = this.executor(ctx);
 
+      // Serialise returns per (reference, material). Without this lock two
+      // concurrent returns both read the same net-issued figure and both pass.
+      await ex.execute(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
+        `mret:${input.reference_type}|${input.reference_id}|${input.material_id}`,
+      ]);
+
       // A return can never exceed what the reference actually consumed.
       const [net] = await ex.execute<{ net: string }>(
         `SELECT COALESCE(SUM(CASE WHEN movement_type = 'ISSUE_TO_PRODUCTION' THEN qty ELSE -qty END), 0) AS net
@@ -1174,6 +1180,18 @@ class MaterialInventoryModuleService extends MedusaService({
           MedusaError.Types.INVALID_DATA,
           ErrorCodes.INVALID_STATE,
           "Scrap requires a reason"
+        );
+      }
+      // Material issued to an MO is settled with ISSUED - RETURNED. Scrapping
+      // it under the MO reference as well would count the same pieces twice
+      // (issue, return as DAMAGED, scrap). Production waste is therefore
+      // returned as DAMAGED first, then scrapped from that stock without the
+      // MO reference.
+      if (input.reference_type === "MO") {
+        throw domainError(
+          MedusaError.Types.NOT_ALLOWED,
+          ErrorCodes.INVALID_STATE,
+          "Material issued to an MO cannot be scrapped under the MO: return it as DAMAGED first, then scrap that stock"
         );
       }
       const locked = await this.lockBalances(ctx, [input.balance_id]);
@@ -1597,6 +1615,78 @@ class MaterialInventoryModuleService extends MedusaService({
         },
       ])
     );
+  }
+
+  /**
+   * Reservations held for a business reference (e.g. an MO), straight from the
+   * source of truth. Callers use it to decide what is still missing, what can
+   * still be issued and what must be released, instead of trusting a cached
+   * copy on their own side.
+   */
+  @InjectTransactionManager()
+  async reservationsForReference(
+    referenceType: string,
+    referenceId: string,
+    materialId: string | null = null,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<
+    Array<{
+      id: string;
+      material_id: string;
+      status: string;
+      requested: number;
+      issued: number;
+      released: number;
+      outstanding: number;
+    }>
+  > {
+    const rows = await this.executor(ctx).execute<{
+      id: string;
+      material_id: string;
+      status: string;
+      requested_qty: string;
+      issued_qty: string;
+      released_qty: string;
+    }>(
+      `SELECT id, material_id, status, requested_qty, issued_qty, released_qty
+       FROM "material_reservation"
+       WHERE reference_type = ? AND reference_id = ? AND deleted_at IS NULL
+         AND (?::text IS NULL OR material_id = ?::text)
+       ORDER BY created_at, id`,
+      [referenceType, referenceId, materialId, materialId]
+    );
+    return rows.map((row) => {
+      const requested = toUnits(row.requested_qty);
+      const issued = toUnits(row.issued_qty);
+      const released = toUnits(row.released_qty);
+      return {
+        id: row.id,
+        material_id: row.material_id,
+        status: row.status,
+        requested: fromUnits(requested),
+        issued: fromUnits(issued),
+        released: fromUnits(released),
+        outstanding: fromUnits(Math.max(0, requested - issued - released)),
+      };
+    });
+  }
+
+  /**
+   * Quantity already issued by earlier attempts of one logical issue request
+   * (all its per-reservation keys share a prefix). Lets a retried multi-
+   * reservation issue continue where it stopped instead of double issuing.
+   */
+  @InjectTransactionManager()
+  async issuedUnderKeyPrefix(
+    prefix: string,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<number> {
+    const [row] = await this.executor(ctx).execute<{ qty: string }>(
+      `SELECT COALESCE(SUM(qty), 0) AS qty FROM "material_stock_movement"
+       WHERE movement_type = 'ISSUE_TO_PRODUCTION' AND starts_with(idempotency_key, ?)`,
+      [prefix]
+    );
+    return fromUnits(toUnits(row?.qty ?? 0));
   }
 
   // ---------------------------------------------------------------------

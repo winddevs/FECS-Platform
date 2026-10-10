@@ -722,11 +722,27 @@
           "scale": null,
           "default": "'PENDING'",
           "comment": null,
-          "enumItems": ["PENDING", "SENT", "SKIPPED", "FAILED"],
+          "enumItems": ["PENDING", "SENT", "SKIPPED", "FAILED", "DEFERRED"],
           "mappedType": "enum"
         },
         "reason": {
           "name": "reason",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "text": {
+          "name": "text",
           "type": "text",
           "unsigned": false,
           "autoincrement": false,

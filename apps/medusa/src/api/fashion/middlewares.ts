@@ -120,6 +120,7 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
     "master:write",
     CreateLocationSchema
   ),
+  guarded("/admin/material-inventory/locations/:id", "GET", "master:read"),
   body(
     "/admin/material-inventory/locations/:id",
     "master:write",
@@ -272,6 +273,11 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
     "/admin/procurement/purchase-orders/:id/cancel",
     "procurement:approve",
     PurchaseOrderActionSchema
+  ),
+  guarded(
+    "/admin/procurement/purchase-orders/:id/receipts",
+    "GET",
+    "procurement:read"
   ),
   body(
     "/admin/procurement/purchase-orders/:id/receipts",

@@ -65,6 +65,11 @@ export const PERMISSIONS = [
   "social:manage",
   "order:read",
   "ops:read",
+  // Legacy commerce admin (catalog sync, invoices, analytics). ERP_ADMIN and
+  // COMMERCE_ADMIN only.
+  "commerce:admin",
+  // Granting or changing fashion roles. ERP_ADMIN only.
+  "roles:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -154,7 +159,13 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "fg:read",
     "fulfillment:read",
   ],
-  COMMERCE_ADMIN: ["fg:read", "fulfillment:read", "order:read", "social:read"],
+  COMMERCE_ADMIN: [
+    "fg:read",
+    "fulfillment:read",
+    "order:read",
+    "social:read",
+    "commerce:admin",
+  ],
   CUSTOMER_SUPPORT: [
     "fg:read",
     "fulfillment:read",

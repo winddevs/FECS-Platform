@@ -21,6 +21,7 @@ import {
   runIdempotent,
   type Command,
 } from "../../lib/tx";
+import { exceedsCeiling, refundCeiling } from "./lib/refund-cap";
 import {
   RETURNS_IDEMPOTENCY_TABLE,
   RETURNS_OUTBOX_TABLE,
@@ -46,10 +47,14 @@ type RmaRow = {
   eligibility: { eligible: boolean; reasons: string[] };
   refund_status: string;
   exchange_sku: string | null;
+  updated_at: Date | string;
 };
 
 const RMA_COLUMNS =
-  "id, rma_no, order_id, customer_id, type, status, eligibility, refund_status, exchange_sku";
+  "id, rma_no, order_id, customer_id, type, status, eligibility, refund_status, exchange_sku, updated_at";
+
+/** A refund stuck in REQUESTED longer than this is treated as unresolved. */
+const REFUND_STALE_SECONDS = 300;
 
 const ALLOWED: Record<ReturnStatus, readonly ReturnStatus[]> = {
   REQUESTED: ["AUTHORIZED", "REJECTED", "CANCELLED"],
@@ -310,19 +315,22 @@ class ReturnsModuleService extends MedusaService({
       );
     }
     const rma = await this.lockRma(ctx, item.return_id);
-    if (rma.status !== "RECEIVED") {
-      throw domainError(
-        MedusaError.Types.NOT_ALLOWED,
-        ErrorCodes.INVALID_STATE,
-        `Items can be inspected only once the return is RECEIVED (is ${rma.status})`
-      );
-    }
+    // An item that already has its disposition is a replay. This must come
+    // before the status check: inspecting the last item moves the RMA to
+    // INSPECTED, and a retry of the stock posting would otherwise be refused.
     if (item.disposition !== "PENDING") {
       return {
         return_item_id: item.id,
         disposition: item.disposition,
         replay: true as const,
       };
+    }
+    if (rma.status !== "RECEIVED") {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `Items can be inspected only once the return is RECEIVED (is ${rma.status})`
+      );
     }
     const needsLocation = input.disposition !== "SCRAP";
     if (needsLocation && !input.destination_location_id) {
@@ -403,13 +411,35 @@ class ReturnsModuleService extends MedusaService({
     return { id: itemId };
   }
 
-  /** Refund stays a commerce/payment action (FR-RET-005); this gates and records it. */
+  /** Items that passed QC but whose stock has not been posted yet. */
+  private async unpostedItems(ctx: Context, returnId: string): Promise<number> {
+    const [row] = await executorOf(ctx).execute<{ n: string }>(
+      `SELECT count(*) AS n FROM "rma_item"
+       WHERE return_id = ? AND deleted_at IS NULL
+         AND disposition NOT IN ('PENDING', 'SCRAP') AND stock_posted = false`,
+      [returnId]
+    );
+    return Number(row?.n ?? 0);
+  }
+
+  /**
+   * Refund gate (FR-RET-005, BR-005). Atomic compare-and-set under the RMA row
+   * lock: only one caller can move NONE/FAILED to REQUESTED, so two concurrent
+   * requests can never both reach the payment provider. The amount is capped
+   * by the value of the returned pieces minus other refunds on the same order.
+   *
+   * `needs_reconcile` is true when an earlier attempt was left in REQUESTED:
+   * the caller must check the payment for a refund tagged with this RMA before
+   * refunding again.
+   */
   @InjectTransactionManager()
   async requestRefund(
     input: Actor & {
       return_id: string;
       payment_id: string;
-      amount?: number | null;
+      amount: number;
+      /** Value of the returned pieces, computed from the order by the caller. */
+      returned_value: number;
     },
     @MedusaContext() ctx: Context = {}
   ) {
@@ -422,23 +452,84 @@ class ReturnsModuleService extends MedusaService({
       );
     }
     if (rma.refund_status === "COMPLETED") {
-      return { id: rma.id, refund_status: "COMPLETED", replay: true as const };
+      return {
+        id: rma.id,
+        refund_status: "COMPLETED",
+        replay: true as const,
+        needs_reconcile: false,
+      };
+    }
+    if ((await this.unpostedItems(ctx, rma.id)) > 0) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        "Returned stock has not been posted yet; finish return QC first"
+      );
+    }
+    if (!(input.amount > 0)) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "A refund amount is required"
+      );
+    }
+
+    const ex = executorOf(ctx);
+    // Refunds on one order share a ceiling, so they are serialised per order.
+    await ex.execute(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
+      `rma-refund:${rma.order_id}`,
+    ]);
+    const [others] = await ex.execute<{ total: string }>(
+      `SELECT COALESCE(SUM(refund_amount), 0) AS total FROM "return_authorization"
+       WHERE order_id = ? AND id <> ? AND deleted_at IS NULL
+         AND refund_status IN ('REQUESTED', 'COMPLETED')`,
+      [rma.order_id, rma.id]
+    );
+    const ceiling = refundCeiling(
+      input.returned_value,
+      Number(others?.total ?? 0)
+    );
+    if (exceedsCeiling(input.amount, ceiling)) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `Refund of ${input.amount} exceeds the refundable value ${ceiling} of the returned items`
+      );
+    }
+
+    let needsReconcile = false;
+    if (rma.refund_status === "REQUESTED") {
+      const ageSeconds =
+        (Date.now() - new Date(rma.updated_at).getTime()) / 1000;
+      if (ageSeconds < REFUND_STALE_SECONDS) {
+        throw domainError(
+          MedusaError.Types.CONFLICT,
+          ErrorCodes.DUPLICATE,
+          "A refund for this return is already in progress"
+        );
+      }
+      needsReconcile = true;
     }
     await this.updateReturnAuthorizations(
       {
         id: rma.id,
         refund_status: "REQUESTED",
         refund_payment_id: input.payment_id,
-        refund_amount: input.amount ?? null,
+        refund_amount: input.amount,
       },
       ctx
     );
     await flushOf(ctx);
     await this.emit(ctx, "returns.refund_requested.v1", rma, input, {
       payment_id: input.payment_id,
-      amount: input.amount ?? null,
+      amount: input.amount,
     });
-    return { id: rma.id, refund_status: "REQUESTED", replay: false as const };
+    return {
+      id: rma.id,
+      refund_status: "REQUESTED",
+      replay: false as const,
+      needs_reconcile: needsReconcile,
+    };
   }
 
   @InjectTransactionManager()
@@ -447,6 +538,9 @@ class ReturnsModuleService extends MedusaService({
     @MedusaContext() ctx: Context = {}
   ) {
     const rma = await this.lockRma(ctx, input.return_id);
+    if (rma.refund_status === "COMPLETED") {
+      return { id: rma.id, refund_status: "COMPLETED" };
+    }
     await this.updateReturnAuthorizations(
       { id: rma.id, refund_status: input.ok ? "COMPLETED" : "FAILED" },
       ctx
@@ -467,6 +561,13 @@ class ReturnsModuleService extends MedusaService({
     @MedusaContext() ctx: Context = {}
   ) {
     const rma = await this.lockRma(ctx, input.return_id);
+    if ((await this.unpostedItems(ctx, rma.id)) > 0) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        "Returned stock has not been posted yet; finish return QC first"
+      );
+    }
     await this.move(ctx, rma, "CLOSED", input);
     return { id: rma.id, status: "CLOSED" };
   }

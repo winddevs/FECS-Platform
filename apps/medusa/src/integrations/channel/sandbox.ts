@@ -1,3 +1,4 @@
+import { verifySandboxSignature } from "../sandbox-signature";
 import {
   ChannelError,
   type InboundMessage,
@@ -25,8 +26,11 @@ export class SandboxChannel implements MessageChannel {
     return { message_id: `sbx_${this.sent.length}` };
   }
 
-  verifyWebhook(): boolean {
-    return true;
+  verifyWebhook(
+    headers: Record<string, string | string[] | undefined>,
+    rawBody: string
+  ): boolean {
+    return verifySandboxSignature(headers, rawBody, "x-hub-signature-256");
   }
 
   parseInbound(body: unknown): InboundMessage[] {

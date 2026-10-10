@@ -2,6 +2,8 @@
 // idempotency, webhooks and the production journey through the REST API.
 // Run via integration-tests/run-http.sh (it boots the server first).
 import { createHmac } from "node:crypto";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:9100";
 const PASSWORD = "Passw0rd!test";
@@ -73,6 +75,111 @@ assert(
 assert(
   (await call(roles.none, "GET", "/admin/manufacturing/mos")).status === 403,
   "user without a fashion role -> 403"
+);
+
+console.log("# role escalation and legacy admin routes");
+const noneId = (await call(roles.none, "GET", "/admin/users/me")).body.user.id;
+const adminId = (await call(roles.admin, "GET", "/admin/users/me")).body.user
+  .id;
+const escalate = await call(roles.none, "POST", `/admin/users/${noneId}`, {
+  metadata: { fashion_roles: ["ERP_ADMIN"] },
+});
+assert(
+  escalate.status === 403,
+  "a role-less admin cannot grant itself fashion roles"
+);
+assert(
+  (await call(roles.none, "GET", "/admin/manufacturing/mos")).status === 403,
+  "and still has no access afterwards"
+);
+assert(
+  (
+    await call(roles.none, "POST", `/admin/users/${noneId}`, {
+      metadata: { theme: "dark" },
+    })
+  ).status === 200,
+  "unrelated profile metadata stays editable"
+);
+const inviteEscalate = await call(roles.none, "POST", "/admin/invites", {
+  email: `invitee-${run}@fashion.test`,
+  metadata: { fashion_roles: ["ERP_ADMIN"] },
+});
+assert(inviteEscalate.status === 403, "roles cannot be smuggled in an invite");
+assert(
+  (
+    await call(roles.admin, "POST", `/admin/users/${adminId}`, {
+      metadata: { fashion_roles: ["ERP_ADMIN"] },
+    })
+  ).status === 200,
+  "an ERP_ADMIN may manage roles"
+);
+for (const [method, path, body] of [
+  ["POST", "/admin/algolia/sync", {}],
+  ["POST", "/admin/payload/sync/products", {}],
+  ["GET", "/admin/analytics", undefined],
+  ["GET", "/admin/invoice-config", undefined],
+  ["POST", "/admin/invoice-config", { notes: "x" }],
+  ["GET", "/admin/orders/order_x/invoices", undefined],
+]) {
+  assert(
+    (await call(roles.none, method, path, body)).status === 403,
+    `${method} ${path} needs a role`
+  );
+}
+assert(
+  (await call(roles.admin, "POST", "/admin/payload/sync/not-a-collection", {}))
+    .status === 404,
+  "payload sync only accepts known collections"
+);
+assert(
+  (await fetch(`${BASE}/test-sentry`)).status === 401,
+  "the Sentry smoke route is no longer anonymous"
+);
+
+console.log("# every custom admin route is guarded");
+const walk = (dir) =>
+  readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    return statSync(full).isDirectory()
+      ? walk(full)
+      : name === "route.ts"
+        ? [full]
+        : [];
+  });
+const adminRoot = join(process.cwd(), "src/api/admin");
+const unguarded = [];
+let walked = 0;
+for (const file of walk(adminRoot)) {
+  const source = readFileSync(file, "utf8");
+  const methods = [
+    ...source.matchAll(
+      /export\s+(?:async\s+function|const)\s+(GET|POST|PUT|PATCH|DELETE)\b/g
+    ),
+  ].map((m) => m[1]);
+  const path = `/admin${file
+    .slice(adminRoot.length)
+    .replace(/\/route\.ts$/, "")
+    .replace(/\[[^\]]+\]/g, "x_1")}`;
+  for (const method of methods) {
+    walked += 1;
+    const res = await call(
+      roles.none,
+      method,
+      path,
+      method === "GET" ? undefined : {}
+    );
+    // POST /admin/returns shares its path with Medusa's own returns API, whose
+    // body validation runs first and answers 400 to an empty body. Our guard is
+    // exercised by the ERP return checks further down.
+    const sharedWithCore = method === "POST" && path === "/admin/returns";
+    if (res.status !== 403 && !(sharedWithCore && res.status === 400)) {
+      unguarded.push(`${method} ${path} -> ${res.status}`);
+    }
+  }
+}
+assert(
+  unguarded.length === 0 && walked > 50,
+  `all ${walked} custom admin handlers reject a role-less admin with 403${unguarded.length ? ` (open: ${unguarded.join("; ")})` : ""}`
 );
 
 console.log("# master data and production setup through the API");
@@ -301,6 +408,42 @@ assert(
     })
   ).status === 201,
   "cutting operator issues fabric"
+);
+const noPlanCut = await call(
+  roles.cutter,
+  "POST",
+  `/admin/manufacturing/mos/${moId}/cut`,
+  {
+    batch_id: batchId,
+    fabric_material_id: fabric.id,
+    actual_consumption: 15.75,
+    bundles: [{ sku, qty: 10 }],
+  }
+);
+assert(
+  noPlanCut.status >= 400 && noPlanCut.status < 500,
+  "cutting without a cut plan is refused"
+);
+assert(
+  (
+    await call(
+      roles.cutter,
+      "POST",
+      `/admin/manufacturing/mos/${moId}/cut-plan`,
+      {
+        batch_id: batchId,
+        fabric_material_id: fabric.id,
+        lays: [
+          {
+            roll_code: `ROLL-${run}`,
+            planned_consumption: 15.75,
+            size_ratio: { [sku]: 10 },
+          },
+        ],
+      }
+    )
+  ).status === 201,
+  "cut plan created"
 );
 const cut = await call(
   roles.cutter,

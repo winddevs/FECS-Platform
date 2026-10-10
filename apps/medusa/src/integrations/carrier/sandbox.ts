@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { mapJtStatus } from "../jt/status-map";
+import { verifySandboxSignature } from "../sandbox-signature";
 import {
   CarrierError,
   type CarrierProvider,
@@ -111,8 +112,11 @@ export class SandboxCarrierProvider implements CarrierProvider {
     return mapJtStatus(carrierStatus);
   }
 
-  verifyWebhook(): boolean {
-    return true;
+  verifyWebhook(
+    headers: Record<string, string | string[] | undefined>,
+    rawBody: string
+  ): boolean {
+    return verifySandboxSignature(headers, rawBody, "x-signature");
   }
 
   parseWebhook(body: unknown): CarrierTrackingEvent[] {

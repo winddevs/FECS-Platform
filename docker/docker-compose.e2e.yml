@@ -172,6 +172,7 @@ services:
       META_APP_SECRET: meta-app-secret
       METRICS_TOKEN: e2e-metrics-token
       JT_WEBHOOK_SECRET: jt-webhook-secret
+      JOURNEYS: ${JOURNEYS:-smoke,make-to-stock,made-to-order,social,returns}
     volumes:
       - ../apps/medusa/integration-tests/e2e:/e2e:ro
       - ../apps/medusa/src/api:/src-api:ro

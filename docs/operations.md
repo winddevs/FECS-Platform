@@ -120,6 +120,13 @@ They still require a signed webhook: HMAC-SHA256 of the body with
 that secret every webhook is rejected, so a mis-set flag in production cannot
 open the webhook routes.
 
+## Local end-to-end stack
+
+`bash docker/e2e/run.sh up|test|chaos|down` starts the production image with
+Postgres, Redis, a server and two workers, and mock J&T/Meta/Payload providers,
+then runs the fashion use-case journeys and failure scenarios. See
+`docker/e2e/README.md` for the port map, demo users and what is mocked.
+
 ## Deploying
 
 1. CI builds, scans and pushes `ghcr.io/<org>/fashion-medusa:<git-sha>`.

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   defineMiddlewares,
   validateAndTransformBody,
@@ -46,6 +48,25 @@ const CLIENT_ERROR_TYPES = new Set<string>([
 
 const isClientError = (error: unknown): boolean =>
   error instanceof MedusaError && CLIENT_ERROR_TYPES.has(error.type);
+
+/**
+ * Error bodies carry the request's correlation id (TDD section 40), echoed in
+ * the `x-correlation-id` header too, so a customer-visible failure can be
+ * found in logs and traces.
+ */
+const attachCorrelationId = (req: MedusaRequest, res: MedusaResponse): void => {
+  const header = req.headers["x-correlation-id"];
+  const supplied = Array.isArray(header) ? header[0] : header;
+  const correlationId = supplied?.slice(0, 200) || `cor_${randomUUID()}`;
+  res.setHeader("x-correlation-id", correlationId);
+  const json = res.json.bind(res);
+  res.json = ((body: unknown) =>
+    json(
+      body && typeof body === "object" && !Array.isArray(body)
+        ? { ...body, correlation_id: correlationId }
+        : body
+    )) as typeof res.json;
+};
 
 const adminOnly = (
   matcher: string,
@@ -107,6 +128,7 @@ export default defineMiddlewares({
     if (!isClientError(error)) {
       Sentry.captureException(error);
     }
+    attachCorrelationId(req, res);
     return originalErrorHandler(error, req, res, next);
   },
   routes: [

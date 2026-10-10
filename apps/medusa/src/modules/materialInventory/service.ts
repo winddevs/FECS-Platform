@@ -409,7 +409,16 @@ class MaterialInventoryModuleService extends MedusaService({
       await this.assertActiveLocation(ctx, input.location_id);
 
       const bucket: StockBucket = input.bucket ?? "GOOD";
-      const dyeLotNo = input.lot.dye_lot_no ?? "";
+      const dyeLotNo = (input.lot.dye_lot_no ?? "").trim();
+      // Rolls of different physical dye lots must never be merged into one
+      // "blank" lot: same-dye-lot allocation would then be meaningless.
+      if (material.track_dye_lot && dyeLotNo === "") {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `Material ${material.code} is dye-lot tracked: a dye lot number is required`
+        );
+      }
 
       // Normalise to a list of (roll?, qty) receipts.
       const receipts: Array<{
@@ -617,6 +626,50 @@ class MaterialInventoryModuleService extends MedusaService({
   }
 
   /** Resolves a QC hold: release to good stock or reject to damaged. */
+  /**
+   * Dry-run check of a goods receipt BEFORE it is booked anywhere: material
+   * active, roll/dye-lot data consistent with how the material is tracked,
+   * location usable. Lets procurement refuse a bad receipt up front instead of
+   * failing after the receipt exists.
+   */
+  @InjectTransactionManager()
+  async validateReceipt(
+    input: {
+      location_id: string;
+      lines: Array<{
+        material_id: string;
+        dye_lot_no?: string | null;
+        has_rolls: boolean;
+      }>;
+    },
+    @MedusaContext() ctx: Context = {}
+  ): Promise<void> {
+    await this.assertActiveLocation(ctx, input.location_id);
+    for (const line of input.lines) {
+      const material = await this.retrieveMaterial(line.material_id, {}, ctx);
+      const fail = (message: string) => {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `Material ${material.code}: ${message}`
+        );
+      };
+      if (!material.is_active) {
+        fail("is inactive");
+      }
+      if (material.track_roll !== line.has_rolls) {
+        fail(
+          material.track_roll
+            ? "is roll-tracked: provide rolls[]"
+            : "is not roll-tracked: do not provide rolls[]"
+        );
+      }
+      if (material.track_dye_lot && !(line.dye_lot_no ?? "").trim()) {
+        fail("is dye-lot tracked: a dye lot number is required");
+      }
+    }
+  }
+
   @InjectTransactionManager()
   async decideQcHold(
     input: QcDecisionInput,
@@ -677,15 +730,17 @@ class MaterialInventoryModuleService extends MedusaService({
       roll_id: string | null;
       location_id: string;
       available: string;
+      on_hand: string;
       dye_lot_no: string;
       initial_qty: string | null;
       received_at: Date | string;
     }>(
       `SELECT b.id AS balance_id, b.lot_id, b.roll_id, b.location_id,
               (b.on_hand_qty - b.reserved_qty - b.qc_hold_qty - b.damaged_qty) AS available,
+              b.on_hand_qty AS on_hand,
               COALESCE(l.dye_lot_no, '') AS dye_lot_no,
               r.initial_qty,
-              COALESCE(l.received_at, b.created_at) AS received_at
+              COALESCE(r.created_at, l.received_at, b.created_at) AS received_at
        FROM "material_balance" b
        JOIN "material_location" loc
          ON loc.id = b.location_id AND loc.kind = 'RAW_MATERIAL'
@@ -705,6 +760,7 @@ class MaterialInventoryModuleService extends MedusaService({
       location_id: row.location_id,
       dye_lot_no: row.dye_lot_no,
       available: toUnits(row.available),
+      on_hand: toUnits(row.on_hand),
       initial: row.initial_qty === null ? null : toUnits(row.initial_qty),
       received_at: new Date(row.received_at).getTime(),
     }));
@@ -723,6 +779,20 @@ class MaterialInventoryModuleService extends MedusaService({
         "reference.id": input.reference_id,
         "correlation.id": input.correlation_id ?? undefined,
       });
+
+      // One reservation at a time per material, then lock every candidate row
+      // in id order. Retrying under a growing lock set in changing order could
+      // deadlock two reservations against each other (or against an issue).
+      await this.executor(ctx).execute(
+        `SELECT pg_advisory_xact_lock(hashtext(?))`,
+        [`mres:${material.id}`]
+      );
+      await this.lockBalances(
+        ctx,
+        (
+          await this.loadCandidates(ctx, material.id, input.location_id ?? null)
+        ).map((c) => c.balance_id)
+      );
 
       let plan: AllocationPlan | null = null;
       let locked: LockedBalances = new Map();

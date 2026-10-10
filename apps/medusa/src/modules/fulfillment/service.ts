@@ -18,6 +18,7 @@ import { executorOf, flushOf, outboxRowFor } from "../../lib/tx";
 import {
   decideTransition,
   isActiveStatus,
+  TERMINAL_STATUSES,
   type CreateState,
   type ShipmentStatus,
 } from "./lib/shipment-state";
@@ -77,10 +78,11 @@ export type MappedTrackingEvent = {
 type ShipmentRow = ShipmentView & {
   request: Record<string, unknown>;
   updated_at: Date | string;
+  last_event_at: Date | string | null;
 };
 
 const SHIPMENT_COLUMNS =
-  "id, carrier_code, order_id, medusa_fulfillment_id, return_id, merchant_reference, create_state, status, tracking_number, attempts, request, updated_at";
+  "id, carrier_code, order_id, medusa_fulfillment_id, return_id, merchant_reference, create_state, status, tracking_number, attempts, request, updated_at, last_event_at";
 
 class FulfillmentModuleService extends MedusaService({
   CarrierShipment,
@@ -463,11 +465,17 @@ class FulfillmentModuleService extends MedusaService({
         status: row.status,
       };
     }
+    // last_event_at only moves forward, so a late terminal scan cannot make the
+    // shipment look older than it is.
+    const latest =
+      row.last_event_at && new Date(row.last_event_at) > at
+        ? new Date(row.last_event_at)
+        : at;
     await this.updateCarrierShipments(
       {
         id: row.id,
         status: next,
-        last_event_at: at,
+        last_event_at: latest,
         ...(next === "DELIVERED" ? { delivered_at: at } : {}),
       },
       ctx
@@ -515,6 +523,9 @@ class FulfillmentModuleService extends MedusaService({
     if (!row) {
       return { found: false as const, applied: 0, ignored: 0, duplicates: 0 };
     }
+    let lastEventAt: Date | null = row.last_event_at
+      ? new Date(row.last_event_at)
+      : null;
     const ordered = [...input.events].sort(
       (a, b) => a.occurred_at.getTime() - b.occurred_at.getTime()
     );
@@ -540,7 +551,17 @@ class FulfillmentModuleService extends MedusaService({
       }
       let outcome: "APPLIED" | "IGNORED" = "IGNORED";
       let reason: string | null = event.canonical ? null : "UNMAPPED_STATUS";
-      if (event.canonical) {
+      // Time-based guard: an older scan must not move a shipment that has
+      // already seen a newer one (a stale PICKED_UP after DELIVERY_FAILED or
+      // EXCEPTION). Terminal scans are exempt; the state guard decides them.
+      const stale =
+        event.canonical !== null &&
+        !TERMINAL_STATUSES.includes(event.canonical) &&
+        lastEventAt !== null &&
+        event.occurred_at.getTime() < lastEventAt.getTime();
+      if (stale) {
+        reason = "STALE";
+      } else if (event.canonical) {
         const applied = await this.applyStatus(
           ctx,
           row.id,
@@ -550,6 +571,9 @@ class FulfillmentModuleService extends MedusaService({
         );
         if (applied.applied) {
           outcome = "APPLIED";
+          if (!lastEventAt || event.occurred_at > lastEventAt) {
+            lastEventAt = event.occurred_at;
+          }
         } else {
           reason = applied.reason;
         }

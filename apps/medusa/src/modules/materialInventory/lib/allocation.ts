@@ -6,8 +6,10 @@
  *  1. Prefer one dye lot able to satisfy the whole requirement (oldest first).
  *  2. Otherwise use as few dye lots as possible; if that exceeds the material's
  *     `max_dye_lots` the plan is flagged for planner approval.
- *  3. Inside a dye lot prefer a single best-fit roll (minimises the unusable
- *     remainder), else consume opened/partial rolls first, then oldest first.
+ *  3. Inside a dye lot (TDD section 11): opened/partial rolls first, then the
+ *     roll that leaves the smallest unusable remainder, oldest first on ties.
+ *     When no single roll of the preferred tier covers what is left, that
+ *     tier's largest roll is used up first so fragments disappear.
  */
 
 export type AllocationCandidate = {
@@ -20,6 +22,8 @@ export type AllocationCandidate = {
   available: number;
   /** Initial roll quantity; used to detect opened/partial rolls. */
   initial: number | null;
+  /** Physical quantity on hand (a fully reserved unopened roll is NOT partial). */
+  on_hand: number;
   received_at: number;
 };
 
@@ -46,7 +50,7 @@ export type AllocationPlan = {
 };
 
 const isPartial = (c: AllocationCandidate): boolean =>
-  c.initial !== null && c.available < c.initial;
+  c.initial !== null && c.on_hand < c.initial;
 
 const fifoOrder = (a: AllocationCandidate, b: AllocationCandidate): number => {
   const partialDiff = Number(isPartial(b)) - Number(isPartial(a));
@@ -68,11 +72,15 @@ const takeFromGroup = (
   let remaining = required;
 
   while (remaining > 0 && pool.length > 0) {
-    // Best fit: smallest candidate that can cover everything that is left.
-    const fits = pool
+    // Opened rolls are used before untouched ones.
+    const partials = pool.filter(isPartial);
+    const tier = partials.length > 0 ? partials : pool;
+    const fits = tier
       .filter((c) => c.available >= remaining)
       .sort((a, b) => a.available - b.available || fifoOrder(a, b));
-    const chosen = fits[0] ?? pool[0];
+    const chosen =
+      fits[0] ??
+      [...tier].sort((a, b) => b.available - a.available || fifoOrder(a, b))[0];
     const take = Math.min(chosen.available, remaining);
     lines.push({
       balance_id: chosen.balance_id,

@@ -6,6 +6,8 @@ import { SandboxCarrierProvider } from "../src/integrations/carrier/sandbox";
 import { registerMessageChannel } from "../src/integrations/channel/registry";
 import { SandboxChannel } from "../src/integrations/channel/sandbox";
 import { JTCarrierProvider } from "../src/integrations/jt/provider";
+import { parseScanTime } from "../src/integrations/jt/provider";
+import { mapJtStatus } from "../src/integrations/jt/status-map";
 import { hasPermission, rolesFromMetadata } from "../src/lib/authz/permissions";
 import { touchesRoleMetadata } from "../src/lib/authz/protect-role-metadata";
 import { TOPICS } from "../src/lib/events/envelope";
@@ -16,6 +18,8 @@ import {
   notifyCustomer,
 } from "../src/lib/social/notify";
 import { outboxRowFor } from "../src/lib/tx";
+import { decideTransition } from "../src/modules/fulfillment/lib/shipment-state";
+import { planAllocation } from "../src/modules/materialInventory/lib/allocation";
 import {
   exceedsCeiling,
   refundCeiling,
@@ -896,6 +900,278 @@ export default async function verify({ container }: ExecArgs) {
   assert(
     JSON.stringify(published) === "[1,2,3]",
     `the aggregate's events are published in order (got ${JSON.stringify(published)})`
+  );
+
+  console.log("# carrier status mapping");
+  const mapped = (text: string) => mapJtStatus(text);
+  assert(
+    mapped("Undelivered") === "DELIVERY_FAILED",
+    '"Undelivered" is a failure'
+  );
+  assert(
+    mapped("Consignee refused to sign") === "DELIVERY_FAILED",
+    '"refused to sign" is a failure, not a delivery'
+  );
+  assert(mapped("Not delivered") === "DELIVERY_FAILED", '"Not delivered"');
+  assert(
+    mapped("Parcel assigned to courier") !== "DELIVERED",
+    '"assigned" is not "signed"'
+  );
+  assert(mapped("Departure from hub") === "IN_TRANSIT", "departure is leaving");
+  assert(mapped("Arrival at hub") === "ARRIVED_HUB", "arrival is arriving");
+  assert(
+    mapped("Problem parcel") === "EXCEPTION",
+    "problem parcel is an exception"
+  );
+  assert(
+    mapped("Delivered - signed") === "DELIVERED",
+    "real delivery still works"
+  );
+
+  console.log("# scan time parsing");
+  assert(
+    parseScanTime("2026-10-01 10:00:00")?.toISOString() ===
+      "2026-10-01T03:00:00.000Z",
+    "a time without a zone is Vietnam local time"
+  );
+  assert(
+    parseScanTime("2026-10-01T10:00:00Z")?.toISOString() ===
+      "2026-10-01T10:00:00.000Z",
+    "an explicit zone is respected"
+  );
+  assert(
+    parseScanTime(undefined) === null &&
+      parseScanTime("") === null &&
+      parseScanTime("not a date") === null,
+    "missing or invalid times are dropped, never replaced by now()"
+  );
+  assert(
+    decideTransition("DELIVERY_FAILED", "RETURNED").apply &&
+      decideTransition("IN_TRANSIT", "RETURNED").apply &&
+      !decideTransition("CREATED", "RETURNED").apply,
+    "RETURNED is reachable from any picked-up state"
+  );
+
+  console.log("# stale tracking events");
+  const tracked = await createCarrierShipmentWorkflow(container).run({
+    input: make(`ful_stale_${run}`),
+  });
+  const tn = tracked.result.tracking_number;
+  const hours = (n: number) => new Date(Date.now() - (3 - n) * 3600 * 1000);
+  const ev = (status: string, canonical: string, at: Date) => ({
+    carrier_status: status,
+    canonical,
+    description: null,
+    occurred_at: at,
+  });
+  await ful.recordTrackingEvents({
+    ...actor,
+    carrier_code: "JT",
+    tracking_number: tn,
+    events: [ev("Problem parcel", "EXCEPTION", hours(2))],
+  });
+  const stale = await ful.recordTrackingEvents({
+    ...actor,
+    carrier_code: "JT",
+    tracking_number: tn,
+    events: [ev("Pickup scan", "PICKED_UP", hours(1))],
+  });
+  const [afterStale] = await ful.listCarrierShipments({
+    id: tracked.result.id,
+  });
+  assert(
+    stale.applied === 0 && afterStale.status === "EXCEPTION",
+    "an older scan cannot pull a shipment back out of EXCEPTION"
+  );
+  const fresh = await ful.recordTrackingEvents({
+    ...actor,
+    carrier_code: "JT",
+    tracking_number: tn,
+    events: [ev("In transit", "IN_TRANSIT", hours(3))],
+  });
+  assert(fresh.applied === 1, "a newer scan is applied");
+
+  console.log("# fabric allocation order (TDD s.11)");
+  const cand = (
+    id: string,
+    over: Partial<{
+      available: number;
+      on_hand: number;
+      initial: number;
+      received_at: number;
+    }>
+  ) => ({
+    balance_id: id,
+    lot_id: "lot",
+    roll_id: id,
+    location_id: "loc",
+    dye_lot_no: "D1",
+    available: 100,
+    on_hand: 100,
+    initial: 100,
+    received_at: 1,
+    ...over,
+  });
+  const policy = {
+    policy: "SAME_DYE_LOT_FIFO" as const,
+    track_dye_lot: true,
+    max_dye_lots: 1,
+  };
+  const units = (n: number) => n * 10000;
+  const planOf = (cands: any[], need: number) =>
+    planAllocation(cands, units(need), policy).lines.map((l) => [
+      l.balance_id,
+      l.qty / 10000,
+    ]);
+  assert(
+    JSON.stringify(
+      planOf(
+        [
+          cand("older_full", { received_at: 1 }),
+          cand("opened", {
+            available: units(40),
+            on_hand: units(40),
+            initial: units(100),
+            received_at: 9,
+          }),
+        ].map((c) => ({ ...c, available: c.available, on_hand: c.on_hand })),
+        30
+      )
+    ) === '[["opened",30]]',
+    "an opened roll is used before an older untouched roll"
+  );
+  assert(
+    JSON.stringify(
+      planOf(
+        [
+          cand("full", {
+            available: units(100),
+            on_hand: units(100),
+            initial: units(100),
+          }),
+          cand("opened", {
+            available: units(40),
+            on_hand: units(40),
+            initial: units(100),
+          }),
+        ],
+        60
+      )
+    ) === '[["opened",40],["full",20]]',
+    "when no opened roll covers it, the fragment is used up first"
+  );
+  assert(
+    JSON.stringify(
+      planOf(
+        [
+          cand("reserved_unopened", {
+            available: units(30),
+            on_hand: units(100),
+            initial: units(100),
+          }),
+          cand("full", {
+            available: units(100),
+            on_hand: units(100),
+            initial: units(100),
+            received_at: 0,
+          }),
+        ],
+        25
+      )
+    ) === '[["reserved_unopened",25]]',
+    "a fully reserved but UNOPENED roll is not 'partial' and falls back to best fit"
+  );
+
+  console.log("# receipts: dye lot and tracking data are validated up front");
+  const dyed = await inv.createMaterials({
+    code: `DYE-${run}`,
+    name: "Dyed",
+    uom: "m",
+    track_roll: true,
+    track_dye_lot: true,
+  });
+  await expectFail(
+    () =>
+      inv.receiveMaterial({
+        ...actor,
+        idempotency_key: k("no-dye"),
+        material_id: dyed.id,
+        location_id: loc.id,
+        lot: { lot_no: "L1" },
+        rolls: [{ roll_code: `NODYE-${run}`, qty: 10 }],
+      }),
+    "dye lot",
+    "a dye-lot tracked material needs a dye lot number"
+  );
+  await expectFail(
+    () =>
+      inv.validateReceipt({
+        location_id: loc.id,
+        lines: [{ material_id: dyed.id, dye_lot_no: "D1", has_rolls: false }],
+      }),
+    "roll-tracked",
+    "a roll-tracked material needs rolls[]"
+  );
+  await inv.validateReceipt({
+    location_id: loc.id,
+    lines: [{ material_id: dyed.id, dye_lot_no: "D1", has_rolls: true }],
+  });
+  assert(true, "a consistent receipt passes validation");
+
+  console.log("# inbox: a poison event reaches the dead-letter queue");
+  const integration: any = container.resolve("integration");
+  const mgr3 = container.resolve("__pg_connection__") as any;
+  await integration.receiveInboxEvent({
+    provider: "poison",
+    external_event_id: `poison_${run}`,
+    event_type: "x",
+    payload: { a: 1 },
+  });
+  await mgr3.raw(
+    `UPDATE inbox_event SET status='PROCESSING', attempts=7, updated_at = now() - interval '10 minutes'
+     WHERE provider='poison' AND external_event_id = ?`,
+    [`poison_${run}`]
+  );
+  const claimedPoison = await integration.claimInboxBatch(500);
+  assert(
+    !claimedPoison.some(
+      (r: any) =>
+        r.provider === "poison" && r.payload.a === 1 && r.attempts >= 8
+    ),
+    "a row whose worker died 8 times is not handed out again"
+  );
+  const poisoned = await mgr3.raw(
+    `SELECT status FROM inbox_event WHERE provider='poison' AND external_event_id = ?`,
+    [`poison_${run}`]
+  );
+  assert(poisoned.rows[0].status === "DLQ", "...it goes to the DLQ");
+
+  console.log("# return shipment attaches once, whenever it is created");
+  const rmaSvc: any = container.resolve("returns");
+  const rmaReq = await rmaSvc.requestReturn({
+    ...actor,
+    idempotency_key: k("rma-att"),
+    order_id: `order_att_${run}`,
+    customer_id: "cus_1",
+    type: "RETURN",
+    reason: "test",
+    items: [{ order_line_id: "l1", sku: "S", qty: 1 }],
+    eligibility: { eligible: true, reasons: [] },
+  });
+  await rmaSvc.authorizeReturn({ ...actor, return_id: rmaReq.id });
+  const attach1 = await rmaSvc.attachReturnShipment({
+    ...actor,
+    return_id: rmaReq.id,
+    shipment_id: "shp_late",
+  });
+  const attach2 = await rmaSvc.attachReturnShipment({
+    ...actor,
+    return_id: rmaReq.id,
+    shipment_id: "shp_late",
+  });
+  assert(
+    attach1.status === "IN_TRANSIT" && attach2.skipped === true,
+    "the first attach moves the RMA to IN_TRANSIT, a redelivery is a no-op"
   );
 
   console.log("INTEGRATION TEST PASSED");

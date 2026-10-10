@@ -59,7 +59,8 @@ export const beginIdempotent = async <TResponse>(
   if (existing.request_hash !== requestHash) {
     throw new MedusaError(
       MedusaError.Types.CONFLICT,
-      `IDEMPOTENCY_KEY_REUSED: key "${key}" was already used with a different payload`
+      `IDEMPOTENCY_KEY_REUSED: key "${key}" was already used with a different payload`,
+      "IDEMPOTENCY_KEY_REUSED"
     );
   }
   return { replay: true, response: existing.response as TResponse };

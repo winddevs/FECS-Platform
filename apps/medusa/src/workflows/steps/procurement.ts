@@ -61,6 +61,26 @@ export const settlePendingReceipt = async (
 export const postGoodsReceiptStep = createStep(
   "procurement-post-goods-receipt",
   async (input: PostGoodsReceiptInput, { container }) => {
+    // Refuse a receipt that inventory would reject BEFORE it is created.
+    const poLines = await procurement(container).listPurchaseOrderLines({
+      id: input.lines.map((l) => l.purchase_order_line_id),
+    });
+    const materialByLine = new Map(poLines.map((l) => [l.id, l.material_id]));
+    await inventory(container).validateReceipt({
+      location_id: input.location_id,
+      lines: input.lines.flatMap((line) => {
+        const material_id = materialByLine.get(line.purchase_order_line_id);
+        return material_id
+          ? [
+              {
+                material_id,
+                dye_lot_no: line.dye_lot_no ?? null,
+                has_rolls: Boolean(line.rolls?.length),
+              },
+            ]
+          : [];
+      }),
+    });
     const receipt = await procurement(container).postGoodsReceipt(input);
     return new StepResponse(receipt, receipt.receipt.id);
   },

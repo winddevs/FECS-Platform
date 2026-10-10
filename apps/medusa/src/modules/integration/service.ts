@@ -98,14 +98,15 @@ class IntegrationModuleService extends MedusaService({
     }>
   > {
     const executor = sharedContext.transactionManager as unknown as SqlExecutor;
-    const rows = await executor.execute<{
+    const claimed = await executor.execute<{
       id: string;
       provider: string;
       event_type: string;
       payload: Record<string, unknown>;
       attempts: number;
+      status: string;
     }>(
-      `SELECT id, provider, event_type, payload, attempts FROM ${INBOX_TABLE}
+      `SELECT id, provider, event_type, payload, attempts, status FROM ${INBOX_TABLE}
        WHERE (
            (status IN ('RECEIVED', 'RETRY') AND (next_retry_at IS NULL OR next_retry_at <= now()))
            -- visibility timeout: a worker that died mid-batch leaves PROCESSING rows behind
@@ -117,11 +118,39 @@ class IntegrationModuleService extends MedusaService({
        FOR UPDATE SKIP LOCKED`,
       [limit]
     );
-    if (rows.length > 0) {
+    // A row found still PROCESSING after the timeout means its worker died (or
+    // is far too slow). Count that as an attempt, so an event that crashes the
+    // worker every time reaches the dead-letter queue instead of looping.
+    const rows: Array<{
+      id: string;
+      provider: string;
+      event_type: string;
+      payload: Record<string, unknown>;
+      attempts: number;
+    }> = [];
+    for (const row of claimed) {
+      const attempts =
+        row.status === "PROCESSING" ? row.attempts + 1 : row.attempts;
+      if (attempts >= MAX_INBOX_ATTEMPTS) {
+        await executor.execute(
+          `UPDATE ${INBOX_TABLE}
+           SET status = 'DLQ', attempts = ?, last_error = 'worker did not finish processing', updated_at = now()
+           WHERE id = ?`,
+          [attempts, row.id]
+        );
+        continue;
+      }
       await executor.execute(
-        `UPDATE ${INBOX_TABLE} SET status = 'PROCESSING', updated_at = now() WHERE id IN (?)`,
-        [rows.map((r) => r.id)]
+        `UPDATE ${INBOX_TABLE} SET status = 'PROCESSING', attempts = ?, updated_at = now() WHERE id = ?`,
+        [attempts, row.id]
       );
+      rows.push({
+        id: row.id,
+        provider: row.provider,
+        event_type: row.event_type,
+        payload: row.payload,
+        attempts,
+      });
     }
     return rows;
   }

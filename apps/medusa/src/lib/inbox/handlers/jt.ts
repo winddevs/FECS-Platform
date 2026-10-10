@@ -9,7 +9,7 @@ export const handleJtInboxEvent: InboxHandler = async (container, event) => {
   if (events.length === 0) {
     return;
   }
-  await ingestCarrierEventsWorkflow(container).run({
+  const { result } = await ingestCarrierEventsWorkflow(container).run({
     input: {
       carrier_code: provider.code,
       actor_id: "system:jt-webhook",
@@ -22,4 +22,11 @@ export const handleJtInboxEvent: InboxHandler = async (container, event) => {
       })),
     },
   });
+  // J&T can push a scan before our create call has stored the tracking number.
+  // Fail so the inbox retries with backoff instead of dropping the event.
+  if (result.unknown_tracking > 0) {
+    throw new Error(
+      `${result.unknown_tracking} tracking number(s) not known yet; will retry`
+    );
+  }
 };

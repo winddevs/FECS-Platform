@@ -26,7 +26,6 @@ import {
 } from "../../lib/tx";
 import { explodeBom } from "./lib/bom-explosion";
 import {
-  advance,
   applyInspection,
   assertInvariant,
   assertRoutingEndsWithGate,

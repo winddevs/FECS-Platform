@@ -266,10 +266,15 @@ class ReturnsModuleService extends MedusaService({
     @MedusaContext() ctx: Context = {}
   ) {
     const rma = await this.lockRma(ctx, input.return_id);
+    // Safe to call from the authorize flow, from the retry path and again on
+    // redelivery of the event: only an AUTHORIZED return takes the shipment.
+    if (rma.status !== "AUTHORIZED") {
+      return { id: rma.id, status: rma.status, skipped: true as const };
+    }
     await this.move(ctx, rma, "IN_TRANSIT", input, {
       return_shipment_id: input.shipment_id,
     });
-    return { id: rma.id, status: "IN_TRANSIT" };
+    return { id: rma.id, status: "IN_TRANSIT", skipped: false as const };
   }
 
   /**

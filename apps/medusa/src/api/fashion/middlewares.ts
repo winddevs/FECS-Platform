@@ -51,12 +51,18 @@ const guarded = (
 // inferring it for each schema makes the TypeScript checker explode (heap OOM).
 // Schemas are typed at their definition site (see ./schemas), so we pass them
 // through a non-generic boundary here.
-const body = (matcher: string, permission: Permission, schema: z.ZodType) =>
+const body = (
+  matcher: string,
+  permission: Permission,
+  schema: z.ZodType,
+  ...after: NonNullable<MiddlewareRoute["middlewares"]>
+) =>
   guarded(
     matcher,
     "POST",
     permission,
-    validateAndTransformBody(schema as never)
+    validateAndTransformBody(schema as never),
+    ...after
   );
 
 const MAX_PAGE_SIZE = 200;
@@ -181,7 +187,12 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
   body(
     "/admin/material-inventory/reservations",
     "inventory:reserve",
-    ReserveMaterialSchema
+    ReserveMaterialSchema,
+    // Overriding the dye-lot policy is a planning decision, like on the MO route.
+    requirePermissionIf(
+      "manufacturing:approve",
+      (b) => b.planner_approved === true
+    )
   ),
   body(
     "/admin/material-inventory/reservations/:id/release",

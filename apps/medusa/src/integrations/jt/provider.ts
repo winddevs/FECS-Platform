@@ -44,6 +44,34 @@ const networkErrorCode = (error: unknown, depth = 0): string | undefined => {
   return undefined;
 };
 const SIGNATURE_HEADER = "x-signature";
+const HAS_TIME_ZONE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+const VIETNAM_OFFSET = "+07:00";
+
+/**
+ * Parses a carrier scan time. A time without a zone is Vietnam local time, not
+ * the server's. A missing or unparseable time yields null: the event is
+ * dropped rather than stamped "now", which would create a new duplicate event
+ * on every poll and break the ordering.
+ */
+export const parseScanTime = (value: unknown): Date | null => {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+  const text = value.trim().replace(" ", "T");
+  const parsed = new Date(
+    HAS_TIME_ZONE.test(text) ? text : `${text}${VIETNAM_OFFSET}`
+  );
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+/** Keeps only details that have a usable time. */
+const withScanTime = <T extends { scanTime?: string }>(
+  details: T[]
+): Array<{ detail: T; at: Date }> =>
+  details.flatMap((detail) => {
+    const at = parseScanTime(detail.scanTime);
+    return at ? [{ detail, at }] : [];
+  });
 
 /**
  * J&T adapter. All vendor-specific shapes live here and nowhere else.
@@ -208,13 +236,15 @@ export class JTCarrierProvider implements CarrierProvider {
         }>;
       };
     }>("GET", `/tracking?billCode=${encodeURIComponent(trackingNumber)}`);
-    return (result.data?.details ?? []).map((d) => ({
-      tracking_number: trackingNumber,
-      carrier_status: d.scanType ?? d.desc ?? "",
-      description: d.desc ?? null,
-      occurred_at: new Date(d.scanTime ?? Date.now()),
-      raw: d as Record<string, unknown>,
-    }));
+    return withScanTime(result.data?.details ?? []).map(
+      ({ detail: d, at }) => ({
+        tracking_number: trackingNumber,
+        carrier_status: d.scanType ?? d.desc ?? "",
+        description: d.desc ?? null,
+        occurred_at: at,
+        raw: d as Record<string, unknown>,
+      })
+    );
   }
 
   async findByMerchantReference(
@@ -273,11 +303,11 @@ export class JTCarrierProvider implements CarrierProvider {
     if (!payload?.billCode) {
       return [];
     }
-    return (payload.details ?? []).map((d) => ({
+    return withScanTime(payload.details ?? []).map(({ detail: d, at }) => ({
       tracking_number: payload.billCode as string,
       carrier_status: d.scanType ?? d.desc ?? "",
       description: d.desc ?? null,
-      occurred_at: new Date(d.scanTime ?? Date.now()),
+      occurred_at: at,
       raw: d as Record<string, unknown>,
     }));
   }

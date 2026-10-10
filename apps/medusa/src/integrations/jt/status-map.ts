@@ -15,26 +15,32 @@ const RULES: Array<{ pattern: RegExp; status: ShipmentStatus }> = [
     pattern: /returning|return(ed)? (scan|to)|send back/i,
     status: "RETURNING",
   },
-  { pattern: /sign(ed)?|delivered|pod\b|received by/i, status: "DELIVERED" },
+  // Problems first: "problem parcel" is an exception, not a failed delivery.
+  { pattern: /problem|exception|lost|damag|hold/i, status: "EXCEPTION" },
+  // Failures BEFORE delivered: "undelivered", "not delivered" and "refused to
+  // sign" all contain words that would otherwise read as a completed delivery.
   {
-    pattern: /fail|problem|unsuccessful|refus|reschedul|undeliver/i,
+    pattern: /fail|unsuccessful|refus|reschedul|undeliver|not delivered/i,
     status: "DELIVERY_FAILED",
+  },
+  {
+    pattern: /\bdelivered\b|\bsigned\b|proof of delivery|\bpod\b|received by/i,
+    status: "DELIVERED",
   },
   {
     pattern: /out for delivery|delivering|delivery scan|with courier/i,
     status: "OUT_FOR_DELIVERY",
   },
-  { pattern: /arriv(al|ed)|hub|sorting|warehouse in/i, status: "ARRIVED_HUB" },
+  // Departures before arrivals: "departure from hub" is leaving, not arriving.
   { pattern: /depart|in transit|transit|dispatch/i, status: "IN_TRANSIT" },
+  { pattern: /arriv(al|ed)|hub|sorting|warehouse in/i, status: "ARRIVED_HUB" },
   { pattern: /pick(ed)?[- ]?up|collected|pickup scan/i, status: "PICKED_UP" },
   {
     pattern: /wait(ing)? (for )?pick|pickup pending|order (received|created)/i,
     status: "PICKUP_PENDING",
   },
   { pattern: /cancel/i, status: "CANCELLED" },
-  { pattern: /exception|lost|damag|hold/i, status: "EXCEPTION" },
 ];
-
 export const mapJtStatus = (carrierStatus: string): ShipmentStatus | null => {
   for (const rule of RULES) {
     if (rule.pattern.test(carrierStatus)) {

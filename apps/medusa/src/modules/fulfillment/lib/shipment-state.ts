@@ -63,7 +63,9 @@ export const decideTransition = (
       : { apply: false, reason: "NOT_ALLOWED" };
   }
   if (current === "DELIVERY_FAILED") {
-    return ["OUT_FOR_DELIVERY", "RETURNING", "DELIVERED"].includes(next)
+    return ["OUT_FOR_DELIVERY", "RETURNING", "RETURNED", "DELIVERED"].includes(
+      next
+    )
       ? { apply: true }
       : { apply: false, reason: "REGRESSION" };
   }
@@ -84,7 +86,11 @@ export const decideTransition = (
       : { apply: false, reason: "NOT_ALLOWED" };
   }
   if (next === "RETURNED") {
-    return { apply: false, reason: "NOT_ALLOWED" };
+    // A parcel can come back from any point after pickup; the RETURNING scan
+    // is sometimes never sent.
+    return (RANK[current] ?? -1) >= (RANK.PICKED_UP as number)
+      ? { apply: true }
+      : { apply: false, reason: "NOT_ALLOWED" };
   }
   const from = RANK[current];
   const to = RANK[next];

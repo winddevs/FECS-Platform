@@ -77,6 +77,21 @@ assert(
   "user without a fashion role -> 403"
 );
 
+const forbidden = await fetch(`${BASE}/admin/manufacturing/mos`, {
+  headers: {
+    authorization: `Bearer ${roles.none}`,
+    "x-correlation-id": "cor_http_test",
+  },
+});
+const forbiddenBody = await forbidden.json();
+assert(
+  forbidden.status === 403 &&
+    forbiddenBody.code === "FORBIDDEN" &&
+    forbiddenBody.correlation_id === "cor_http_test" &&
+    forbidden.headers.get("x-correlation-id") === "cor_http_test",
+  "errors carry a stable code and the correlation id (body and header)"
+);
+
 console.log("# role escalation and legacy admin routes");
 const noneId = (await call(roles.none, "GET", "/admin/users/me")).body.user.id;
 const adminId = (await call(roles.admin, "GET", "/admin/users/me")).body.user
@@ -744,9 +759,12 @@ const inboxAfter = (await call(roles.sre, "GET", "/admin/ops/summary")).body
 const failuresAfter = inboxAfter
   .filter((r) => r.status === "RETRY" || r.status === "DLQ")
   .reduce((n, r) => n + r.n, 0);
+// The J&T push above names a tracking number we do not know. It is retried
+// (the push may simply have beaten our create call), not silently dropped;
+// that one event is the only expected failure.
 assert(
-  waiting === 0 && failuresAfter <= failuresBefore,
-  "inbox worker processed the webhook events asynchronously, without failures"
+  waiting === 0 && failuresAfter - failuresBefore === 1,
+  `inbox worker processed the webhooks asynchronously; only the unknown-tracking push is retried (new failures: ${failuresAfter - failuresBefore})`
 );
 
 console.log(`HTTP TEST PASSED (${checks} checks)`);

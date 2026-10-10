@@ -6,6 +6,7 @@ export type Intent =
   | { name: "PRODUCT_SEARCH"; query: string }
   | { name: "CHECKOUT"; sku: string; qty: number }
   | { name: "HANDOFF" }
+  | { name: "RESUME_BOT" }
   | { name: "STOP" }
   | { name: "START" }
   | { name: "HELP" };
@@ -27,6 +28,10 @@ const STOP_COMMAND =
   /^(?:stop|unsubscribe|huy dang ky|hủy đăng ký|dung nhan tin|dừng nhận tin|ngung nhan tin|ngừng nhận tin)[\s.!]*$/u;
 const START_COMMAND =
   /^(?:start|subscribe|dang ky|đăng ký|nhan tin|nhận tin)[\s.!]*$/u;
+
+// Customer's way back from a human agent to the bot.
+const RESUME_BOT_COMMAND =
+  /^(?:bot|back to bot|chat with bot|quay lai bot|quay lại bot|chat voi bot|chat với bot)[\s.!]*$/u;
 
 const HANDOFF = word(
   [
@@ -63,6 +68,7 @@ export const parseIntent = (rawText: string): Intent => {
   if (link) return { name: "LINK", code: link[1].toUpperCase() };
   if (STOP_COMMAND.test(lower)) return { name: "STOP" };
   if (START_COMMAND.test(lower)) return { name: "START" };
+  if (RESUME_BOT_COMMAND.test(lower)) return { name: "RESUME_BOT" };
   if (HANDOFF.test(lower)) return { name: "HANDOFF" };
   const buy = BUY.exec(text);
   if (buy) return { name: "CHECKOUT", sku: buy[1], qty: Number(buy[2] ?? 1) };

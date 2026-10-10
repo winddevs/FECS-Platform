@@ -1,4 +1,4 @@
-import { createHash, randomInt } from "node:crypto";
+import { createHash, createHmac, randomInt } from "node:crypto";
 
 import type { Context, DAL } from "@medusajs/framework/types";
 import {
@@ -47,8 +47,18 @@ export type IdentityView = IdentityKey & {
   last_inbound_at: Date | null;
 };
 
-const hashCode = (code: string): string =>
-  createHash("sha256").update(code.toUpperCase()).digest("hex");
+/**
+ * Link codes are short-lived but low entropy, so a leaked table must not allow
+ * an offline search: hash them with a server-side secret (HMAC) when one is
+ * configured.
+ */
+const hashCode = (code: string): string => {
+  const pepper = process.env.SOCIAL_LINK_SECRET;
+  const normalized = code.toUpperCase();
+  return pepper
+    ? createHmac("sha256", pepper).update(normalized).digest("hex")
+    : createHash("sha256").update(normalized).digest("hex");
+};
 
 const newCode = (): string =>
   Array.from(
@@ -173,6 +183,36 @@ class SocialCommerceModuleService extends MedusaService({
     };
   }
 
+  /** Inbound messages from one identity in the last N seconds (flood control). */
+  @InjectTransactionManager()
+  async inboundCountSince(
+    identityId: string,
+    seconds: number,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<number> {
+    const [row] = await executorOf(ctx).execute<{ n: string }>(
+      `SELECT count(*) AS n FROM "conversation_message"
+       WHERE identity_id = ? AND direction = 'IN' AND deleted_at IS NULL
+         AND created_at > now() - (? || ' seconds')::interval`,
+      [identityId, String(seconds)]
+    );
+    return Number(row?.n ?? 0);
+  }
+
+  @InjectTransactionManager()
+  async getIdentity(
+    identityId: string,
+    @MedusaContext() ctx: Context = {}
+  ): Promise<IdentityView | null> {
+    const [row] = await executorOf(ctx).execute<IdentityView>(
+      `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
+              handoff_state, last_inbound_at
+       FROM "customer_channel_identity" WHERE id = ? AND deleted_at IS NULL`,
+      [identityId]
+    );
+    return row ?? null;
+  }
+
   @InjectTransactionManager()
   async markInboundProcessed(
     input: { identity_id: string; message_id: string },
@@ -212,6 +252,15 @@ class SocialCommerceModuleService extends MedusaService({
     input: { identity_id: string; state: "BOT" | "HUMAN"; actor_id: string },
     @MedusaContext() ctx: Context = {}
   ) {
+    // Repeating the same state must not re-announce it (the event feeds the
+    // support queue).
+    const [current] = await executorOf(ctx).execute<{ handoff_state: string }>(
+      `SELECT handoff_state FROM "customer_channel_identity" WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [input.identity_id]
+    );
+    if (current?.handoff_state === input.state) {
+      return { identity_id: input.identity_id, handoff_state: input.state };
+    }
     await this.updateCustomerChannelIdentities(
       { id: input.identity_id, handoff_state: input.state },
       ctx

@@ -52,6 +52,32 @@ Switch on one at a time, watching `/admin/ops/summary` and the alerts:
 Rolling back = flip the flag and restart; data stays consistent because every
 side effect is idempotent and retried from durable state.
 
+### Stock projection and Medusa fulfillment
+
+`finishedGoods` is the source of truth for finished stock. With
+`FG_SYNC_TO_MEDUSA_ENABLED` its sellable quantity is written to Medusa's
+`stocked_quantity`. Medusa also lowers `stocked_quantity` itself when a
+fulfillment is created. Both writers converge on the same number, because the
+`order.fulfillment_created` subscriber ships the same units out of the FG ledger
+and that emits a fresh (versioned) projection. A warehouse that ships through
+the FG API **before** Medusa records the fulfillment can leave Medusa lower by
+that quantity until the next projection; the FG-vs-Medusa reconciliation job (`reconcile-finished-goods`)
+reports it as drift and `POST /admin/finished-goods/projection/republish`
+fixes it. Always create the Medusa fulfillment first, so the two stay in step.
+
+### Social support
+
+- A customer asks for a person ("gặp nhân viên", "talk to a human"): the chat
+  goes to human mode (`GET /admin/social/identities?handoff_state=HUMAN` is the
+  queue). The bot then runs nothing for that chat.
+- Agents read `GET /admin/social/identities/:id/messages` and answer with
+  `POST /admin/social/identities/:id/messages` (`social:manage`). Replies are
+  refused outside the 24h messaging window or for opted-out customers.
+- The customer returns to the bot by sending `bot`.
+- Checkout links are bound to the linked customer: the exchange endpoint only
+  answers the same logged-in customer. More than 30 messages a minute from one
+  chat are dropped.
+
 ### Access control
 
 Roles are stored on the admin user (`metadata.fashion_roles`). Grant the first

@@ -12,6 +12,10 @@ import { hasPermission, rolesFromMetadata } from "../src/lib/authz/permissions";
 import { touchesRoleMetadata } from "../src/lib/authz/protect-role-metadata";
 import { TOPICS } from "../src/lib/events/envelope";
 import { buildShipmentRequest } from "../src/lib/fulfillment/build-request";
+import {
+  signCheckoutToken,
+  verifyCheckoutToken,
+} from "../src/lib/social/checkout-link";
 import { handleInboundMessage } from "../src/lib/social/handle-inbound";
 import {
   flushDeferredNotifications,
@@ -26,6 +30,7 @@ import {
   returnedValue,
 } from "../src/modules/returns/lib/refund-cap";
 import { parseIntent } from "../src/modules/socialCommerce/lib/intent";
+import { evaluateAgentReply } from "../src/modules/socialCommerce/lib/policy";
 import {
   cancelCarrierShipmentWorkflow,
   createCarrierShipmentWorkflow,
@@ -41,6 +46,7 @@ import {
   releaseRoutingWorkflow,
   reserveMoMaterialsWorkflow,
 } from "../src/workflows/manufacturing";
+import { sendAgentMessageWorkflow } from "../src/workflows/social";
 import { settlePendingReceipt } from "../src/workflows/steps/procurement";
 
 /**
@@ -1203,6 +1209,154 @@ export default async function verify({ container }: ExecArgs) {
   assert(
     parcel1.cod_amount + parcel2.cod_amount === 300000,
     "the parcels together collect exactly the order total"
+  );
+
+  console.log("# social: checkout link is bound to its customer");
+  const bound = signCheckoutToken("cart_9", "cus_owner", "s3cret");
+  assert(
+    verifyCheckoutToken(bound, "s3cret")?.customer_id === "cus_owner",
+    "the token names the customer it was created for"
+  );
+  const forged = Buffer.from(
+    JSON.stringify({ c: "cart_9", e: 9999999999 })
+  ).toString("base64url");
+  assert(
+    verifyCheckoutToken(`${forged}.x`, "s3cret") === null,
+    "a token without a valid signature and customer is rejected"
+  );
+  let checkoutCalls = 0;
+  const checkoutDeps: any = {
+    ...deps,
+    flags: { readTools: true, stateChange: true },
+    readers: {
+      ...deps.readers,
+      createCheckoutLink: async (customerId: string) => {
+        checkoutCalls += 1;
+        return `https://shop/checkout/social?c=${customerId}`;
+      },
+    },
+  };
+  const anon = await handleInboundMessage(
+    checkoutDeps,
+    message(`anon_${run}`, "buy TEE-M x1", "co1")
+  );
+  assert(
+    anon.status === "REPLIED" && checkoutCalls === 0,
+    "an unlinked chat cannot create a cart"
+  );
+  await handleInboundMessage(
+    checkoutDeps,
+    message(psid1, "buy TEE-M x1", "co2")
+  );
+  assert(checkoutCalls === 1, "a linked chat can, for its own customer");
+
+  console.log("# social: human handoff");
+  const psid3 = `psid3_${run}`;
+  const code3 = (await social.createLinkCode(customer)).code;
+  await handleInboundMessage(
+    checkoutDeps,
+    message(psid3, `link ${code3}`, "hh0")
+  );
+  await handleInboundMessage(
+    checkoutDeps,
+    message(psid3, "gặp nhân viên", "hh1")
+  );
+  const humanSince = (await identityOf(psid3)).handoff_state;
+  assert(humanSince === "HUMAN", "handoff puts the conversation in human mode");
+  const events = async () =>
+    Number(
+      (
+        await mgr2.raw(
+          `SELECT count(*)::int AS n FROM social_outbox_event
+           WHERE event_type='social.handoff_requested.v1' AND payload->>'aggregate_id' = ?`,
+          [(await identityOf(psid3)).id]
+        )
+      ).rows[0].n
+    );
+  const requested = await events();
+  const callsBefore = checkoutCalls;
+  const silent = await handleInboundMessage(
+    checkoutDeps,
+    message(psid3, "buy TEE-M x1", "hh2")
+  );
+  assert(
+    silent.status === "SUPPRESSED" && checkoutCalls === callsBefore,
+    "while a human has the chat the bot runs no tools"
+  );
+  await handleInboundMessage(
+    checkoutDeps,
+    message(psid3, "gặp nhân viên", "hh3")
+  );
+  assert(
+    (await events()) === requested,
+    "asking again does not re-announce the handoff"
+  );
+  assert(
+    !evaluateAgentReply(
+      {
+        consent_status: "OPTED_IN",
+        handoff_state: "HUMAN",
+        last_inbound_at: days(2),
+      },
+      new Date()
+    ).allow,
+    "an agent cannot reply outside the 24h window"
+  );
+  const agentRun = (text: string) =>
+    sendAgentMessageWorkflow(container).run({
+      input: {
+        identity_id: linked.id,
+        text,
+        actor_id: "user_agent",
+      },
+    });
+  await expectFail(
+    () => agentRun("hello"),
+    "NOT_IN_HANDOFF",
+    "an agent cannot talk while the bot owns the chat"
+  );
+  const human = await identityOf(psid3);
+  const sentBeforeAgent = channel.sent.length;
+  await sendAgentMessageWorkflow(container).run({
+    input: {
+      identity_id: human.id,
+      text: "Hi, this is support",
+      actor_id: "user_agent",
+    },
+  });
+  assert(
+    channel.sent.length === sentBeforeAgent + 1 &&
+      channel.sent[channel.sent.length - 1].text === "Hi, this is support",
+    "an agent's reply is sent while the chat is handed off"
+  );
+  await handleInboundMessage(checkoutDeps, message(psid3, "bot", "hh4"));
+  assert(
+    (await identityOf(psid3)).handoff_state === "BOT",
+    "the customer can send the chat back to the bot"
+  );
+
+  console.log("# social: flood control and link code redaction");
+  const psid4 = `psid4_${run}`;
+  let suppressed = 0;
+  for (let i = 0; i < 34; i += 1) {
+    const r = await handleInboundMessage(
+      deps,
+      message(psid4, "hello", `fl${i}`)
+    );
+    if (r.status === "SUPPRESSED") suppressed += 1;
+  }
+  assert(
+    suppressed >= 3,
+    `messages beyond 30/min are dropped (dropped ${suppressed})`
+  );
+  const stored = await mgr2.raw(
+    `SELECT text FROM conversation_message WHERE identity_id = ? AND intent = 'LINK'`,
+    [linked.id]
+  );
+  assert(
+    stored.rows.length > 0 &&
+      stored.rows.every((r: any) => !/[A-Z0-9]{8}/.test(r.text)),
+    "stored LINK messages never contain the code"
   );
 
   console.log("INTEGRATION TEST PASSED");

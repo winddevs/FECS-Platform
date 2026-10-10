@@ -90,35 +90,42 @@ export const createMedusaReaders = (
         sku: p.variants?.[0]?.sku ?? null,
       }));
     },
-    async createCheckoutLink(sku, qty) {
+    async createCheckoutLink(customerId, sku, qty) {
       const secret = env.SOCIAL_LINK_SECRET;
       const regionId = env.SOCIAL_REGION_ID;
       const storefront = env.STOREFRONT_URL;
-      if (!secret || !regionId || !storefront) {
+      const salesChannelId = env.SOCIAL_SALES_CHANNEL_ID;
+      if (!secret || !regionId || !storefront || !salesChannelId) {
         return null;
       }
+      // Only published products can be bought, exactly like product search.
       const { data } = await query.graph({
         entity: "product_variant",
-        fields: ["id"],
+        fields: ["id", "product.status"],
         filters: { sku },
       });
-      if (!data[0]) {
+      const variant = data.find(
+        (v: { product?: { status?: string } }) =>
+          v.product?.status === "published"
+      );
+      if (!variant) {
         return null;
       }
       const { result } = await createCartWorkflow(container).run({
         input: {
           region_id: regionId,
-          sales_channel_id: env.SOCIAL_SALES_CHANNEL_ID,
+          sales_channel_id: salesChannelId,
+          customer_id: customerId,
           items: [
             {
-              variant_id: data[0].id,
+              variant_id: variant.id,
               quantity: Math.min(Math.max(qty, 1), 20),
             },
           ],
           metadata: { source: "messenger" },
         },
       });
-      return `${storefront.replace(/\/$/, "")}/checkout/social?token=${signCheckoutToken(result.id, secret)}`;
+      return `${storefront.replace(/\/$/, "")}/checkout/social?token=${signCheckoutToken(result.id, customerId, secret)}`;
     },
   };
 };

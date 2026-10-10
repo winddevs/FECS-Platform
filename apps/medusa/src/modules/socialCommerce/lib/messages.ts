@@ -33,6 +33,10 @@ const DICTIONARY = {
     vi: "Mình đã chuyển bạn tới nhân viên hỗ trợ. Vui lòng chờ trong giây lát.",
     en: "I've passed you to a support agent. Please wait a moment.",
   },
+  botBack: {
+    vi: "Mình là trợ lý tự động và đã quay lại hỗ trợ bạn. Gõ 'nhân viên' bất cứ lúc nào để gặp tư vấn viên.",
+    en: "I'm back as your automated assistant. Say 'agent' any time to talk to a person.",
+  },
   stop: {
     vi: "Bạn đã hủy nhận thông báo. Gõ 'đăng ký' để nhận lại.",
     en: "You've unsubscribed from notifications. Send 'subscribe' to resume.",

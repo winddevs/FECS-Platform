@@ -56,3 +56,31 @@ export const evaluateOutbound = (input: {
   }
   return { allow: true };
 };
+
+/**
+ * A human agent's reply (admin send). Allowed only while the conversation is
+ * handed off to humans, the customer has not opted out, and the standard
+ * messaging window is open.
+ */
+export const evaluateAgentReply = (
+  identity: PolicyIdentity,
+  now: Date
+):
+  | { allow: true }
+  | {
+      allow: false;
+      reason: "OPTED_OUT" | "NOT_IN_HANDOFF" | "OUTSIDE_WINDOW";
+    } => {
+  if (identity.consent_status === "OPTED_OUT") {
+    return { allow: false, reason: "OPTED_OUT" };
+  }
+  if (identity.handoff_state !== "HUMAN") {
+    return { allow: false, reason: "NOT_IN_HANDOFF" };
+  }
+  const last = identity.last_inbound_at
+    ? new Date(identity.last_inbound_at).getTime()
+    : 0;
+  return now.getTime() - last > WINDOW_MS
+    ? { allow: false, reason: "OUTSIDE_WINDOW" }
+    : { allow: true };
+};

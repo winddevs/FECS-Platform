@@ -32,6 +32,7 @@ import {
   FgSafetyStockSchema,
   FgShipSchema,
   HandoffSchema,
+  SendAgentMessageSchema,
   InspectBundleSchema,
   InspectReturnItemSchema,
   IssueToMoSchema,
@@ -278,6 +279,12 @@ export const opsMiddlewares: MiddlewareRoute[] = [
     handoff_state: str,
   }),
   body("/admin/social/identities/:id/handoff", "social:manage", HandoffSchema),
+  read("/admin/social/identities/:id/messages", "social:read"),
+  body(
+    "/admin/social/identities/:id/messages",
+    "social:manage",
+    SendAgentMessageSchema
+  ),
   read("/admin/ops/summary", "ops:read"),
 
   // ---- storefront (authenticated customer) -------------------------------------------

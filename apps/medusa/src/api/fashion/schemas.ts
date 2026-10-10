@@ -523,5 +523,8 @@ export const RefundReturnSchema = z.object({
 export type RefundReturnBody = z.infer<typeof RefundReturnSchema>;
 
 // ---- social ------------------------------------------------------------------
+export const SendAgentMessageSchema = z.object({ text: text(1000) });
+export type SendAgentMessageBody = z.infer<typeof SendAgentMessageSchema>;
+
 export const HandoffSchema = z.object({ state: z.enum(["BOT", "HUMAN"]) });
 export type HandoffBody = z.infer<typeof HandoffSchema>;

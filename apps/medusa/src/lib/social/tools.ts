@@ -31,6 +31,13 @@ export interface SocialReaders {
     orderId: string
   ): Promise<CustomerProductionStatus | null>;
   searchProducts(query: string): Promise<ProductHit[]>;
-  /** State-changing: creates a cart and returns a short-lived secure link. */
-  createCheckoutLink(sku: string, qty: number): Promise<string | null>;
+  /**
+   * State-changing: creates a cart FOR the linked customer and returns a
+   * short-lived secure link bound to that customer.
+   */
+  createCheckoutLink(
+    customerId: string,
+    sku: string,
+    qty: number
+  ): Promise<string | null>;
 }

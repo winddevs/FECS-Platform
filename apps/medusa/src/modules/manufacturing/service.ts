@@ -1871,12 +1871,18 @@ class ManufacturingModuleService extends MedusaService({
     }>(
       `SELECT w.id, w.code, w.type, w.is_active, w.capacity_minutes_per_day, w.efficiency_pct,
               COALESCE(SUM(e.standard_minutes_total) FILTER (
-                WHERE e.occurred_at >= ?::date AND e.occurred_at < (?::date + interval '1 day')), 0) AS load_minutes
+                WHERE e.occurred_at >= ?::timestamptz AND e.occurred_at < (?::timestamptz + interval '1 day')), 0) AS load_minutes
        FROM "work_center" w
        LEFT JOIN "operation_execution" e ON e.work_center_id = w.id AND e.deleted_at IS NULL
        WHERE w.deleted_at IS NULL
        GROUP BY w.id ORDER BY w.code`,
-      [day.toISOString().slice(0, 10), day.toISOString().slice(0, 10)]
+      // The day is a UTC day. A bare ::date would be cut at the DATABASE
+      // session's midnight, which is a different instant (and broke at the
+      // UTC/local day boundary).
+      [
+        `${day.toISOString().slice(0, 10)}T00:00:00Z`,
+        `${day.toISOString().slice(0, 10)}T00:00:00Z`,
+      ]
     );
     return rows.map((r) => {
       const effective =

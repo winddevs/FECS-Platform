@@ -65,7 +65,7 @@ export default async function test({ container }: ExecArgs) {
       id === "o1" ? "IN_PRODUCTION" : null,
     searchProducts: async (q) =>
       q.includes("tee") ? [{ title: "Basic Tee", sku: "TEE-M" }] : [],
-    createCheckoutLink: async (sku, qty) =>
+    createCheckoutLink: async (_customerId, sku, qty) =>
       `https://shop.example/checkout/social?sku=${sku}&qty=${qty}`,
   };
   const deps = (
@@ -182,9 +182,10 @@ export default async function test({ container }: ExecArgs) {
   );
 
   console.log("# secure checkout token");
-  const token = signCheckoutToken("cart_1", "s3cret");
+  const token = signCheckoutToken("cart_1", "cus_1", "s3cret");
   assert(
-    verifyCheckoutToken(token, "s3cret")?.cart_id === "cart_1",
+    verifyCheckoutToken(token, "s3cret")?.cart_id === "cart_1" &&
+      verifyCheckoutToken(token, "s3cret")?.customer_id === "cus_1",
     "valid token verifies"
   );
   assert(verifyCheckoutToken(token, "other") === null, "wrong secret rejected");
@@ -194,7 +195,7 @@ export default async function test({ container }: ExecArgs) {
   );
   assert(
     verifyCheckoutToken(
-      signCheckoutToken("c", "s3cret", 60, Date.now() - 120_000),
+      signCheckoutToken("c", "cus_1", "s3cret", 60, Date.now() - 120_000),
       "s3cret"
     ) === null,
     "expired token rejected"

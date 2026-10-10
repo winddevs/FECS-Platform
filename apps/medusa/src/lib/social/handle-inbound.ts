@@ -32,6 +32,11 @@ export type InboundOutcome =
   | { status: "SUPPRESSED"; reason: string; intent: string };
 
 const MAX_SEARCH_HITS = 3;
+/** Per identity; far above human typing speed, below what a script sends. */
+const MAX_INBOUND_PER_MINUTE = 30;
+const SECONDS_PER_MINUTE = 60;
+/** The code is a credential: it must not stay in the stored conversation. */
+const REDACTED_LINK_TEXT = "link ********";
 
 /**
  * Handles one verified, deduplicated Messenger message. Replies are always
@@ -55,11 +60,35 @@ export const handleInboundMessage = async (
   const recorded = await service.recordInbound({
     identity_id: identity.id,
     message_id: inbound.message_id,
-    text: inbound.text,
+    text: intent.name === "LINK" ? REDACTED_LINK_TEXT : inbound.text,
     intent: intent.name,
   });
   if (recorded.already_processed) {
     return { status: "DUPLICATE" };
+  }
+
+  const finishSilently = async (reason: string): Promise<InboundOutcome> => {
+    await service.markInboundProcessed({
+      identity_id: identity.id,
+      message_id: inbound.message_id,
+    });
+    return { status: "SUPPRESSED", reason, intent: intent.name };
+  };
+  // Flood control: every message costs several writes and possibly a Graph API
+  // call, so one identity cannot be allowed to send without limit.
+  if (
+    (await service.inboundCountSince(identity.id, SECONDS_PER_MINUTE)) >
+    MAX_INBOUND_PER_MINUTE
+  ) {
+    return await finishSilently("RATE_LIMITED");
+  }
+  // While a human has the conversation the bot stays out of it entirely: it
+  // must not run tools (e.g. create a cart) whose answer nobody will see.
+  if (
+    identity.handoff_state === "HUMAN" &&
+    !["STOP", "START", "RESUME_BOT"].includes(intent.name)
+  ) {
+    return await finishSilently("HUMAN_HANDOFF");
   }
 
   let current: IdentityView = identity;
@@ -82,6 +111,15 @@ export const handleInboundMessage = async (
       });
       current = { ...identity, consent_status: "OPTED_IN" };
       reply = t("start", locale);
+      break;
+    case "RESUME_BOT":
+      await service.setHandoff({
+        identity_id: identity.id,
+        state: "BOT",
+        actor_id: "system:customer",
+      });
+      current = { ...identity, handoff_state: "BOT" };
+      reply = t("botBack", locale);
       break;
     case "HANDOFF":
       await service.setHandoff({
@@ -183,7 +221,15 @@ export const handleInboundMessage = async (
         reply = t("toolsDisabled", locale);
         break;
       }
-      const link = await readers.createCheckoutLink(intent.sku, intent.qty);
+      if (!identity.customer_id) {
+        reply = t("needLink", locale);
+        break;
+      }
+      const link = await readers.createCheckoutLink(
+        identity.customer_id,
+        intent.sku,
+        intent.qty
+      );
       reply = link ?? t("searchEmpty", locale);
       break;
     }

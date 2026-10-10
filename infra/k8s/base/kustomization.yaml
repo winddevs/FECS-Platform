@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Namespace is set by each overlay.
+resources:
+  - serviceaccount.yaml
+  - configmap.yaml
+  - medusa-server.yaml
+  - medusa-webhook.yaml
+  - medusa-worker.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: fashion-platform
+    includeSelectors: false
+# The image is set per overlay (images:) so each environment pins its own tag.

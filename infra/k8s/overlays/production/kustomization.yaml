@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: fashion-production
+resources: [../../base]
+# CI pins an immutable digest/tag here; never deploy :latest.
+images:
+  - name: fashion-medusa
+    newName: ghcr.io/your-org/fashion-medusa
+    newTag: REPLACE_WITH_RELEASE_TAG
+patches:
+  - target: { kind: Deployment, name: medusa-server }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 3 }
+  - target: { kind: HorizontalPodAutoscaler, name: medusa-server }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 3 }
+      - { op: replace, path: /spec/maxReplicas, value: 20 }
+  - target: { kind: PodDisruptionBudget, name: medusa-server }
+    patch: |-
+      - { op: replace, path: /spec/minAvailable, value: 2 }
+  - target: { kind: Deployment, name: medusa-worker }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 3 }
+  - target: { kind: HorizontalPodAutoscaler, name: medusa-worker }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 3 }
+      - { op: replace, path: /spec/maxReplicas, value: 12 }

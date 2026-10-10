@@ -17,7 +17,13 @@
     "start": "npx medusa start",
     "migrate": "npx medusa db:migrate",
     "dev": "npx medusa develop --port 9100",
-    "bump-deps": "npx --yes npm-check-updates -u -x react -x react-dom -x @types/react -x @types/react-dom -x @mikro-orm/*"
+    "bump-deps": "npx --yes npm-check-updates -u -x react -x react-dom -x @types/react -x @types/react-dom -x @mikro-orm/*",
+    "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.fashion.json",
+    "test:integration": "bash integration-tests/run.sh",
+    "test:http": "bash integration-tests/run-http.sh",
+    "events:check": "node scripts/check-event-catalog.mjs --check",
+    "events:write": "node scripts/check-event-catalog.mjs --write",
+    "grant-role": "npx medusa exec ./src/scripts/grant-fashion-role.ts"
   },
   "dependencies": {
     "@ecommerce/email": "workspace:*",

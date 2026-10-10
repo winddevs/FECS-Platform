@@ -1,0 +1,18 @@
+import type {
+  AuthenticatedMedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework/http";
+
+import { commandOf } from "../../../../lib/http/request-context";
+import { adjustStockWorkflow } from "../../../../workflows/material-inventory";
+import type { AdjustStockBody } from "../../../fashion/schemas";
+
+export async function POST(
+  req: AuthenticatedMedusaRequest<AdjustStockBody>,
+  res: MedusaResponse
+): Promise<void> {
+  const { result } = await adjustStockWorkflow(req.scope).run({
+    input: { ...req.validatedBody, ...commandOf(req) },
+  });
+  res.status(201).json(result);
+}

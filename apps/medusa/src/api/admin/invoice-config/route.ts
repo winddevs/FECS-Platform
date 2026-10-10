@@ -18,7 +18,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   });
 }
 
-export const PostInvoiceConfgSchema = z.object({
+export const PostInvoiceConfigSchema = z.object({
   company_name: z.string().optional(),
   company_address: z.string().optional(),
   company_phone: z.string().optional(),
@@ -27,7 +27,7 @@ export const PostInvoiceConfgSchema = z.object({
   notes: z.string().optional(),
 });
 
-type PostInvoiceConfig = z.infer<typeof PostInvoiceConfgSchema>;
+type PostInvoiceConfig = z.infer<typeof PostInvoiceConfigSchema>;
 
 export async function POST(
   req: MedusaRequest<PostInvoiceConfig>,

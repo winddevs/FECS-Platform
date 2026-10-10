@@ -1,0 +1,33 @@
+# Two Ingresses on one host: webhooks get their own backend, body limit and
+# rate limit. (Annotations are for ingress-nginx; adapt for your controller.)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: medusa-api
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+spec:
+  ingressClassName: nginx
+  tls: [{ hosts: [api.example.com], secretName: fashion-api-tls }]
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: medusa-server, port: { name: http } } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: medusa-webhooks
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 512k
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "4"
+spec:
+  ingressClassName: nginx
+  tls: [{ hosts: [api.example.com], secretName: fashion-api-tls }]
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - { path: /webhooks, pathType: Prefix, backend: { service: { name: medusa-webhook, port: { name: http } } } }

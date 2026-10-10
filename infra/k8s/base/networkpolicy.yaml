@@ -1,0 +1,39 @@
+# Default deny, then allow only what the platform needs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/component, operator: In, values: [server, webhook] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+      ports: [{ port: 9000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-platform
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: medusa }
+  policyTypes: [Egress]
+  egress:
+    # DNS
+    - ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    # Postgres / Redis (managed services; tighten to their CIDRs in production)
+    - ports: [{ port: 5432 }, { port: 6379 }, { port: 6380 }]
+    # HTTPS to providers: J&T, Meta Graph API, S3, email, payment, Sentry/OTLP
+    - ports: [{ port: 443 }]

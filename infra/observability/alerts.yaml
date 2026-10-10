@@ -1,0 +1,79 @@
+# Alerts for the failure modes in the runbooks (docs/runbooks). Every alert
+# links to the runbook section that explains what to do.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: fashion-platform
+spec:
+  groups:
+    - name: integrity
+      rules:
+        - alert: StockInvariantViolated
+          expr: fashion_material_balance_invariant_violations > 0 or fashion_fg_balance_invariant_violations > 0
+          for: 1m
+          labels: { severity: page }
+          annotations:
+            summary: A stock balance violates reserved+hold+damaged <= on_hand or went negative
+            runbook: docs/runbooks/stock-mismatch.md
+    - name: delivery
+      rules:
+        - alert: OutboxLagHigh
+          expr: max by (table) (fashion_outbox_oldest_pending_seconds) > 60
+          for: 5m
+          labels: { severity: page }
+          annotations:
+            summary: "Outbox {{ $labels.table }} has events older than 60s (SLO p95 < 5s)"
+            runbook: docs/runbooks/outbox-backlog.md
+        - alert: OutboxEventsFailed
+          expr: sum by (table) (fashion_outbox_failed) > 0
+          for: 10m
+          labels: { severity: ticket }
+          annotations:
+            summary: "Outbox {{ $labels.table }} has events that exhausted their retries"
+            runbook: docs/runbooks/outbox-backlog.md
+        - alert: InboxDeadLetters
+          expr: sum by (provider) (fashion_inbox_events{status="DLQ"}) > 0
+          for: 5m
+          labels: { severity: ticket }
+          annotations:
+            summary: "Inbound {{ $labels.provider }} events are in the dead-letter queue"
+            runbook: docs/runbooks/provider-outage.md
+    - name: providers
+      rules:
+        - alert: ShipmentsNotCreated
+          expr: sum(fashion_shipments_not_created{create_state=~"UNKNOWN|FAILED_RETRYABLE|PENDING"}) > 10
+          for: 15m
+          labels: { severity: page }
+          annotations:
+            summary: Many shipments are waiting for the carrier (outage or credentials?)
+            runbook: docs/runbooks/provider-outage.md
+        - alert: ShipmentsRejectedByCarrier
+          expr: sum(fashion_shipments_not_created{create_state="FAILED_FINAL"}) > 0
+          for: 1h
+          labels: { severity: ticket }
+          annotations:
+            summary: Carrier rejected shipments permanently; data needs fixing
+            runbook: docs/runbooks/provider-outage.md
+        - alert: TrackingStale
+          expr: fashion_shipments_stale_tracking > 20
+          for: 30m
+          labels: { severity: ticket }
+          annotations:
+            summary: Shipments have had no tracking update for 48h (webhook down? polling disabled?)
+            runbook: docs/runbooks/provider-outage.md
+    - name: production
+      rules:
+        - alert: MaterialShortageBlockingProduction
+          expr: sum(fashion_production_requests{status="WAITING_MATERIAL"}) > 0
+          for: 4h
+          labels: { severity: ticket }
+          annotations:
+            summary: Made-to-order requests have waited 4h for material
+            runbook: docs/runbooks/reconciliation-failure.md
+        - alert: ManufacturingExceptionsOpen
+          expr: fashion_manufacturing_exceptions_open > 5
+          for: 1h
+          labels: { severity: ticket }
+          annotations:
+            summary: Fabric variance / overproduction exceptions need review
+            runbook: docs/runbooks/reconciliation-failure.md

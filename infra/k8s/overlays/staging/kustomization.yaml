@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: fashion-staging
+resources: [../../base]
+images:
+  - name: fashion-medusa
+    newName: ghcr.io/your-org/fashion-medusa
+    newTag: staging
+patches:
+  - target: { kind: Deployment, name: medusa-server }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: Deployment, name: medusa-webhook }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: Deployment, name: medusa-worker }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 1 }
+      - { op: replace, path: /spec/maxReplicas, value: 3 }
+  - target: { kind: PodDisruptionBudget }
+    patch: |-
+      - { op: replace, path: /spec/minAvailable, value: 0 }
+  - target: { kind: Ingress }
+    patch: |-
+      - { op: replace, path: /spec/rules/0/host, value: api.staging.example.com }
+      - { op: replace, path: /spec/tls/0/hosts/0, value: api.staging.example.com }
+configMapGenerator:
+  - name: fashion-platform-config
+    behavior: merge
+    literals:
+      # Staging uses the in-process sandboxes: no real carrier/Meta traffic.
+      - CARRIER_SANDBOX=true
+      - CHANNEL_SANDBOX=true
+      - MTO_ENABLED=true

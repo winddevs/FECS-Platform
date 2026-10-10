@@ -1,0 +1,31 @@
+# Non-secret configuration. Secrets (DATABASE_URL, REDIS_URL, JWT_SECRET,
+# COOKIE_SECRET, JT_*, META_*, S3_*, RESEND_*, METRICS_TOKEN, ...) live in the
+# `fashion-platform-secrets` Secret, populated by your secret manager
+# (see ../examples/external-secret.yaml). Never put them here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fashion-platform-config
+data:
+  NODE_ENV: production
+  MEDUSA_DISABLE_TELEMETRY: "true"
+  PORT: "9000"
+  # Per-pod connection pool: replicas x DB_POOL_MAX must stay below
+  # Postgres max_connections (put PgBouncer in front for large fleets).
+  DB_POOL_MIN: "2"
+  DB_POOL_MAX: "10"
+  # Risky integrations are OFF by default and switched on one at a time.
+  MANUFACTURING_ENABLED: "true"
+  MTO_ENABLED: "false"
+  FG_SYNC_TO_MEDUSA_ENABLED: "false"
+  JT_FULFILLMENT_ENABLED: "false"
+  JT_AUTO_CREATE_SHIPMENT: "false"
+  JT_TRACKING_CALLBACK_ENABLED: "false"
+  JT_RECONCILIATION_ENABLED: "false"
+  META_MESSENGER_ENABLED: "false"
+  META_SHIPMENT_NOTIFICATION_ENABLED: "false"
+  AGENT_READ_TOOLS_ENABLED: "false"
+  AGENT_STATE_CHANGE_ENABLED: "false"
+  SOCIAL_DEFAULT_LOCALE: vi
+  RETURN_WINDOW_DAYS: "14"
+  MTO_PAYMENT_GATE: captured

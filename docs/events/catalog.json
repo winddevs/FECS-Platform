@@ -1,0 +1,181 @@
+{
+  "envelope": "see src/lib/events/envelope.ts",
+  "events": {
+    "finished-goods.receipt_posted.v1": {
+      "version": 1,
+      "producer_module": "finishedGoods"
+    },
+    "finished-goods.sellable_changed.v1": {
+      "version": 1,
+      "producer_module": "finishedGoods"
+    },
+    "fulfillment.shipment_create_failed.v1": {
+      "version": 1,
+      "producer_module": "fulfillment"
+    },
+    "fulfillment.shipment_created.v1": {
+      "version": 1,
+      "producer_module": "fulfillment"
+    },
+    "fulfillment.shipment_status_changed.v1": {
+      "version": 1,
+      "producer_module": "fulfillment"
+    },
+    "inventory.cycle_count_adjusted.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.material_issued.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.material_received.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.material_reserved.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.material_returned.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.material_scrapped.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.material_transferred.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.qc_rejected.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.qc_released.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.reservation_released.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.stock_adjusted.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "manufacturing.batch_cut.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.bom_released.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.mo_created.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.mo_status_changed.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.mrp_run_completed.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.output_packed.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.production_requested.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "manufacturing.routing_released.v1": {
+      "version": 1,
+      "producer_module": "manufacturing"
+    },
+    "procurement.goods_received.v1": {
+      "version": 1,
+      "producer_module": "procurement"
+    },
+    "procurement.purchase_order_approved.v1": {
+      "version": 1,
+      "producer_module": "procurement"
+    },
+    "procurement.purchase_order_cancelled.v1": {
+      "version": 1,
+      "producer_module": "procurement"
+    },
+    "procurement.purchase_order_closed.v1": {
+      "version": 1,
+      "producer_module": "procurement"
+    },
+    "procurement.purchase_order_created.v1": {
+      "version": 1,
+      "producer_module": "procurement"
+    },
+    "procurement.purchase_order_sent.v1": {
+      "version": 1,
+      "producer_module": "procurement"
+    },
+    "quality.inspection_completed.v1": {
+      "version": 1,
+      "producer_module": "quality"
+    },
+    "returns.item_inspected.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.refund_completed.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.refund_requested.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_authorized.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_cancelled.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_closed.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_in_transit.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_inspected.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_received.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_rejected.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.return_requested.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "social.handoff_ended.v1": {
+      "version": 1,
+      "producer_module": "socialCommerce"
+    },
+    "social.handoff_requested.v1": {
+      "version": 1,
+      "producer_module": "socialCommerce"
+    }
+  }
+}

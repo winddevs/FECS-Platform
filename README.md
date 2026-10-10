@@ -12,6 +12,14 @@ A modern ecommerce stack built with Next.js (storefront + embedded Payload CMS) 
 - **`packages/config`**: Shared linting and TypeScript configuration.
 - **`packages/env`**: Shared environment variable validation (Zod).
 
+## Fashion ERP platform
+
+Procurement, material inventory, BOM/MRP/manufacturing, quality, finished goods,
+J&T fulfillment, Messenger commerce and returns live in `apps/medusa` as bounded
+modules. Start with [`docs/README.md`](docs/README.md); deployment and on-call
+material is in [`docs/operations.md`](docs/operations.md), [`docs/runbooks`](docs/runbooks)
+and [`infra/`](infra).
+
 ## Getting Started
 
 ### Prerequisites

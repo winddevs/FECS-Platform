@@ -1,0 +1,16 @@
+# Prometheus Operator scrape config for the business metrics endpoint.
+# /internal/metrics requires `Authorization: Bearer $METRICS_TOKEN`; store the
+# same token in the Secret referenced below.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: medusa-business-metrics
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: medusa }
+  endpoints:
+    - port: http
+      path: /internal/metrics
+      interval: 30s
+      authorization:
+        credentials: { name: fashion-metrics-token, key: token }

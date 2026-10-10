@@ -1,0 +1,17 @@
+# Optional: scale workers on real backlog instead of CPU. Requires KEDA and a
+# Prometheus that scrapes /internal/metrics (see servicemonitor.yaml).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: medusa-worker
+spec:
+  scaleTargetRef: { name: medusa-worker }
+  minReplicaCount: 2
+  maxReplicaCount: 12
+  cooldownPeriod: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring.svc:9090
+        query: sum(fashion_outbox_pending) + sum(fashion_inbox_events{status="RECEIVED"})
+        threshold: "200"

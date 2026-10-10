@@ -1,0 +1,97 @@
+import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk";
+
+import { MATERIAL_INVENTORY_MODULE } from "../../modules/materialInventory";
+import type MaterialInventoryModuleService from "../../modules/materialInventory/service";
+import type { ReceiveMaterialInput } from "../../modules/materialInventory/types";
+import { PROCUREMENT_MODULE } from "../../modules/procurement";
+import type ProcurementModuleService from "../../modules/procurement/service";
+import type {
+  CreatePurchaseOrderInput,
+  PostedGoodsReceipt,
+  PostGoodsReceiptInput,
+  TransitionPurchaseOrderInput,
+} from "../../modules/procurement/types";
+
+type Resolver = { resolve: <T>(key: string) => T };
+const procurement = (c: Resolver) =>
+  c.resolve<ProcurementModuleService>(PROCUREMENT_MODULE);
+const inventory = (c: Resolver) =>
+  c.resolve<MaterialInventoryModuleService>(MATERIAL_INVENTORY_MODULE);
+
+export const createPurchaseOrderStep = createStep(
+  "procurement-create-purchase-order",
+  async (input: CreatePurchaseOrderInput, { container }) =>
+    new StepResponse(
+      await procurement(container).createPurchaseOrderWithLines(input)
+    )
+);
+
+export const transitionPurchaseOrderStep = createStep(
+  "procurement-transition-purchase-order",
+  async (input: TransitionPurchaseOrderInput, { container }) =>
+    new StepResponse(
+      await procurement(container).transitionPurchaseOrder(input)
+    )
+);
+
+/** Records the receipt; compensation voids it if inventory posting fails. */
+export const postGoodsReceiptStep = createStep(
+  "procurement-post-goods-receipt",
+  async (input: PostGoodsReceiptInput, { container }) => {
+    const receipt = await procurement(container).postGoodsReceipt(input);
+    return new StepResponse(receipt, receipt.receipt.id);
+  },
+  async (receiptId, { container }) => {
+    if (receiptId) {
+      await procurement(container).voidGoodsReceipt(receiptId);
+    }
+  }
+);
+
+type ReceiveReceiptInput = {
+  receipt: PostedGoodsReceipt;
+  actor_id: string;
+  correlation_id?: string | null;
+};
+
+/**
+ * Posts every receipt line into Material Inventory in one transaction.
+ * Idempotency keys derive from the receipt line so a retry is a no-op.
+ */
+export const receiveReceiptIntoInventoryStep = createStep(
+  "procurement-receive-into-inventory",
+  async (
+    { receipt, actor_id, correlation_id }: ReceiveReceiptInput,
+    { container }
+  ) => {
+    const inputs: ReceiveMaterialInput[] = receipt.lines.map((line) => ({
+      actor_id,
+      correlation_id,
+      idempotency_key: `grn:${receipt.receipt.id}:${line.id}`,
+      material_id: line.material_id,
+      location_id: receipt.location_id,
+      bucket: line.bucket,
+      lot: {
+        lot_no: line.lot_no,
+        dye_lot_no: line.dye_lot_no,
+        supplier_id: receipt.supplier_id,
+        source_type: "GOODS_RECEIPT",
+        source_id: receipt.receipt.id,
+      },
+      ...(line.rolls?.length ? { rolls: line.rolls } : { qty: line.qty }),
+      reference_type: "GOODS_RECEIPT",
+      reference_id: receipt.receipt.id,
+    }));
+    return new StepResponse(
+      await inventory(container).receiveMaterialBatch(inputs)
+    );
+  }
+);
+
+export const markGoodsReceiptPostedStep = createStep(
+  "procurement-mark-receipt-posted",
+  async (goodsReceiptId: string, { container }) =>
+    new StepResponse(
+      await procurement(container).markGoodsReceiptPosted(goodsReceiptId)
+    )
+);

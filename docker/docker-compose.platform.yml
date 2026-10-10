@@ -1,0 +1,79 @@
+# Production-shaped stack on one machine: the same image and the same
+# server/worker split as Kubernetes. Use it to rehearse deploys and failures.
+#
+#   cp apps/medusa/.env.template apps/medusa/.env   # then fill in secrets
+#   docker compose -f docker/docker-compose.platform.yml up --build
+#
+# For day-to-day development keep using docker/docker-compose.yml (Postgres +
+# Redis only) and `pnpm dev:medusa`.
+name: fashion-platform
+
+x-medusa: &medusa
+  build:
+    context: ..
+    dockerfile: infra/docker/medusa.Dockerfile
+  image: fashion-medusa:local
+  env_file: ../apps/medusa/.env
+  environment: &medusa-env
+    DATABASE_URL: postgresql://ecommerce_admin:password@postgres:5432/ecommerce_medusa
+    REDIS_URL: redis://redis:6379
+    DB_POOL_MAX: "10"
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ecommerce_admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ecommerce_medusa
+    volumes: [platform_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce_admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [platform_redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: applies migrations, then exits. Servers wait for it.
+  migrate:
+    <<: *medusa
+    command: ["npx", "medusa", "db:migrate"]
+    restart: "no"
+
+  # HTTP only. Scale with `--scale medusa-server=N` behind a load balancer.
+  medusa-server:
+    <<: *medusa
+    environment: { <<: *medusa-env, MEDUSA_WORKER_MODE: server }
+    ports: ["9000:9000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9000/internal/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # Jobs (outbox publisher, inbox processor, reconciliation, polling) and
+  # event subscribers. Safe to run several replicas: work is claimed with
+  # FOR UPDATE SKIP LOCKED and every side effect is idempotent.
+  medusa-worker:
+    <<: *medusa
+    environment: { <<: *medusa-env, MEDUSA_WORKER_MODE: worker }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  platform_postgres:
+  platform_redis:

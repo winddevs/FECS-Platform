@@ -13,6 +13,12 @@ import { touchesRoleMetadata } from "../src/lib/authz/protect-role-metadata";
 import { TOPICS } from "../src/lib/events/envelope";
 import { buildShipmentRequest } from "../src/lib/fulfillment/build-request";
 import {
+  observe,
+  renderHttpMetrics,
+  resetHttpMetrics,
+  routeShape,
+} from "../src/lib/observability/http-metrics";
+import {
   signCheckoutToken,
   verifyCheckoutToken,
 } from "../src/lib/social/checkout-link";
@@ -1358,6 +1364,26 @@ export default async function verify({ container }: ExecArgs) {
       stored.rows.every((r: any) => !/[A-Z0-9]{8}/.test(r.text)),
     "stored LINK messages never contain the code"
   );
+
+  console.log("# latency metrics");
+  assert(
+    routeShape("/admin/manufacturing/mos/mo_01ABCDEFGH123/cut?x=1") ===
+      "/admin/manufacturing/mos/:id/cut",
+    "ids never become labels"
+  );
+  resetHttpMetrics();
+  observe("GET", "/admin/ops/summary", 200, 42);
+  observe("GET", "/admin/ops/summary", 200, 700);
+  const rendered = renderHttpMetrics().join("\n");
+  assert(
+    rendered.includes('le="50"} 1') &&
+      rendered.includes('le="1000"} 2') &&
+      rendered.includes(
+        '_count{method="GET",route="/admin/ops/summary",status="2xx"} 2'
+      ),
+    "histogram buckets are cumulative and counted"
+  );
+  resetHttpMetrics();
 
   console.log("INTEGRATION TEST PASSED");
 }

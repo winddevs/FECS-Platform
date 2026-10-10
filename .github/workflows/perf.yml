@@ -1,0 +1,43 @@
+name: performance
+
+# Seeds ~320k ledger rows and checks the SLOs of TDD section 50 plus the query
+# plans of the hot statements. Nightly and on demand; it is too heavy for every PR.
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: "Data volume multiplier (1 = ~320k movements)"
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: ci, POSTGRES_PASSWORD: ci, POSTGRES_DB: perf }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/perf
+      SCALE: ${{ inputs.scale || '1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter medusa...
+      - name: Data layer (hot queries, reservation, outbox, query plans)
+        run: pnpm --filter medusa test:perf
+      - name: HTTP layer (availability, MO list, webhook ACK, reservation)
+        run: pnpm --filter medusa exec bash integration-tests/perf/run-http-perf.sh

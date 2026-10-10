@@ -78,6 +78,23 @@ fixes it. Always create the Medusa fulfillment first, so the two stay in step.
   answers the same logged-in customer. More than 30 messages a minute from one
   chat are dropped.
 
+### Performance
+
+`pnpm --filter medusa test:perf` seeds a scratch database (SCALE=1: ~320k ledger
+rows, 10k reservations, 65k outbox rows; SCALE=4: 5M rows) and checks the SLOs
+of the design (availability < 200 ms, reserve < 1 s, outbox publish, ...) plus
+the query plans of the hot statements. `integration-tests/perf/run-http-perf.sh`
+repeats the key calls through the real API with concurrent clients. A nightly
+workflow (`.github/workflows/perf.yml`) runs both.
+
+Production signals: `fashion_http_request_duration_ms` (histogram per route
+shape, scraped from `/internal/metrics`) feeds the `slo-latency` alerts.
+
+Rule for raw SQL on big tables: always include `deleted_at IS NULL`. The
+framework builds its indexes as partial indexes on that predicate, so a query
+without it silently falls back to a sequential scan (this is checked by the
+query-plan section of the perf test).
+
 ### Access control
 
 Roles are stored on the admin user (`metadata.fashion_roles`). Grant the first

@@ -1171,6 +1171,7 @@ class MaterialInventoryModuleService extends MedusaService({
         `SELECT COALESCE(SUM(CASE WHEN movement_type = 'ISSUE_TO_PRODUCTION' THEN qty ELSE -qty END), 0) AS net
          FROM "material_stock_movement"
          WHERE reference_type = ? AND reference_id = ? AND material_id = ?
+           AND deleted_at IS NULL
            AND movement_type IN ('ISSUE_TO_PRODUCTION', 'RETURN_FROM_PRODUCTION')
            AND roll_id IS NOT DISTINCT FROM ?::text
            AND lot_id IS NOT DISTINCT FROM ?::text`,
@@ -1671,7 +1672,7 @@ class MaterialInventoryModuleService extends MedusaService({
               COALESCE(SUM(qty) FILTER (WHERE movement_type = 'RETURN_FROM_PRODUCTION'), 0) AS returned,
               COALESCE(SUM(qty) FILTER (WHERE movement_type = 'SCRAP'), 0) AS scrapped
        FROM "material_stock_movement"
-       WHERE reference_type = ? AND reference_id = ?
+       WHERE reference_type = ? AND reference_id = ? AND deleted_at IS NULL
        GROUP BY material_id`,
       [referenceType, referenceId]
     );
@@ -1745,16 +1746,21 @@ class MaterialInventoryModuleService extends MedusaService({
    * Quantity already issued by earlier attempts of one logical issue request
    * (all its per-reservation keys share a prefix). Lets a retried multi-
    * reservation issue continue where it stopped instead of double issuing.
+   * The reference narrows the scan to one MO's movements (indexed); matching
+   * on the key prefix alone would read the whole ledger.
    */
   @InjectTransactionManager()
   async issuedUnderKeyPrefix(
+    referenceType: string,
+    referenceId: string,
     prefix: string,
     @MedusaContext() ctx: Context = {}
   ): Promise<number> {
     const [row] = await this.executor(ctx).execute<{ qty: string }>(
       `SELECT COALESCE(SUM(qty), 0) AS qty FROM "material_stock_movement"
-       WHERE movement_type = 'ISSUE_TO_PRODUCTION' AND starts_with(idempotency_key, ?)`,
-      [prefix]
+       WHERE reference_type = ? AND reference_id = ? AND deleted_at IS NULL
+         AND movement_type = 'ISSUE_TO_PRODUCTION' AND starts_with(idempotency_key, ?)`,
+      [referenceType, referenceId, prefix]
     );
     return fromUnits(toUnits(row?.qty ?? 0));
   }

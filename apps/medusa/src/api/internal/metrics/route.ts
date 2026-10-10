@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
+import { renderHttpMetrics } from "../../../lib/observability/http-metrics";
 import { OUTBOX_ALERT_ATTEMPTS } from "../../../lib/outbox/outbox";
 import { OUTBOX_TABLES } from "../../../lib/retention";
 
@@ -42,6 +43,23 @@ export async function GET(
     res.status(token ? 401 : 404).end();
     return;
   }
+  // The business gauges below scan whole tables. Prometheus scrapes every few
+  // seconds from every replica, so the result is cached briefly; latency
+  // histograms are in-process and always fresh.
+  const now = Date.now();
+  if (!cache || now - cache.at > CACHE_TTL_MS) {
+    cache = { at: now, lines: await collectBusinessGauges(req) };
+  }
+  res.setHeader("content-type", "text/plain; version=0.0.4");
+  res
+    .status(200)
+    .send(`${[...cache.lines, ...renderHttpMetrics()].join("\n")}\n`);
+}
+
+const CACHE_TTL_MS = 15_000;
+let cache: { at: number; lines: string[] } | null = null;
+
+const collectBusinessGauges = async (req: MedusaRequest): Promise<string[]> => {
   const db = req.scope.resolve<Knex>(ContainerRegistrationKeys.PG_CONNECTION);
   const out: string[] = [];
   const rows = async (sql: string) => (await db.raw(sql)).rows;
@@ -120,6 +138,5 @@ export async function GET(
   );
   out.push(line("fashion_fg_balance_invariant_violations", {}, fgNeg.n));
 
-  res.setHeader("content-type", "text/plain; version=0.0.4");
-  res.status(200).send(`${out.join("\n")}\n`);
-}
+  return out;
+};

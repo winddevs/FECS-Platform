@@ -220,7 +220,7 @@ class SocialCommerceModuleService extends MedusaService({
   ): Promise<void> {
     await executorOf(ctx).execute(
       `UPDATE "conversation_message" SET status = 'PROCESSED', updated_at = now()
-       WHERE identity_id = ? AND direction = 'IN' AND external_message_id = ?`,
+       WHERE identity_id = ? AND direction = 'IN' AND external_message_id = ? AND deleted_at IS NULL`,
       [input.identity_id, input.message_id]
     );
   }
@@ -414,7 +414,7 @@ class SocialCommerceModuleService extends MedusaService({
       `UPDATE "notification_log"
        SET status = ?, reason = ?, text = CASE WHEN ? = 'DEFERRED' THEN ? ELSE NULL END,
            updated_at = now()
-       WHERE identity_id = ? AND dedupe_key = ?`,
+       WHERE identity_id = ? AND dedupe_key = ? AND deleted_at IS NULL`,
       [
         input.status,
         input.reason ?? null,
@@ -472,7 +472,7 @@ class SocialCommerceModuleService extends MedusaService({
   ): Promise<number> {
     const [row] = await executorOf(ctx).execute<{ n: string }>(
       `SELECT count(*) AS n FROM "notification_log"
-       WHERE identity_id = ? AND status = 'SENT' AND created_at > now() - interval '1 hour'`,
+       WHERE identity_id = ? AND status = 'SENT' AND created_at > now() - interval '1 hour' AND deleted_at IS NULL`,
       [identityId]
     );
     return Number(row?.n ?? 0);

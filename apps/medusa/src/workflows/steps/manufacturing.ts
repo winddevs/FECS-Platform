@@ -335,7 +335,7 @@ export const issueToMoStep = createStep(
     // An earlier attempt of this same request may have issued part of it.
     const keyPrefix = `${i.idempotency_key}:inventory:`;
     const already = toUnits(
-      await inv(container).issuedUnderKeyPrefix(keyPrefix)
+      await inv(container).issuedUnderKeyPrefix("MO", i.mo_id, keyPrefix)
     );
     let remaining = toUnits(i.qty) - already;
     if (remaining <= 0) {

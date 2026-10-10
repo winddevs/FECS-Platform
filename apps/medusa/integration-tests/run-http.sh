@@ -48,4 +48,4 @@ done
 curl -fs "${BASE_URL}/internal/ready" >/dev/null || { echo "server did not become ready"; tail -40 "$log"; exit 1; }
 
 echo "==> HTTP tests"
-node integration-tests/http/api.test.mjs || { echo "--- server log tail ---"; tail -40 "$log"; exit 1; }
+node "${HTTP_SCRIPT:-integration-tests/http/api.test.mjs}" || { echo "--- server log tail ---"; tail -40 "$log"; exit 1; }

@@ -14,6 +14,7 @@ import * as Sentry from "@sentry/node";
 
 import { protectRoleMetadata } from "../lib/authz/protect-role-metadata";
 import { requirePermission } from "../lib/authz/require-permission";
+import { httpMetricsMiddleware } from "../lib/observability/http-metrics";
 import { PostInvoiceConfigSchema } from "./admin/invoice-config/route";
 import { fashionMiddlewares } from "./fashion/middlewares";
 import { opsMiddlewares } from "./fashion/ops-middlewares";
@@ -132,6 +133,11 @@ export default defineMiddlewares({
     return originalErrorHandler(error, req, res, next);
   },
   routes: [
+    // Latency histogram for every API call (SLO alerts are computed from it).
+    ...["/admin/*", "/store/*", "/webhooks/*", "/auth/*"].map((matcher) => ({
+      matcher,
+      middlewares: [httpMetricsMiddleware],
+    })),
     ...fashionMiddlewares,
     ...opsMiddlewares,
     ...webhookMiddlewares,

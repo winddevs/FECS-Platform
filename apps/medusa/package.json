@@ -21,6 +21,7 @@
     "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.fashion.json",
     "test:integration": "bash integration-tests/run.sh",
     "test:http": "bash integration-tests/run-http.sh",
+    "test:perf": "bash integration-tests/perf/run-perf.sh",
     "events:check": "node scripts/check-event-catalog.mjs --check",
     "events:write": "node scripts/check-event-catalog.mjs --write",
     "grant-role": "npx medusa exec ./src/scripts/grant-fashion-role.ts"

@@ -84,3 +84,39 @@ spec:
           annotations:
             summary: Fabric variance / overproduction exceptions need review
             runbook: docs/runbooks/reconciliation-failure.md
+    - name: slo-latency
+      rules:
+        # p95 per route group over 10 minutes, from fashion_http_request_duration_ms
+        # (TDD section 50). 5xx are excluded so a crash does not look "fast".
+        - alert: WebhookAckSlow
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(fashion_http_request_duration_ms_bucket{route=~"/webhooks.*",status!="5xx"}[10m]))) > 500
+          for: 10m
+          labels: { severity: page }
+          annotations:
+            summary: Webhook ACK p95 above 500 ms (providers will retry and flood us)
+            runbook: docs/runbooks/provider-outage.md
+        - alert: AvailabilityQuerySlow
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(fashion_http_request_duration_ms_bucket{route=~"/admin/material-inventory/materials/:id/availability",status!="5xx"}[10m]))) > 200
+          for: 10m
+          labels: { severity: ticket }
+          annotations:
+            summary: Availability query p95 above 200 ms
+            runbook: docs/runbooks/stock-mismatch.md
+        - alert: MaterialReservationSlow
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(fashion_http_request_duration_ms_bucket{method="POST",route="/admin/material-inventory/reservations",status!="5xx"}[10m]))) > 1000
+          for: 10m
+          labels: { severity: ticket }
+          annotations:
+            summary: Material reservation p95 above 1 s (hot material? lock contention?)
+            runbook: docs/runbooks/stock-mismatch.md
+        - alert: ApiErrorRateHigh
+          expr: |
+            sum(rate(fashion_http_request_duration_ms_count{status="5xx"}[5m])) / sum(rate(fashion_http_request_duration_ms_count[5m])) > 0.01
+          for: 10m
+          labels: { severity: page }
+          annotations:
+            summary: More than 1% of API calls fail with 5xx
+            runbook: docs/runbooks/provider-outage.md

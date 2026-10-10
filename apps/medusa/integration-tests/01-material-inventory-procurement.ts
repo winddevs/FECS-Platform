@@ -37,6 +37,11 @@ export default async function verify({ container }: ExecArgs) {
   const actor = { actor_id: "user_test", correlation_id: "cor_test" };
   const run = Date.now().toString(36);
 
+  // Earlier suites on the same database leave events behind; start from empty.
+  for (;;) {
+    const leftover = await inv.publishOutbox(500, async () => {});
+    if (leftover.published === 0) break;
+  }
   console.log("# setup");
   const material = await inv.createMaterials({
     code: `FAB-${run}`,
@@ -54,7 +59,7 @@ export default async function verify({ container }: ExecArgs) {
   const loc2 = await inv.createMaterialLocations({
     code: `RM2-${run}`,
     name: "RM2",
-    warehouse_code: "HN",
+    warehouse_code: "HCM",
   });
   const wip = await inv.createMaterialLocations({
     code: `WIP-${run}`,
@@ -333,9 +338,26 @@ export default async function verify({ container }: ExecArgs) {
         qty: 1,
         source_bucket: "GOOD",
         reason: " ",
+        reference_type: "DAMAGE_NOTE",
+        reference_id: `dn-${run}`,
       }),
     "reason",
     "scrap requires reason"
+  );
+  await expectFail(
+    () =>
+      inv.scrapMaterial({
+        ...actor,
+        idempotency_key: `scr1b-${run}`,
+        balance_id: issLine.balance_id,
+        qty: 1,
+        source_bucket: "QC_HOLD",
+        reason: "stained",
+        reference_type: "",
+        reference_id: "",
+      }),
+    "business reference",
+    "scrap requires a business reference (FR-INV-009)"
   );
   const scr = await inv.scrapMaterial({
     ...actor,
@@ -344,6 +366,8 @@ export default async function verify({ container }: ExecArgs) {
     qty: 1,
     source_bucket: "QC_HOLD",
     reason: "stained",
+    reference_type: "DAMAGE_NOTE",
+    reference_id: `dn-${run}`,
   });
   assert(scr.balance.qc_hold === 0, "scrapped from qc_hold");
   const all = await inv.listMaterialBalances({ material_id: material.id });
@@ -365,8 +389,35 @@ export default async function verify({ container }: ExecArgs) {
     reason: "count",
   });
   assert(
-    cc.adjusted && cc.balance.on_hand === targetOnHand - 0.5,
-    "cycle count adjusts"
+    cc.status === "PENDING_APPROVAL" && cc.adjusted === false,
+    "a count waits for approval before anything is adjusted"
+  );
+  assert(
+    (await inv.listMaterialBalances({ id: target.id }))[0].on_hand_qty ==
+      targetOnHand,
+    "balance untouched until approved"
+  );
+  await expectFail(
+    () =>
+      inv.decideCycleCount({
+        ...actor,
+        idempotency_key: `ccd0-${run}`,
+        count_id: cc.count_id,
+        decision: "APPROVE",
+      }),
+    "someone other than the counter",
+    "the counter cannot approve their own count"
+  );
+  const approved = await inv.decideCycleCount({
+    actor_id: "user_approver",
+    idempotency_key: `ccd-${run}`,
+    count_id: cc.count_id,
+    decision: "APPROVE",
+    reason: "recounted",
+  });
+  assert(
+    approved.adjusted && approved.balance.on_hand === targetOnHand - 0.5,
+    "approved cycle count adjusts"
   );
   await expectFail(
     () =>

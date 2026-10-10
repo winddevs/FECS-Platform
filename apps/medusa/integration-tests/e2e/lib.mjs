@@ -149,3 +149,21 @@ export const metaMessage = async (pageId, psid, text, mid) => {
     })
   );
 };
+
+/**
+ * Lays for a cut plan, built from the rolls the MO actually has reserved
+ * (GET /admin/manufacturing/mos/:id/rolls). Each lay cuts what is assigned
+ * from its roll; the size ratio goes on the first lay.
+ */
+export const layPlan = async (token, moId, sizeRatio) => {
+  const { body } = await api(
+    token,
+    "GET",
+    `/admin/manufacturing/mos/${moId}/rolls`
+  );
+  return body.rolls.map((roll, index) => ({
+    roll_code: roll.roll_code,
+    planned_consumption: roll.assigned,
+    size_ratio: index === 0 ? sizeRatio : {},
+  }));
+};

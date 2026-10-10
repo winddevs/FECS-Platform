@@ -4,7 +4,10 @@ import { MATERIAL_INVENTORY_MODULE } from "../../modules/materialInventory";
 import type MaterialInventoryModuleService from "../../modules/materialInventory/service";
 import type {
   AdjustStockInput,
+  CloseTransferInput,
   CycleCountInput,
+  DecideCycleCountInput,
+  DispatchTransferInput,
   IssueMaterialInput,
   QcDecisionInput,
   ReceiveMaterialInput,
@@ -109,4 +112,24 @@ export const transferStockStep = createStep(
   "material-inventory-transfer",
   async (input: TransferStockInput, { container }) =>
     new StepResponse(await resolveService(container).transferStock(input))
+);
+export const decideCycleCountStep = createStep(
+  "material-inventory-cycle-count-decision",
+  async (input: DecideCycleCountInput, { container }) =>
+    new StepResponse(await resolveService(container).decideCycleCount(input))
+);
+export const dispatchTransferStep = createStep(
+  "material-inventory-transfer-dispatch",
+  async (input: DispatchTransferInput, { container }) =>
+    new StepResponse(await resolveService(container).dispatchTransfer(input))
+);
+export const receiveTransferStep = createStep(
+  "material-inventory-transfer-receive",
+  async (input: CloseTransferInput, { container }) =>
+    new StepResponse(await resolveService(container).receiveTransfer(input))
+);
+export const cancelTransferStep = createStep(
+  "material-inventory-transfer-cancel",
+  async (input: CloseTransferInput, { container }) =>
+    new StepResponse(await resolveService(container).cancelTransfer(input))
 );

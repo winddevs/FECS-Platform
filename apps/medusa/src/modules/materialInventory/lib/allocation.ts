@@ -31,6 +31,11 @@ export type AllocationPolicyInput = {
   policy: "FIFO" | "SAME_DYE_LOT_FIFO";
   track_dye_lot: boolean;
   max_dye_lots: number;
+  /**
+   * Roll-fragment reduction (FR-INV-006). Default on. When off, rolls are
+   * consumed in plain FIFO order and a roll may be left with a small remainder.
+   */
+  reduce_fragments?: boolean;
 };
 
 export type AllocationLine = {
@@ -63,10 +68,44 @@ const fifoOrder = (a: AllocationCandidate, b: AllocationCandidate): number => {
   return a.balance_id.localeCompare(b.balance_id);
 };
 
-const takeFromGroup = (
+const plainFifoOrder = (
+  a: AllocationCandidate,
+  b: AllocationCandidate
+): number =>
+  a.received_at - b.received_at || a.balance_id.localeCompare(b.balance_id);
+
+/** FIFO without fragment reduction: oldest roll first, whatever its size. */
+const takeFifo = (
   group: AllocationCandidate[],
   required: number
 ): AllocationLine[] => {
+  const lines: AllocationLine[] = [];
+  let remaining = required;
+  for (const chosen of [...group].sort(plainFifoOrder)) {
+    if (remaining <= 0) {
+      break;
+    }
+    const take = Math.min(chosen.available, remaining);
+    lines.push({
+      balance_id: chosen.balance_id,
+      lot_id: chosen.lot_id,
+      roll_id: chosen.roll_id,
+      location_id: chosen.location_id,
+      qty: take,
+    });
+    remaining -= take;
+  }
+  return lines;
+};
+
+const takeFromGroup = (
+  group: AllocationCandidate[],
+  required: number,
+  reduceFragments = true
+): AllocationLine[] => {
+  if (!reduceFragments) {
+    return takeFifo(group, required);
+  }
   const pool = [...group].sort(fifoOrder);
   const lines: AllocationLine[] = [];
   let remaining = required;
@@ -138,10 +177,11 @@ export const planAllocation = (
     };
   }
 
+  const reduce = policy.reduce_fragments ?? true;
   const ignoreDyeLot = !policy.track_dye_lot || policy.policy === "FIFO";
   if (ignoreDyeLot) {
     return {
-      lines: takeFromGroup(candidates, required),
+      lines: takeFromGroup(candidates, required, reduce),
       dye_lots: [],
       requires_planner_approval: false,
       shortage: 0,
@@ -162,7 +202,7 @@ export const planAllocation = (
     .sort((a, b) => a.oldest - b.oldest || a.dyeLot.localeCompare(b.dyeLot))[0];
   if (single) {
     return {
-      lines: takeFromGroup(single.list, required),
+      lines: takeFromGroup(single.list, required, reduce),
       dye_lots: [single.dyeLot],
       requires_planner_approval: false,
       shortage: 0,
@@ -184,7 +224,7 @@ export const planAllocation = (
       break;
     }
     const take = Math.min(group.total, remaining);
-    lines.push(...takeFromGroup(group.list, take));
+    lines.push(...takeFromGroup(group.list, take, reduce));
     dyeLots.push(group.dyeLot);
     remaining -= take;
   }

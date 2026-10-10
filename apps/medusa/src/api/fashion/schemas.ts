@@ -32,6 +32,7 @@ export const CreateMaterialSchema = z.object({
   track_dye_lot: z.boolean().optional(),
   max_dye_lots: z.number().int().min(1).max(10).optional(),
   allocation_policy: z.enum(ALLOCATION_POLICIES).optional(),
+  roll_fragment_reduction: z.boolean().optional(),
 });
 export type CreateMaterialBody = z.infer<typeof CreateMaterialSchema>;
 
@@ -39,6 +40,7 @@ export const UpdateMaterialSchema = z.object({
   name: text().optional(),
   max_dye_lots: z.number().int().min(1).max(10).optional(),
   allocation_policy: z.enum(ALLOCATION_POLICIES).optional(),
+  roll_fragment_reduction: z.boolean().optional(),
   is_active: z.boolean().optional(),
 });
 export type UpdateMaterialBody = z.infer<typeof UpdateMaterialSchema>;
@@ -65,6 +67,9 @@ export const CreateSupplierSchema = z.object({
   phone: optionalText(50),
   address: optionalText(),
   payment_terms: optionalText(),
+  tax_code: optionalText(50),
+  default_currency_code: z.string().trim().length(3).toUpperCase().nullish(),
+  lead_time_days: z.number().int().min(0).max(365).nullish(),
   supported_material_ids: z.array(z.string()).max(1000).nullish(),
 });
 export type CreateSupplierBody = z.infer<typeof CreateSupplierSchema>;
@@ -77,6 +82,9 @@ export const UpdateSupplierSchema = z.object({
   phone: optionalText(50),
   address: optionalText(),
   payment_terms: optionalText(),
+  tax_code: optionalText(50),
+  default_currency_code: z.string().trim().length(3).toUpperCase().nullish(),
+  lead_time_days: z.number().int().min(0).max(365).nullish(),
   supported_material_ids: z.array(z.string()).max(1000).nullish(),
 });
 export type UpdateSupplierBody = z.infer<typeof UpdateSupplierSchema>;
@@ -147,8 +155,9 @@ export const ScrapMaterialSchema = z.object({
   qty,
   source_bucket: bucket,
   reason: text(),
-  reference_type: optionalText(100),
-  reference_id: optionalText(100),
+  /** Business reference of the scrap (QC reject note, damage report, ...). */
+  reference_type: text(100),
+  reference_id: text(100),
 });
 export type ScrapMaterialBody = z.infer<typeof ScrapMaterialSchema>;
 
@@ -179,6 +188,26 @@ export const TransferStockSchema = z.object({
   reference_id: optionalText(100),
 });
 export type TransferStockBody = z.infer<typeof TransferStockSchema>;
+
+export const DispatchTransferSchema = z.object({
+  balance_id: text(100),
+  to_location_id: text(100),
+  qty,
+  transit_location_id: optionalText(100),
+  notes: optionalText(500),
+});
+export type DispatchTransferBody = z.infer<typeof DispatchTransferSchema>;
+
+export const CloseTransferSchema = z.object({
+  reason: optionalText(500),
+});
+export type CloseTransferBody = z.infer<typeof CloseTransferSchema>;
+
+export const DecideCycleCountSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  reason: optionalText(500),
+});
+export type DecideCycleCountBody = z.infer<typeof DecideCycleCountSchema>;
 
 export const QcDecisionSchema = z.object({
   balance_id: text(100),
@@ -305,6 +334,18 @@ export const PlanningParamSchema = z.object({
 });
 export type PlanningParamBody = z.infer<typeof PlanningParamSchema>;
 
+export const SkuPlanningParamSchema = z.object({
+  sku: idText,
+  reorder_point: nonNegInt.max(1_000_000),
+  reorder_qty: nonNegInt.max(1_000_000),
+});
+export type SkuPlanningParamBody = z.infer<typeof SkuPlanningParamSchema>;
+
+export const MrpRunSchema = z.object({
+  demand_warehouse: optionalText(50),
+});
+export type MrpRunBody = z.infer<typeof MrpRunSchema>;
+
 export const CreateMoSchema = z.object({
   order_type: z.enum(["MTS", "MTO", "REPLENISHMENT", "SAMPLE", "REWORK"]),
   product_sku: text(100),
@@ -314,6 +355,7 @@ export const CreateMoSchema = z.object({
     .max(200),
   due_date: z.coerce.date().nullish(),
   customer_order_id: optionalText(100),
+  source_mo_id: optionalText(100),
   bom_id: optionalText(100),
   routing_id: optionalText(100),
   notes: optionalText(2000),

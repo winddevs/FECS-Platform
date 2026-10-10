@@ -14,6 +14,10 @@ export const Supplier = model
     phone: model.text().nullable(),
     address: model.text().nullable(),
     payment_terms: model.text().nullable(),
+    /** Commercial references (FR-PROC-001). */
+    tax_code: model.text().nullable(),
+    default_currency_code: model.text().nullable(),
+    lead_time_days: model.number().nullable(),
     /** Material IDs this supplier is qualified to supply. */
     supported_material_ids: model.array().nullable(),
     metadata: model.json().nullable(),

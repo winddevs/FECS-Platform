@@ -1,5 +1,6 @@
-import { Modules } from "@medusajs/framework/utils";
+import { MedusaError, Modules } from "@medusajs/framework/utils";
 
+import { domainError, ErrorCodes } from "../../lib/errors";
 import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
 import type FinishedGoodsModuleService from "../../modules/finishedGoods/service";
 import type {
@@ -101,6 +102,42 @@ export const republishProjectionStep = wrapStep(
   ) => fg(c).republishProjection(i)
 );
 
+/**
+ * Sample pieces are for photos, fittings and approvals: they must never land
+ * in a sellable location (FR-MFG-001).
+ */
+const assertSampleDestination = async (
+  c: Resolver,
+  mo: { order_type?: string } | undefined,
+  locationId: string
+): Promise<void> => {
+  if (mo?.order_type !== "SAMPLE") {
+    return;
+  }
+  const destination = await fg(c).retrieveFgLocation(locationId);
+  if (destination.is_commerce) {
+    throw domainError(
+      MedusaError.Types.NOT_ALLOWED,
+      ErrorCodes.INVALID_STATE,
+      `SAMPLE_NOT_SELLABLE: output of a SAMPLE order cannot go to the sellable location ${destination.code}`
+    );
+  }
+};
+
+/** Checked before packing, so a wrong destination never leaves packed output behind. */
+export const checkPackDestinationStep = wrapStep(
+  "fg-check-pack-destination",
+  async (i: { bundle_id: string; location_id: string }, c) => {
+    const mfg = c.resolve<ManufacturingModuleService>(MANUFACTURING_MODULE);
+    const [bundle] = await mfg.listBundles({ id: i.bundle_id });
+    const [mo] = bundle
+      ? await mfg.listManufacturingOrders({ id: bundle.mo_id })
+      : [];
+    await assertSampleDestination(c, mo, i.location_id);
+    return { ok: true as const };
+  }
+);
+
 type ReceivePackedInput = {
   packed: PackedResult;
   location_id: string;
@@ -122,6 +159,7 @@ export const receivePackedOutputStep = wrapStep(
     );
     const [mo] = await mfg.listManufacturingOrders({ id: i.packed.mo_id });
     const [bundle] = await mfg.listBundles({ id: i.packed.bundle_id });
+    await assertSampleDestination(c, mo, i.location_id);
     const issued = await inv.listMaterialStockMovements({
       reference_type: "MO",
       reference_id: i.packed.mo_id,

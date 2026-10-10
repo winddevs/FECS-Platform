@@ -54,6 +54,11 @@ export const ManufacturingOrder = model
     routing_version: model.number(),
     material_status: model.enum([...MATERIAL_STATUSES]).default("UNKNOWN"),
     customer_order_id: model.text().nullable(),
+    /** REWORK orders point at the order whose defective output they repair. */
+    source_mo_id: model.text().nullable(),
+    /** Closed below the planned quantity on purpose (FR-MFG-014). */
+    short_closed: model.boolean().default(false),
+    short_close_reason: model.text().nullable(),
     due_date: model.dateTime().nullable(),
     notes: model.text().nullable(),
     created_by: model.text(),

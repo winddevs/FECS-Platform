@@ -40,6 +40,8 @@ export type CreateMoInput = Command & {
   lines: Array<{ sku: string; qty: number }>;
   due_date?: Date | null;
   customer_order_id?: string | null;
+  /** REWORK: the order whose defective output is being repaired. */
+  source_mo_id?: string | null;
   bom_id?: string | null;
   routing_id?: string | null;
   notes?: string | null;
@@ -145,6 +147,22 @@ export type MrpInput = Command & {
   available: Record<string, number>;
   /** Confirmed incoming PO quantity per material. */
   incoming: Record<string, number>;
+  /** Usable stock per material and warehouse (TRANSFER suggestions). */
+  available_by_warehouse?: Record<string, Record<string, number>>;
+  /** Open purchase orders per material (RESCHEDULE suggestions). */
+  incoming_orders?: Record<
+    string,
+    Array<{
+      purchase_order_id: string;
+      po_number: string;
+      qty: number;
+      expected_at: Date | string | null;
+    }>
+  >;
+  /** Sellable finished stock per SKU (PRODUCE suggestions). */
+  fg_sellable?: Record<string, number>;
+  /** Warehouse that consumes the materials; enables TRANSFER suggestions. */
+  demand_warehouse?: string | null;
   parameters?: Record<string, unknown>;
 };
 

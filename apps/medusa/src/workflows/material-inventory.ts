@@ -7,7 +7,10 @@ import {
 
 import type {
   AdjustStockInput,
+  CloseTransferInput,
   CycleCountInput,
+  DecideCycleCountInput,
+  DispatchTransferInput,
   IssueMaterialInput,
   QcDecisionInput,
   ReceiveMaterialInput,
@@ -20,7 +23,11 @@ import type {
 import { recordAuditStep } from "./steps/fashion-audit";
 import {
   adjustStockStep,
+  cancelTransferStep,
+  decideCycleCountStep,
   decideQcHoldStep,
+  dispatchTransferStep,
+  receiveTransferStep,
   issueMaterialStep,
   receiveMaterialStep,
   recordCycleCountStep,
@@ -114,7 +121,12 @@ export const scrapMaterialWorkflow = createWorkflow(
       resource_type: "material_balance",
       resource_id: input.balance_id,
       reason: input.reason,
-      after: { qty: input.qty, source_bucket: input.source_bucket },
+      after: {
+        qty: input.qty,
+        source_bucket: input.source_bucket,
+        reference_type: input.reference_type,
+        reference_id: input.reference_id,
+      },
       correlation_id: input.correlation_id ?? null,
     }));
     recordAuditStep(audit);
@@ -165,5 +177,66 @@ export const transferStockWorkflow = createWorkflow(
   "material-inventory-transfer-workflow",
   function (input: TransferStockInput) {
     return new WorkflowResponse(transferStockStep(input));
+  }
+);
+
+/** Approving (or rejecting) a cycle count is the audited decision (FR-INV-011). */
+export const decideCycleCountWorkflow = createWorkflow(
+  "material-inventory-cycle-count-decision-workflow",
+  function (input: DecideCycleCountInput) {
+    const result = decideCycleCountStep(input);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: `inventory.cycle_count.${input.decision.toLowerCase()}`,
+      resource_type: "material_cycle_count",
+      resource_id: input.count_id,
+      reason: input.reason ?? null,
+      after: { status: result.status },
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
+  }
+);
+
+export const dispatchTransferWorkflow = createWorkflow(
+  "material-inventory-transfer-dispatch-workflow",
+  function (input: DispatchTransferInput) {
+    const result = dispatchTransferStep(input);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: "inventory.transfer.dispatch",
+      resource_type: "material_transfer",
+      resource_id: result.transfer_id,
+      reason: input.notes ?? null,
+      after: { qty: input.qty, to_location_id: input.to_location_id },
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
+  }
+);
+
+export const receiveTransferWorkflow = createWorkflow(
+  "material-inventory-transfer-receive-workflow",
+  function (input: CloseTransferInput) {
+    return new WorkflowResponse(receiveTransferStep(input));
+  }
+);
+
+export const cancelTransferWorkflow = createWorkflow(
+  "material-inventory-transfer-cancel-workflow",
+  function (input: CloseTransferInput) {
+    const result = cancelTransferStep(input);
+    const audit = transform({ input }, ({ input }) => ({
+      actor_id: input.actor_id,
+      action: "inventory.transfer.cancel",
+      resource_type: "material_transfer",
+      resource_id: input.transfer_id,
+      reason: input.reason ?? null,
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
   }
 );

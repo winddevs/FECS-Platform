@@ -37,6 +37,26 @@ export const MaterialPlanningParam = model
     },
   ]);
 
+/**
+ * Reorder rule for a finished SKU: when the projected sellable stock (stock
+ * plus open production) falls below the reorder point, MRP suggests PRODUCE.
+ */
+export const SkuPlanningParam = model
+  .define("sku_planning_param", {
+    id: model.id({ prefix: "spp" }).primaryKey(),
+    sku: model.text(),
+    reorder_point: model.number().default(0),
+    reorder_qty: model.number().default(0),
+  })
+  .indexes([
+    {
+      name: "IDX_sku_planning_param_unique",
+      on: ["sku"],
+      unique: true,
+      where: "deleted_at IS NULL",
+    },
+  ]);
+
 /** MRP runs are versioned and auditable (TDD section 13). */
 export const MrpRun = model.define("mrp_run", {
   id: model.id({ prefix: "mrp" }).primaryKey(),
@@ -53,7 +73,11 @@ export const MrpSuggestion = model
     id: model.id({ prefix: "mrps" }).primaryKey(),
     run_id: model.text(),
     type: model.enum([...SUGGESTION_TYPES]),
-    material_id: model.text(),
+    /** Null for PRODUCE suggestions, which are about a finished SKU. */
+    material_id: model.text().nullable(),
+    sku: model.text().nullable(),
+    /** Type-specific details: source warehouses, PO to move, due dates. */
+    detail: model.json().nullable(),
     gross_requirement: model.bigNumber(),
     available: model.bigNumber(),
     confirmed_incoming: model.bigNumber(),

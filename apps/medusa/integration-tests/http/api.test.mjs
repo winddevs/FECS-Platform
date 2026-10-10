@@ -59,6 +59,8 @@ const roles = {
   qc: await login("qc@fashion.test"),
   packer: await login("packer@fashion.test"),
   sre: await login("sre@fashion.test"),
+  warehouse: await login("warehouse@fashion.test"),
+  wmanager: await login("wmanager@fashion.test"),
 };
 
 console.log("# health, readiness, authentication");
@@ -439,6 +441,26 @@ assert(
   noPlanCut.status >= 400 && noPlanCut.status < 500,
   "cutting without a cut plan is refused"
 );
+const strangerRoll = await call(
+  roles.cutter,
+  "POST",
+  `/admin/manufacturing/mos/${moId}/cut-plan`,
+  {
+    batch_id: batchId,
+    fabric_material_id: fabric.id,
+    lays: [
+      {
+        roll_code: `ROLL-${run}`,
+        planned_consumption: 15.75,
+        size_ratio: { [sku]: 10 },
+      },
+    ],
+  }
+);
+assert(
+  strangerRoll.status === 400,
+  "a cut plan with a roll that is not reserved for the MO is refused"
+);
 assert(
   (
     await call(
@@ -450,7 +472,7 @@ assert(
         fabric_material_id: fabric.id,
         lays: [
           {
-            roll_code: `ROLL-${run}`,
+            roll_code: `R1-${run}`,
             planned_consumption: 15.75,
             size_ratio: { [sku]: 10 },
           },
@@ -765,6 +787,205 @@ const failuresAfter = inboxAfter
 assert(
   waiting === 0 && failuresAfter - failuresBefore === 1,
   `inbox worker processed the webhooks asynchronously; only the unknown-tracking push is retried (new failures: ${failuresAfter - failuresBefore})`
+);
+
+console.log("# scanning, labels, counts and transfers (FR-INV-010/011/012)");
+const textCall = async (token, path) => {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return {
+    status: res.status,
+    type: res.headers.get("content-type"),
+    text: await res.text(),
+  };
+};
+const label = await textCall(
+  roles.warehouse,
+  `/admin/material-inventory/labels/roll/R1-${run}`
+);
+assert(
+  label.status === 200 &&
+    label.type.startsWith("image/svg+xml") &&
+    label.text.includes("<svg") &&
+    label.text.includes(`R1-${run}`),
+  "a roll has a printable barcode label (SVG)"
+);
+assert(
+  (
+    await textCall(
+      roles.warehouse,
+      "/admin/material-inventory/labels/roll/NOPE-" + run
+    )
+  ).status === 404,
+  "a label for an unknown roll is a 404"
+);
+const bundleLabel = await textCall(
+  roles.cutter,
+  `/admin/manufacturing/bundles/by-code/${cut.body.bundles[0].bundle_code}/label`
+);
+assert(
+  bundleLabel.status === 200 && bundleLabel.text.includes("<svg"),
+  "a bundle has a printable ticket"
+);
+const scanned = await call(
+  roles.warehouse,
+  "GET",
+  `/admin/material-inventory/scan/R1-${run}`
+);
+assert(
+  scanned.status === 200 &&
+    scanned.body.type === "ROLL" &&
+    scanned.body.roll.roll_code === `R1-${run}`,
+  "scanning a roll code returns the roll and its balances"
+);
+const scannedLocation = await call(
+  roles.warehouse,
+  "GET",
+  `/admin/material-inventory/scan/${rmLoc.code}`
+);
+assert(
+  scannedLocation.status === 200 && scannedLocation.body.type === "LOCATION",
+  "scanning a location code returns the location"
+);
+assert(
+  (
+    await call(
+      roles.warehouse,
+      "GET",
+      "/admin/material-inventory/scan/NOTHING-" + run
+    )
+  ).status === 404,
+  "an unknown code is a 404"
+);
+
+const rollBalance = scanned.body.balances[0];
+const counted = await call(
+  roles.warehouse,
+  "POST",
+  "/admin/material-inventory/cycle-counts",
+  {
+    balance_id: rollBalance.id,
+    counted_qty: Number(rollBalance.on_hand_qty) - 1,
+    expected_version: rollBalance.version,
+    reason: "shelf count",
+  }
+);
+assert(
+  counted.status === 201 && counted.body.status === "PENDING_APPROVAL",
+  "a warehouse operator records a count; nothing is adjusted yet"
+);
+assert(
+  (
+    await call(
+      roles.warehouse,
+      "POST",
+      `/admin/material-inventory/cycle-counts/${counted.body.count_id}/decision`,
+      { decision: "APPROVE" }
+    )
+  ).status === 403,
+  "the operator cannot approve (adjust rights are needed)"
+);
+const approved = await call(
+  roles.wmanager,
+  "POST",
+  `/admin/material-inventory/cycle-counts/${counted.body.count_id}/decision`,
+  { decision: "APPROVE", reason: "recount agrees" }
+);
+assert(
+  approved.status === 200 && approved.body.adjusted === true,
+  "the warehouse manager approves and the adjustment is posted"
+);
+const countsList = await call(
+  roles.wmanager,
+  "GET",
+  `/admin/material-inventory/cycle-counts?status=APPROVED&balance_id=${rollBalance.id}`
+);
+assert(
+  countsList.status === 200 && countsList.body.cycle_counts.length === 1,
+  "counts can be listed by status"
+);
+
+const hn = await call(
+  roles.admin,
+  "POST",
+  "/admin/material-inventory/locations",
+  {
+    code: `HN-${run}`,
+    name: "Hanoi store",
+    warehouse_code: `HN-${run}`,
+  }
+);
+const truck = await call(
+  roles.admin,
+  "POST",
+  "/admin/material-inventory/locations",
+  {
+    code: `TRUCK-${run}`,
+    name: "Truck",
+    warehouse_code: rmLoc.warehouse_code,
+    kind: "IN_TRANSIT",
+  }
+);
+const direct = await call(
+  roles.warehouse,
+  "POST",
+  "/admin/material-inventory/transfers",
+  { balance_id: rollBalance.id, to_location_id: hn.body.location.id, qty: 1 }
+);
+assert(
+  direct.status >= 400 && JSON.stringify(direct.body).includes("dispatch"),
+  "a direct transfer to another warehouse is refused and points to dispatch"
+);
+const dispatch = await call(
+  roles.warehouse,
+  "POST",
+  "/admin/material-inventory/transfers/dispatch",
+  {
+    balance_id: rollBalance.id,
+    to_location_id: hn.body.location.id,
+    qty: 2,
+    transit_location_id: truck.body.location.id,
+  }
+);
+assert(
+  dispatch.status === 201 && dispatch.body.status === "IN_TRANSIT",
+  "dispatch moves stock into transit"
+);
+const receive = await call(
+  roles.warehouse,
+  "POST",
+  `/admin/material-inventory/transfers/${dispatch.body.transfer_id}/receive`,
+  {}
+);
+assert(
+  receive.status === 200 && receive.body.status === "RECEIVED",
+  "the destination receives it"
+);
+const transfers = await call(
+  roles.warehouse,
+  "GET",
+  "/admin/material-inventory/transfers?status=RECEIVED"
+);
+assert(
+  transfers.status === 200 &&
+    transfers.body.transfers.some((t) => t.id === dispatch.body.transfer_id),
+  "transfers can be listed"
+);
+assert(
+  (
+    await call(
+      roles.cutter,
+      "POST",
+      "/admin/material-inventory/transfers/dispatch",
+      {
+        balance_id: rollBalance.id,
+        to_location_id: hn.body.location.id,
+        qty: 1,
+      }
+    )
+  ).status === 403,
+  "a cutting operator cannot dispatch transfers"
 );
 
 console.log(`HTTP TEST PASSED (${checks} checks)`);

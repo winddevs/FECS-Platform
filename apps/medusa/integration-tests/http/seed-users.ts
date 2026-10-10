@@ -14,6 +14,8 @@ const USERS: Array<[string, string[]]> = [
   ["qc@fashion.test", ["QC"]],
   ["packer@fashion.test", ["PACKING_OPERATOR"]],
   ["sre@fashion.test", ["SRE"]],
+  ["warehouse@fashion.test", ["WAREHOUSE_OPERATOR"]],
+  ["wmanager@fashion.test", ["WAREHOUSE_MANAGER"]],
 ];
 
 export default async function seedUsers({ container }: ExecArgs) {

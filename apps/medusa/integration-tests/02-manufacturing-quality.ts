@@ -705,7 +705,7 @@ export default async function verify({ container }: ExecArgs) {
     JSON.stringify(
       mrp.result.suggestions.map((s: any) => [
         s.type,
-        s.material_id.slice(-4),
+        s.material_id?.slice(-4),
         s.net_requirement,
       ])
     )

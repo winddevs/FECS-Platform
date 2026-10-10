@@ -79,8 +79,8 @@ export type ScrapMaterialInput = ActorContext & {
   qty: number;
   source_bucket: StockBucket;
   reason: string;
-  reference_type?: string | null;
-  reference_id?: string | null;
+  reference_type: string;
+  reference_id: string;
 };
 
 export type AdjustStockInput = ActorContext & {
@@ -100,6 +100,28 @@ export type CycleCountInput = ActorContext & {
   reason: string;
 };
 
+export type DecideCycleCountInput = ActorContext & {
+  idempotency_key: string;
+  count_id: string;
+  decision: "APPROVE" | "REJECT";
+  reason?: string | null;
+};
+
+export type DispatchTransferInput = ActorContext & {
+  idempotency_key: string;
+  balance_id: string;
+  to_location_id: string;
+  qty: number;
+  transit_location_id?: string | null;
+  notes?: string | null;
+};
+
+export type CloseTransferInput = ActorContext & {
+  idempotency_key: string;
+  transfer_id: string;
+  reason?: string | null;
+};
+
 export type TransferStockInput = ActorContext & {
   idempotency_key: string;
   balance_id: string;
@@ -114,7 +136,9 @@ export type ReconciliationIssue = {
     | "LEDGER_VS_BALANCE"
     | "RESERVATION_VS_BALANCE"
     | "BALANCE_INVARIANT"
-    | "ORPHAN_RESERVATION_LINE";
+    | "ORPHAN_RESERVATION_LINE"
+    | "RESERVATION_HEADER_VS_LINES"
+    | "ROLL_STATE";
   balance_id: string | null;
   detail: Record<string, unknown>;
 };

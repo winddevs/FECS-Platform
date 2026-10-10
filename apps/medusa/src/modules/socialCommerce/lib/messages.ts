@@ -125,3 +125,15 @@ export const productionText = (status: string, locale: Locale): string =>
   locale === "vi"
     ? `Tiến độ sản xuất: ${productionStatusText(status, locale)}.`
     : `Production status: ${productionStatusText(status, locale)}.`;
+export const orderConfirmedText = (locale: Locale): string =>
+  locale === "vi"
+    ? "Đơn hàng của bạn đã được xác nhận. Cảm ơn bạn đã mua sắm!"
+    : "Your order is confirmed. Thank you for shopping with us!";
+export const returnReceivedText = (locale: Locale): string =>
+  locale === "vi"
+    ? "Chúng tôi đã nhận được hàng trả. Hàng sẽ được kiểm tra chất lượng trước khi hoàn tiền."
+    : "We received your returned items. They will be inspected before your refund.";
+export const refundCompletedText = (locale: Locale): string =>
+  locale === "vi"
+    ? "Khoản hoàn tiền cho đơn trả hàng của bạn đã hoàn tất."
+    : "The refund for your return has been completed.";

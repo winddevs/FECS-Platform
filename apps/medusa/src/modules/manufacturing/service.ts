@@ -37,7 +37,7 @@ import {
   type FlowOp,
 } from "./lib/bundle-flow";
 import { assertTransition, SHOP_FLOOR_STATUSES } from "./lib/mo-state";
-import { grossToNet } from "./lib/mrp";
+import { grossToNet, produceSuggestions } from "./lib/mrp";
 import { Bom, BomLine } from "./models/bom";
 import {
   ManufacturingOrder,
@@ -52,6 +52,7 @@ import {
   ManufacturingIdempotencyRecord,
   ManufacturingOutboxEvent,
   MaterialPlanningParam,
+  SkuPlanningParam,
   MrpRun,
   MrpSuggestion,
 } from "./models/mrp";
@@ -149,6 +150,7 @@ class ManufacturingModuleService extends MedusaService({
   OperationExecution,
   PackingRecord,
   MaterialPlanningParam,
+  SkuPlanningParam,
   MrpRun,
   MrpSuggestion,
   ManufacturingOutboxEvent,
@@ -243,14 +245,17 @@ class ManufacturingModuleService extends MedusaService({
   private async loadOps(
     ctx: Context,
     routingId: string
-  ): Promise<Array<FlowOp & { standard_minutes: number }>> {
+  ): Promise<
+    Array<FlowOp & { standard_minutes: number; work_center_type: string }>
+  > {
     const rows = await executorOf(ctx).execute<{
       seq: number;
       code: string;
       qc_gate: boolean;
       standard_minutes: string;
+      work_center_type: string;
     }>(
-      `SELECT seq, code, qc_gate, standard_minutes FROM "routing_operation"
+      `SELECT seq, code, qc_gate, standard_minutes, work_center_type FROM "routing_operation"
        WHERE routing_id = ? AND deleted_at IS NULL ORDER BY seq`,
       [routingId]
     );
@@ -259,6 +264,7 @@ class ManufacturingModuleService extends MedusaService({
       code: r.code,
       qc_gate: r.qc_gate,
       standard_minutes: Number(r.standard_minutes),
+      work_center_type: r.work_center_type,
     }));
   }
 
@@ -601,6 +607,69 @@ class ManufacturingModuleService extends MedusaService({
     return { id: row.id, version: Number(row.version) };
   }
 
+  /**
+   * Each order type has its own rules (FR-MFG-001):
+   *  MTO            serves one customer order
+   *  MTS/REPLENISHMENT/SAMPLE  stock-building; never tied to a customer order
+   *  REWORK         repairs the defective output of an earlier order
+   */
+  private async assertOrderTypeRules(
+    ctx: Context,
+    input: CreateMoInput
+  ): Promise<void> {
+    const fail = (message: string) => {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        message
+      );
+    };
+    if (input.order_type !== "MTO" && input.customer_order_id) {
+      fail(
+        `A ${input.order_type} manufacturing order cannot be tied to a customer order`
+      );
+    }
+    if (input.order_type !== "REWORK" && input.source_mo_id) {
+      fail("source_mo_id is only for REWORK manufacturing orders");
+    }
+    if (input.order_type !== "REWORK") {
+      return;
+    }
+    if (!input.source_mo_id) {
+      fail("A REWORK manufacturing order needs source_mo_id");
+    }
+    const [source] = await this.listManufacturingOrders(
+      { id: input.source_mo_id as string },
+      {},
+      ctx
+    );
+    if (!source) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        `Source order ${input.source_mo_id} not found`
+      );
+    }
+    const producing: MoStatus[] = [
+      "IN_PROGRESS",
+      "QC_PENDING",
+      "PACKING",
+      "PARTIALLY_COMPLETED",
+      "COMPLETED",
+    ];
+    if (!producing.includes(source.status as MoStatus)) {
+      fail(
+        `Source order ${source.mo_number} is ${source.status}; rework needs output to repair`
+      );
+    }
+    const planned = input.lines.reduce((sum, line) => sum + line.qty, 0);
+    if (planned > source.planned_qty) {
+      fail(
+        `Rework of ${planned} pieces exceeds the ${source.planned_qty} pieces of ${source.mo_number}`
+      );
+    }
+  }
+
   @InjectTransactionManager()
   async createManufacturingOrderFrom(
     input: CreateMoInput,
@@ -624,6 +693,7 @@ class ManufacturingModuleService extends MedusaService({
           "An MTO manufacturing order needs customer_order_id"
         );
       }
+      await this.assertOrderTypeRules(ctx, input);
       const bom = await this.latestReleased(
         ctx,
         "bom",
@@ -664,6 +734,7 @@ class ManufacturingModuleService extends MedusaService({
           routing_id: routing.id,
           routing_version: routing.version,
           customer_order_id: input.customer_order_id ?? null,
+          source_mo_id: input.source_mo_id ?? null,
           due_date: input.due_date ?? null,
           notes: input.notes ?? null,
           created_by: input.actor_id,
@@ -694,6 +765,7 @@ class ManufacturingModuleService extends MedusaService({
           bom_version: bom.version,
           routing_version: routing.version,
           customer_order_id: input.customer_order_id ?? null,
+          source_mo_id: input.source_mo_id ?? null,
         }
       );
       return {
@@ -879,6 +951,84 @@ class ManufacturingModuleService extends MedusaService({
         batch_no: b.batch_no,
         planned_qty: b.planned_qty,
       })),
+    };
+  }
+
+  /**
+   * Closes a partially completed order below its planned quantity on purpose
+   * (FR-MFG-014). Only possible once nothing is left in the factory to
+   * finish: rework still open must be returned or scrapped first, otherwise
+   * those pieces would silently disappear.
+   */
+  @InjectTransactionManager()
+  async shortCloseManufacturingOrder(
+    input: MoActor & { reason: string },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    if (!input.reason.trim()) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "Short-closing needs a reason"
+      );
+    }
+    const mo = await this.lockMo(ctx, input.mo_id);
+    if (mo.status === "COMPLETED") {
+      const [done] = await this.listManufacturingOrders({ id: mo.id }, {}, ctx);
+      if (done?.short_closed) {
+        return { id: mo.id, status: "COMPLETED", short_closed: true };
+      }
+    }
+    if (mo.status !== "PARTIALLY_COMPLETED") {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `Only a PARTIALLY_COMPLETED order can be short-closed (this one is ${mo.status})`
+      );
+    }
+    await flushOf(ctx);
+    const [open] = await executorOf(ctx).execute<{ rework: string }>(
+      `SELECT COALESCE(SUM(rework_qty), 0) AS rework FROM "bundle"
+       WHERE mo_id = ? AND deleted_at IS NULL`,
+      [mo.id]
+    );
+    if (Number(open?.rework ?? 0) > 0) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `REWORK_OPEN: ${open.rework} pieces still wait for rework; return or scrap them first`
+      );
+    }
+    await this.updateManufacturingOrders(
+      {
+        id: mo.id,
+        short_closed: true,
+        short_close_reason: input.reason,
+      },
+      ctx
+    );
+    await this.moveMo(ctx, mo, "COMPLETED", input);
+    await this.createManufacturingExceptions(
+      {
+        mo_id: mo.id,
+        type: "SHORT_CLOSED",
+        status: "RESOLVED",
+        detail: {
+          planned_qty: mo.planned_qty,
+          completed_qty: mo.completed_qty,
+          shortfall: mo.planned_qty - mo.completed_qty,
+          reason: input.reason,
+          closed_by: input.actor_id,
+        },
+        resolved_by: input.actor_id,
+      },
+      ctx
+    );
+    return {
+      id: mo.id,
+      status: "COMPLETED",
+      short_closed: true,
+      shortfall: mo.planned_qty - mo.completed_qty,
     };
   }
 
@@ -1400,6 +1550,40 @@ class ManufacturingModuleService extends MedusaService({
     }
   }
 
+  /**
+   * The work center that reports an operation must exist, be available and be
+   * of the type the routing asks for (FR-MFG-010).
+   */
+  private async assertWorkCenterFor(
+    ctx: Context,
+    workCenterId: string,
+    op: { code: string; work_center_type?: string }
+  ): Promise<void> {
+    const [center] = await this.listWorkCenters({ id: workCenterId }, {}, ctx);
+    const fail = (message: string) => {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        message
+      );
+    };
+    if (!center) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        `Work center ${workCenterId} not found`
+      );
+    }
+    if (!center.is_active) {
+      fail(`WORK_CENTER_UNAVAILABLE: ${center.code} is not active`);
+    }
+    if (op.work_center_type && center.type !== op.work_center_type) {
+      fail(
+        `WORK_CENTER_TYPE_MISMATCH: operation ${op.code} runs on ${op.work_center_type}, not ${center.type} (${center.code})`
+      );
+    }
+  }
+
   @InjectTransactionManager()
   async executeOperation(
     input: ExecuteOperationInput,
@@ -1420,7 +1604,11 @@ class ManufacturingModuleService extends MedusaService({
       assertInvariant(next);
       const op = ops.find((o) => o.seq === input.op_seq) as FlowOp & {
         standard_minutes: number;
+        work_center_type?: string;
       };
+      if (input.work_center_id) {
+        await this.assertWorkCenterFor(ctx, input.work_center_id, op);
+      }
       await this.updateBundles({ id: bundle.id, ...bundlePatch(next) }, ctx);
       const execution = await this.createOperationExecutions(
         {
@@ -1584,8 +1772,10 @@ class ManufacturingModuleService extends MedusaService({
         material_id: string;
         gross: string;
         mo_ids: string[];
+        earliest_due: Date | string | null;
       }>(
-        `SELECT r.material_id, SUM(r.required_qty - r.reserved_qty) AS gross, array_agg(DISTINCT r.mo_id) AS mo_ids
+        `SELECT r.material_id, SUM(r.required_qty - r.reserved_qty) AS gross,
+                array_agg(DISTINCT r.mo_id) AS mo_ids, MIN(m.due_date) AS earliest_due
          FROM "mo_material_requirement" r
          JOIN "manufacturing_order" m ON m.id = r.mo_id AND m.deleted_at IS NULL
          WHERE r.deleted_at IS NULL AND m.status IN ('PLANNED', 'MATERIAL_CHECK')
@@ -1603,7 +1793,7 @@ class ManufacturingModuleService extends MedusaService({
       ]);
       const demandBy = new Map(demand.map((d) => [d.material_id, d]));
 
-      const suggestions = grossToNet(
+      const materialSuggestions = grossToNet(
         [...materialIds].map((material_id) => ({
           material_id,
           gross: Number(demandBy.get(material_id)?.gross ?? 0),
@@ -1611,8 +1801,55 @@ class ManufacturingModuleService extends MedusaService({
           incoming: input.incoming[material_id] ?? 0,
           safety_stock: safety.get(material_id) ?? 0,
           mo_ids: demandBy.get(material_id)?.mo_ids ?? [],
+          available_by_warehouse: input.available_by_warehouse?.[material_id],
+          earliest_due: demandBy.get(material_id)?.earliest_due
+            ? new Date(demandBy.get(material_id)?.earliest_due as Date)
+            : null,
+          incoming_orders: (input.incoming_orders?.[material_id] ?? []).map(
+            (order) => ({
+              ...order,
+              expected_at: order.expected_at
+                ? new Date(order.expected_at)
+                : null,
+            })
+          ),
+        })),
+        { demand_warehouse: input.demand_warehouse ?? null }
+      );
+
+      // Finished SKUs under their reorder point (PRODUCE).
+      const skuParams = await this.listSkuPlanningParams({}, {}, ctx);
+      const openProduction = skuParams.length
+        ? await executorOf(ctx).execute<{ sku: string; open_qty: string }>(
+            `SELECT l->>'sku' AS sku,
+                    SUM(GREATEST((l->>'qty')::int - COALESCE(p.packed, 0), 0)) AS open_qty
+             FROM "manufacturing_order" m
+             CROSS JOIN LATERAL jsonb_array_elements(m.lines::jsonb) AS l
+             LEFT JOIN LATERAL (
+               SELECT SUM(b.packed_qty) AS packed FROM "bundle" b
+               WHERE b.mo_id = m.id AND b.sku = l->>'sku' AND b.deleted_at IS NULL
+             ) p ON true
+             WHERE m.deleted_at IS NULL AND m.order_type IN ('MTS', 'REPLENISHMENT')
+               AND m.status IN ('PLANNED', 'MATERIAL_CHECK', 'MATERIAL_RESERVED',
+                                'RELEASED', 'IN_PROGRESS', 'QC_PENDING', 'PACKING', 'ON_HOLD')
+               AND l->>'sku' IN (?)
+             GROUP BY l->>'sku'`,
+            [skuParams.map((p) => p.sku)]
+          )
+        : [];
+      const openBySku = new Map(
+        openProduction.map((row) => [row.sku, Number(row.open_qty)])
+      );
+      const produce = produceSuggestions(
+        skuParams.map((p) => ({
+          sku: p.sku,
+          sellable: input.fg_sellable?.[p.sku] ?? 0,
+          open_production: openBySku.get(p.sku) ?? 0,
+          reorder_point: Number(p.reorder_point),
+          reorder_qty: Number(p.reorder_qty),
         }))
       );
+      const suggestions = [...materialSuggestions, ...produce];
 
       const runNo = `MRP-${stamp()}-${shortId("mrp")}`;
       const run = await this.createMrpRuns(
@@ -1622,6 +1859,7 @@ class ManufacturingModuleService extends MedusaService({
           parameters: (input.parameters ?? {}) as Record<string, unknown>,
           summary: {
             materials: materialIds.size,
+            skus: skuParams.length,
             suggestions: suggestions.length,
           },
           created_by: input.actor_id,
@@ -1633,7 +1871,9 @@ class ManufacturingModuleService extends MedusaService({
             suggestions.map((s) => ({
               run_id: run.id,
               type: s.type,
-              material_id: s.material_id,
+              material_id: s.material_id ?? null,
+              sku: s.sku ?? null,
+              detail: (s.detail ?? null) as Record<string, unknown> | null,
               gross_requirement: s.gross_requirement,
               available: s.available,
               confirmed_incoming: s.confirmed_incoming,
@@ -1659,6 +1899,43 @@ class ManufacturingModuleService extends MedusaService({
       );
       return { id: run.id, run_no: runNo, suggestions };
     });
+  }
+
+  @InjectTransactionManager()
+  async setSkuPlanningParam(
+    input: { sku: string; reorder_point: number; reorder_qty: number },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    if (
+      !Number.isInteger(input.reorder_point) ||
+      !Number.isInteger(input.reorder_qty) ||
+      input.reorder_point < 0 ||
+      input.reorder_qty < 0
+    ) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "reorder_point and reorder_qty must be whole numbers of at least 0"
+      );
+    }
+    const [existing] = await this.listSkuPlanningParams(
+      { sku: input.sku },
+      {},
+      ctx
+    );
+    if (existing) {
+      await this.updateSkuPlanningParams(
+        {
+          id: existing.id,
+          reorder_point: input.reorder_point,
+          reorder_qty: input.reorder_qty,
+        },
+        ctx
+      );
+      return { id: existing.id, ...input };
+    }
+    const created = await this.createSkuPlanningParams(input, ctx);
+    return { id: created.id, ...input };
   }
 
   /** Materials MRP must plan: unreserved MO demand plus safety-stock materials. */
@@ -1895,6 +2172,8 @@ class ManufacturingModuleService extends MedusaService({
         is_active: r.is_active,
         effective_capacity_minutes: effective,
         load_minutes: load,
+        available_minutes: Math.max(effective - load, 0),
+        over_capacity: r.is_active && load > effective,
         utilization_pct:
           effective > 0 ? Math.round((load / effective) * 1000) / 10 : 0,
       };

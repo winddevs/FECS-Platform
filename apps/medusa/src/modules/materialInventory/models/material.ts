@@ -21,6 +21,11 @@ export const Material = model
     allocation_policy: model
       .enum([...ALLOCATION_POLICIES])
       .default("SAME_DYE_LOT_FIFO"),
+    /**
+     * Roll-fragment reduction (FR-INV-006): use opened rolls first and leave
+     * the smallest remainder. When off, rolls are taken in plain FIFO order.
+     */
+    roll_fragment_reduction: model.boolean().default(true),
     is_active: model.boolean().default(true),
     metadata: model.json().nullable(),
   })

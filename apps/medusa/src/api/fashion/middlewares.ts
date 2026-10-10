@@ -15,8 +15,11 @@ import {
   CreateLocationSchema,
   CreateMaterialSchema,
   CreatePurchaseOrderSchema,
+  CloseTransferSchema,
   CreateSupplierSchema,
   CycleCountSchema,
+  DecideCycleCountSchema,
+  DispatchTransferSchema,
   IssueMaterialSchema,
   PostGoodsReceiptSchema,
   PurchaseOrderActionSchema,
@@ -221,13 +224,44 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
   ),
   body(
     "/admin/material-inventory/cycle-counts",
-    "inventory:adjust",
+    "inventory:count",
     CycleCountSchema
+  ),
+  list("/admin/material-inventory/cycle-counts", "inventory:read", {
+    balance_id: str,
+    material_id: str,
+    status: str,
+  }),
+  // Approving a count posts the adjustment, so it needs adjust rights.
+  body(
+    "/admin/material-inventory/cycle-counts/:id/decision",
+    "inventory:adjust",
+    DecideCycleCountSchema
   ),
   body(
     "/admin/material-inventory/transfers",
     "inventory:transfer",
     TransferStockSchema
+  ),
+  list("/admin/material-inventory/transfers", "inventory:read", {
+    material_id: str,
+    status: str,
+    to_location_id: str,
+  }),
+  body(
+    "/admin/material-inventory/transfers/dispatch",
+    "inventory:transfer",
+    DispatchTransferSchema
+  ),
+  body(
+    "/admin/material-inventory/transfers/:id/receive",
+    "inventory:transfer",
+    CloseTransferSchema
+  ),
+  body(
+    "/admin/material-inventory/transfers/:id/cancel",
+    "inventory:transfer",
+    CloseTransferSchema
   ),
   body(
     "/admin/material-inventory/qc-decisions",
@@ -241,6 +275,12 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
     "inventory:read"
   ),
   guarded("/admin/material-inventory/rolls/:code", "GET", "inventory:read"),
+  guarded("/admin/material-inventory/scan/:code", "GET", "inventory:read"),
+  guarded(
+    "/admin/material-inventory/labels/:type/:code",
+    "GET",
+    "inventory:read"
+  ),
   guarded(
     "/admin/material-inventory/reservations/:id",
     "GET",

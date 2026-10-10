@@ -210,6 +210,22 @@ class ProcurementModuleService extends MedusaService({
         );
       }
 
+      // A supplier with a qualified-materials list may only be ordered from for
+      // those materials (FR-PROC-001).
+      const supported = supplier.supported_material_ids ?? [];
+      if (supported.length > 0) {
+        const unsupported = input.lines
+          .map((line) => line.material_id)
+          .filter((id) => !supported.includes(id));
+        if (unsupported.length > 0) {
+          throw domainError(
+            MedusaError.Types.NOT_ALLOWED,
+            ErrorCodes.INVALID_STATE,
+            `SUPPLIER_NOT_QUALIFIED: ${supplier.code} is not qualified for material(s) ${[...new Set(unsupported)].join(", ")}`
+          );
+        }
+      }
+
       const now = new Date();
       const poNumber = `PO-${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}-${shortId("po")}`;
       const po = await this.createPurchaseOrders(
@@ -654,6 +670,62 @@ class ProcurementModuleService extends MedusaService({
     return Object.fromEntries(
       rows.map((row) => [row.material_id, Number(row.incoming)])
     );
+  }
+
+  /** Open PO lines still to arrive, with the PO's expected date (MRP RESCHEDULE). */
+  @InjectTransactionManager()
+  async confirmedIncomingOrders(
+    materialIds: string[],
+    @MedusaContext() ctx: Context = {}
+  ): Promise<
+    Record<
+      string,
+      Array<{
+        purchase_order_id: string;
+        po_number: string;
+        qty: number;
+        expected_at: Date | null;
+      }>
+    >
+  > {
+    if (materialIds.length === 0) {
+      return {};
+    }
+    const rows = await this.executor(ctx).execute<{
+      material_id: string;
+      purchase_order_id: string;
+      po_number: string;
+      qty: string;
+      expected_at: Date | null;
+    }>(
+      `SELECT l.material_id, p.id AS purchase_order_id, p.po_number, p.expected_at,
+              SUM(GREATEST(l.ordered_qty - l.received_qty, 0)) AS qty
+       FROM "purchase_order_line" l
+       JOIN "purchase_order" p ON p.id = l.purchase_order_id AND p.deleted_at IS NULL
+       WHERE l.deleted_at IS NULL AND p.status IN ('SENT', 'PARTIALLY_RECEIVED')
+         AND l.material_id IN (?)
+       GROUP BY l.material_id, p.id, p.po_number, p.expected_at
+       HAVING SUM(GREATEST(l.ordered_qty - l.received_qty, 0)) > 0`,
+      [[...new Set(materialIds)]]
+    );
+    const out: Record<
+      string,
+      Array<{
+        purchase_order_id: string;
+        po_number: string;
+        qty: number;
+        expected_at: Date | null;
+      }>
+    > = {};
+    for (const row of rows) {
+      (out[row.material_id] ??= []).push({
+        purchase_order_id: row.purchase_order_id,
+        po_number: row.po_number,
+        qty: Number(row.qty),
+        expected_at: row.expected_at ? new Date(row.expected_at) : null,
+      });
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------------

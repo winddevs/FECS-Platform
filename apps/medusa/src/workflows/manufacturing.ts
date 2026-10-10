@@ -48,6 +48,8 @@ import {
   resumeMoStep,
   returnReworkStep,
   runMrpStep,
+  setSkuPlanningParamStep,
+  shortCloseMoStep,
   setPlanningParamStep,
 } from "./steps/manufacturing";
 
@@ -110,6 +112,13 @@ export const setPlanningParamWorkflow = createWorkflow(
   "mfg-set-planning-param-workflow",
   function (input: Parameters<typeof setPlanningParamStep>[0]) {
     return new WorkflowResponse(setPlanningParamStep(input));
+  }
+);
+
+export const setSkuPlanningParamWorkflow = createWorkflow(
+  "mfg-set-sku-planning-param-workflow",
+  function (input: Parameters<typeof setSkuPlanningParamStep>[0]) {
+    return new WorkflowResponse(setSkuPlanningParamStep(input));
   }
 );
 
@@ -213,6 +222,30 @@ export const cancelManufacturingOrderWorkflow = createWorkflow(
       resource_type: "manufacturing_order",
       resource_id: input.mo_id,
       reason: input.reason,
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
+  }
+);
+
+/**
+ * Closing a partially completed order below plan (FR-MFG-014). Reservations
+ * that were never issued are released so no material stays blocked.
+ */
+export const shortCloseManufacturingOrderWorkflow = createWorkflow(
+  "mfg-short-close-mo-workflow",
+  function (input: MoActor & { reason: string }) {
+    const result = shortCloseMoStep(input);
+    const releaseInput = transform({ input, result }, ({ input }) => input);
+    releaseMoReservationsStep(releaseInput);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: "manufacturing.mo.short_close",
+      resource_type: "manufacturing_order",
+      resource_id: input.mo_id,
+      reason: input.reason,
+      after: result as unknown as Record<string, unknown>,
       correlation_id: input.correlation_id ?? null,
     }));
     recordAuditStep(audit);

@@ -37,7 +37,9 @@ import {
   InspectReturnItemSchema,
   IssueToMoSchema,
   PackBundleSchema,
+  MrpRunSchema,
   PlanningParamSchema,
+  SkuPlanningParamSchema,
   ReasonSchema,
   RefundReturnSchema,
   ReleaseMoSchema,
@@ -126,6 +128,12 @@ export const opsMiddlewares: MiddlewareRoute[] = [
   body(`${MFG}/work-centers`, "manufacturing:plan", CreateWorkCenterSchema),
   read(`${MFG}/work-centers/load`, "manufacturing:read"),
   body(`${MFG}/planning-params`, "manufacturing:plan", PlanningParamSchema),
+  body(
+    `${MFG}/planning-params/skus`,
+    "manufacturing:plan",
+    SkuPlanningParamSchema
+  ),
+  list(`${MFG}/planning-params/skus`, "manufacturing:read", { sku: str }),
 
   // ---- manufacturing orders --------------------------------------------------
   list(`${MFG}/mos`, "manufacturing:read", {
@@ -136,6 +144,7 @@ export const opsMiddlewares: MiddlewareRoute[] = [
   }),
   body(`${MFG}/mos`, "manufacturing:plan", CreateMoSchema),
   read(`${MFG}/mos/:id`, "manufacturing:read"),
+  read(`${MFG}/mos/:id/rolls`, "manufacturing:read"),
   body(`${MFG}/mos/:id/check-material`, "manufacturing:plan", EmptySchema),
   body(
     `${MFG}/mos/:id/reserve`,
@@ -147,6 +156,7 @@ export const opsMiddlewares: MiddlewareRoute[] = [
   body(`${MFG}/mos/:id/hold`, "manufacturing:release", ReasonSchema),
   body(`${MFG}/mos/:id/resume`, "manufacturing:release", EmptySchema),
   body(`${MFG}/mos/:id/cancel`, "manufacturing:approve", ReasonSchema),
+  body(`${MFG}/mos/:id/short-close`, "manufacturing:approve", ReasonSchema),
   body(`${MFG}/mos/:id/issue`, "inventory:issue", IssueToMoSchema),
   body(`${MFG}/mos/:id/cut-plan`, "manufacturing:cut", CutPlanSchema),
   body(
@@ -171,6 +181,7 @@ export const opsMiddlewares: MiddlewareRoute[] = [
     sku: str,
   }),
   read(`${MFG}/bundles/by-code/:code`, "manufacturing:read"),
+  read(`${MFG}/bundles/by-code/:code/label`, "manufacturing:read"),
   body(
     `${MFG}/bundles/:id/operations`,
     "manufacturing:execute",
@@ -190,7 +201,7 @@ export const opsMiddlewares: MiddlewareRoute[] = [
 
   // ---- MRP / MTO -----------------------------------------------------------------
   list(`${MFG}/mrp/runs`, "manufacturing:read"),
-  body(`${MFG}/mrp/runs`, "manufacturing:plan", EmptySchema),
+  body(`${MFG}/mrp/runs`, "manufacturing:plan", MrpRunSchema),
   list(`${MFG}/mrp/suggestions`, "manufacturing:read", {
     run_id: str,
     status: str,

@@ -14,6 +14,7 @@ import {
   adjustFgStep,
   allocateFgStep,
   changeFgHoldStep,
+  checkPackDestinationStep,
   receiveFinishedGoodsStep,
   receivePackedOutputStep,
   releaseFgAllocationStep,
@@ -28,6 +29,7 @@ import { packBundleStep } from "./steps/manufacturing";
 export const packAndReceiveFinishedGoodsWorkflow = createWorkflow(
   "fg-pack-and-receive-workflow",
   function (input: PackBundleInput & { location_id: string }) {
+    checkPackDestinationStep(input);
     const packed = packBundleStep(input);
     const receiveInput = transform({ input, packed }, ({ input, packed }) => ({
       packed,

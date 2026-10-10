@@ -1,4 +1,13 @@
-import { api, check, eventually, mock, run, section, store } from "./lib.mjs";
+import {
+  api,
+  check,
+  eventually,
+  layPlan,
+  mock,
+  run,
+  section,
+  store,
+} from "./lib.mjs";
 import { newCustomer, orderDetail, placeOrder } from "./setup.mjs";
 
 /**
@@ -180,13 +189,7 @@ export const madeToOrder = async (ctx) => {
   await api(t.cutter, "POST", `/admin/manufacturing/mos/${mo.id}/cut-plan`, {
     batch_id: batchId,
     fabric_material_id: fabric.id,
-    lays: [
-      {
-        roll_code: `${run}-R2`,
-        planned_consumption: 6,
-        size_ratio: { "BLZ-NVY-M": 2 },
-      },
-    ],
+    lays: await layPlan(t.cutter, mo.id, { "BLZ-NVY-M": 2 }),
   });
   const cut = await api(
     t.cutter,

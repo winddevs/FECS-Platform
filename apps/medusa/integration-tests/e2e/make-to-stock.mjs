@@ -1,4 +1,13 @@
-import { api, check, eventually, mock, run, section, store } from "./lib.mjs";
+import {
+  api,
+  check,
+  eventually,
+  layPlan,
+  mock,
+  run,
+  section,
+  store,
+} from "./lib.mjs";
 import { newCustomer, orderDetail, placeOrder } from "./setup.mjs";
 
 /**
@@ -352,13 +361,10 @@ export const makeToStock = async (ctx) => {
       await api(t.cutter, "POST", `/admin/manufacturing/mos/${moId}/cut-plan`, {
         batch_id: batchId,
         fabric_material_id: fabric.id,
-        lays: [
-          {
-            roll_code: `${run}-R1`,
-            planned_consumption: 78.75,
-            size_ratio: { "TEE-BLK-M": 30, "TEE-BLK-L": 20 },
-          },
-        ],
+        lays: await layPlan(t.cutter, moId, {
+          "TEE-BLK-M": 30,
+          "TEE-BLK-L": 20,
+        }),
       })
     ).status === 201,
     "cut plan recorded"

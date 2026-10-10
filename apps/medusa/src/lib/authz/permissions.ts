@@ -40,6 +40,7 @@ export const PERMISSIONS = [
   "inventory:qc",
   "inventory:scrap",
   "inventory:adjust",
+  "inventory:count",
   "inventory:reconcile",
   "manufacturing:read",
   "manufacturing:plan",
@@ -83,6 +84,7 @@ const warehouseOperator: Permission[] = [
   "inventory:issue",
   "inventory:return",
   "inventory:transfer",
+  "inventory:count",
 ];
 
 const readOnly: Permission[] = [

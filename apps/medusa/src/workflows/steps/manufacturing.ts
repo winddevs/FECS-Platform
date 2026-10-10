@@ -7,6 +7,8 @@ import {
 
 import { domainError, ErrorCodes } from "../../lib/errors";
 import { fromUnits, toUnits } from "../../lib/quantity";
+import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
+import type FinishedGoodsModuleService from "../../modules/finishedGoods/service";
 import { MANUFACTURING_MODULE } from "../../modules/manufacturing";
 import type ManufacturingModuleService from "../../modules/manufacturing/service";
 import type {
@@ -282,12 +284,23 @@ export const releaseMoReservationsStep = wrap(
         correlation_id: i.correlation_id,
         idempotency_key: `mo:${i.mo_id}:cancel-release:${reservation.id}`,
         reservation_id: reservation.id,
-        reason: "manufacturing order cancelled",
+        reason: "manufacturing order closed",
       });
       released.push(reservation.id);
     }
     return released;
   }
+);
+
+export const setSkuPlanningParamStep = wrap(
+  "mfg-set-sku-planning-param",
+  (i: { sku: string; reorder_point: number; reorder_qty: number }, c) =>
+    mfg(c).setSkuPlanningParam(i)
+);
+
+export const shortCloseMoStep = wrap(
+  "mfg-short-close-mo",
+  (i: MoActor & { reason: string }, c) => mfg(c).shortCloseManufacturingOrder(i)
 );
 
 export const cancelMoStep = wrap(
@@ -431,8 +444,42 @@ export const recordMoIssueStep = wrap(
 );
 
 // ---- cutting ------------------------------------------------------------------
-export const createCutPlanStep = wrap("mfg-cut-plan", (i: CutPlanInput, c) =>
-  mfg(c).createCutPlanFor(i)
+/**
+ * A cut plan may only use rolls of the fabric that were reserved for this MO,
+ * and no lay may plan to cut more than its roll holds (FR-MFG-006).
+ */
+export const createCutPlanStep = wrap(
+  "mfg-cut-plan",
+  async (i: CutPlanInput, c) => {
+    const assigned = await inv(c).rollsAssignedTo(
+      "MO",
+      i.mo_id,
+      i.fabric_material_id
+    );
+    const consumedByRoll = new Map<string, number>();
+    for (const lay of i.lays) {
+      const roll = assigned.get(lay.roll_code);
+      if (!roll) {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `ROLL_NOT_ASSIGNED: roll ${lay.roll_code} is not reserved for this MO's fabric`
+        );
+      }
+      const planned =
+        (consumedByRoll.get(lay.roll_code) ?? 0) +
+        toUnits(lay.planned_consumption);
+      consumedByRoll.set(lay.roll_code, planned);
+      if (planned > toUnits(roll.roll_qty)) {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `LAY_EXCEEDS_ROLL: roll ${lay.roll_code} holds ${roll.roll_qty} but the plan cuts ${fromUnits(planned)}`
+        );
+      }
+    }
+    return await mfg(c).createCutPlanFor(i);
+  }
 );
 
 type CompleteCutRequest = Omit<CompleteCutInput, "settlement"> & {
@@ -498,15 +545,40 @@ export const recordInspectionStep = wrap(
 // ---- MRP -----------------------------------------------------------------------------
 export const runMrpStep = wrap(
   "mfg-run-mrp",
-  async (i: Omit<MrpInput, "available" | "incoming">, c) => {
+  async (
+    i: Omit<
+      MrpInput,
+      | "available"
+      | "incoming"
+      | "available_by_warehouse"
+      | "incoming_orders"
+      | "fg_sellable"
+    >,
+    c
+  ) => {
     const ids = await mfg(c).planningMaterialIds();
-    const [available, incoming] = await Promise.all([
-      inv(c).getUsableAvailability(ids),
-      c
-        .resolve<ProcurementModuleService>(PROCUREMENT_MODULE)
-        .confirmedIncoming(ids),
-    ]);
-    return await mfg(c).runMrp({ ...i, available, incoming });
+    const skus = (await mfg(c).listSkuPlanningParams({})).map((p) => p.sku);
+    const procurement = c.resolve<ProcurementModuleService>(PROCUREMENT_MODULE);
+    const [available, byWarehouse, incoming, incomingOrders, fgSellable] =
+      await Promise.all([
+        inv(c).getUsableAvailability(ids),
+        inv(c).getUsableAvailabilityByWarehouse(ids),
+        procurement.confirmedIncoming(ids),
+        procurement.confirmedIncomingOrders(ids),
+        c
+          .resolve<FinishedGoodsModuleService>(FINISHED_GOODS_MODULE)
+          .sellableFor(skus),
+      ]);
+    return await mfg(c).runMrp({
+      ...i,
+      demand_warehouse:
+        i.demand_warehouse ?? process.env.MRP_DEMAND_WAREHOUSE ?? null,
+      available,
+      available_by_warehouse: byWarehouse,
+      incoming,
+      incoming_orders: incomingOrders,
+      fg_sellable: fgSellable,
+    });
   }
 );
 export const decideSuggestionStep = wrap(

@@ -346,6 +346,92 @@ export default async function perf({ container }: ExecArgs) {
   ]);
   record("availability of another material meanwhile", bystanderTimes, 200);
 
+  console.log("# oversell stress (SLO: race-condition oversell = 0)");
+  const scarce = await inv.createMaterials({
+    code: `PSC-${run}`,
+    name: "Scarce trim",
+    uom: "pcs",
+  });
+  await inv.receiveMaterial({
+    ...actor,
+    idempotency_key: k("rcv-scarce"),
+    material_id: scarce.id,
+    location_id: loc.id,
+    lot: { lot_no: "S1" },
+    qty: 100,
+  });
+  const scarceRuns = await Promise.allSettled(
+    Array.from({ length: 150 }, (_, i) =>
+      inv.reserveMaterial({
+        ...actor,
+        idempotency_key: k(`res-scarce-${i}`),
+        material_id: scarce.id,
+        qty: 10,
+        reference_type: "MO",
+        reference_id: `mo_scarce_${run}_${i}`,
+      })
+    )
+  );
+  const scarceOk = scarceRuns.filter((r) => r.status === "fulfilled").length;
+  const scarceBalance = (await inv.getAvailability(scarce.id))[0];
+  console.log(
+    `  150 parallel reservations of 10 against 100 on hand: ${scarceOk} granted, reserved ${scarceBalance.reserved}, available ${scarceBalance.available}`
+  );
+  if (
+    scarceOk !== 10 ||
+    scarceBalance.reserved !== 100 ||
+    scarceBalance.available !== 0
+  ) {
+    throw new Error("PERF FAILED: material oversell or lost reservations");
+  }
+
+  const fgService: any = container.resolve("finishedGoods");
+  const fgLoc = await fgService.createFgLocations({
+    code: `PFG-${run}`,
+    name: "Perf FG",
+    warehouse_code: "HCM",
+  });
+  const fgSku = `PERF-${run}-M`;
+  await fgService.receiveFinishedGoods({
+    ...actor,
+    idempotency_key: k("fg-rcv"),
+    sku: fgSku,
+    qty: 30,
+    location_id: fgLoc.id,
+    source: "PRODUCTION",
+    mo_id: `mo_fg_${run}`,
+    packing_record_id: `pack_perf_${run}`,
+    traceability: {},
+  });
+  const fgRuns = await Promise.allSettled(
+    Array.from({ length: 120 }, (_, i) =>
+      fgService.allocateToOrder({
+        ...actor,
+        idempotency_key: k(`fg-alloc-${i}`),
+        order_id: `order_perf_${run}_${i}`,
+        sku: fgSku,
+        location_id: fgLoc.id,
+        qty: 1,
+      })
+    )
+  );
+  const fgOk = fgRuns.filter((r) => r.status === "fulfilled").length;
+  console.log(
+    `  120 parallel FG allocations against 30 units: ${fgOk} granted`
+  );
+  const fgRec = await fgService.reconcile();
+  if (fgOk !== 30 || fgRec.ledger?.ok === false) {
+    throw new Error(
+      `PERF FAILED: FG oversell (granted ${fgOk}/30) or ledger drift ${JSON.stringify(fgRec.ledger)}`
+    );
+  }
+  const afterStress = await inv.reconcile();
+  if (!afterStress.ok) {
+    throw new Error(
+      `PERF FAILED: material ledger drift ${JSON.stringify(afterStress.issues)}`
+    );
+  }
+
   console.log("# ledger lookups by reference");
   const settle: Sample = [];
   for (let i = 0; i < 40; i += 1) {

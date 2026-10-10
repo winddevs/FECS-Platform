@@ -1174,5 +1174,36 @@ export default async function verify({ container }: ExecArgs) {
     "the first attach moves the RMA to IN_TRANSIT, a redelivery is a no-op"
   );
 
+  console.log("# COD is split across parcels");
+  const codEnv = { CARRIER_COD_ENABLED: "true" } as any;
+  const codOrder = {
+    ...order,
+    payment_status: "not_paid",
+    total: 300000,
+    units_ordered: 3,
+  };
+  const parcel1 = buildShipmentRequest(
+    { ...codOrder, units_in_other_shipments: 0, cod_in_other_shipments: 0 },
+    { id: "c1", items: [{ title: "T", sku: "S", quantity: 1 }] },
+    codEnv
+  );
+  const parcel2 = buildShipmentRequest(
+    {
+      ...codOrder,
+      units_in_other_shipments: 1,
+      cod_in_other_shipments: parcel1.cod_amount,
+    },
+    { id: "c2", items: [{ title: "T", sku: "S", quantity: 2 }] },
+    codEnv
+  );
+  assert(
+    parcel1.cod_amount === 100000 && parcel2.cod_amount === 200000,
+    "two parcels collect 100000 + 200000, not 300000 twice"
+  );
+  assert(
+    parcel1.cod_amount + parcel2.cod_amount === 300000,
+    "the parcels together collect exactly the order total"
+  );
+
   console.log("INTEGRATION TEST PASSED");
 }

@@ -47,6 +47,7 @@ const loadFulfillmentContext = async (
       "fulfillments.location_id",
       "fulfillments.items.*",
       "fulfillments.delivery_address.*",
+      "items.quantity",
     ],
     filters: { id: input.order_id },
   });
@@ -59,15 +60,45 @@ const loadFulfillmentContext = async (
   }
   const collections: Array<{ status: string }> =
     order.payment_collections ?? [];
+  // An authorized card payment will be captured later: collecting it again as
+  // COD would charge the customer twice.
   const paid =
     collections.length > 0 &&
-    collections.every((p) => p.status === "completed");
+    collections.every((p) => ["completed", "authorized"].includes(p.status));
+  const others = await c
+    .resolve<FulfillmentModuleService>(FASHION_FULFILLMENT_MODULE)
+    .listCarrierShipments({ order_id: input.order_id });
+  const active = others.filter(
+    (s) =>
+      s.status !== "CANCELLED" &&
+      s.medusa_fulfillment_id !== input.fulfillment_id &&
+      !s.return_id
+  );
   const orderLike: OrderLike = {
     id: order.id,
     display_id: order.display_id,
     total: order.total,
     payment_status: paid ? "paid" : "not_paid",
     shipping_address: order.shipping_address,
+    units_ordered: (order.items ?? []).reduce(
+      (sum: number, item: { quantity?: number }) =>
+        sum + Number(item.quantity ?? 0),
+      0
+    ),
+    units_in_other_shipments: active.reduce(
+      (sum, s) =>
+        sum +
+        (
+          ((s.request as { parcel?: { items?: Array<{ qty?: number }> } })
+            ?.parcel?.items ?? []) as Array<{ qty?: number }>
+        ).reduce((n, i) => n + Number(i.qty ?? 0), 0),
+      0
+    ),
+    cod_in_other_shipments: active.reduce(
+      (sum, s) =>
+        sum + Number((s.request as { cod_amount?: number })?.cod_amount ?? 0),
+      0
+    ),
   };
   return {
     order: orderLike,

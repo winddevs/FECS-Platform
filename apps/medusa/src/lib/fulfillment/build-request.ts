@@ -20,6 +20,12 @@ export type OrderLike = {
   total?: number | string | null;
   payment_status?: string | null;
   shipping_address?: AddressLike | null;
+  /** Units on the whole order; with the two fields below it splits COD. */
+  units_ordered?: number | null;
+  /** Units already sent in other, non-cancelled shipments of this order. */
+  units_in_other_shipments?: number | null;
+  /** COD already assigned to those other shipments. */
+  cod_in_other_shipments?: number | null;
 };
 
 export type FulfillmentLike = {
@@ -74,7 +80,8 @@ export const buildShipmentRequest = (
     sku: item.sku ?? null,
   }));
   const units = items.reduce((sum, item) => sum + item.qty, 0);
-  const total = Number(order.total ?? 0);
+  const orderTotal = Number(order.total ?? 0);
+  const { value: total, last } = shareOfOrder(order, units, orderTotal);
   const unpaid =
     order.payment_status !== "captured" && order.payment_status !== "paid";
   return {
@@ -89,7 +96,40 @@ export const buildShipmentRequest = (
       declared_value: total,
       items,
     },
-    cod_amount: env.CARRIER_COD_ENABLED === "true" && unpaid ? total : 0,
+    cod_amount:
+      env.CARRIER_COD_ENABLED === "true" && unpaid
+        ? codShare(order, total, orderTotal, last)
+        : 0,
     notes: order.display_id ? `Order #${order.display_id}` : null,
   };
+};
+
+/**
+ * An order may ship in several parcels. Charging the whole order total on
+ * each one would collect it more than once, so each parcel carries its share
+ * by units, and the parcel that completes the order carries the remainder.
+ */
+const shareOfOrder = (
+  order: OrderLike,
+  units: number,
+  orderTotal: number
+): { value: number; last: boolean } => {
+  const ordered = Number(order.units_ordered ?? 0);
+  if (ordered <= 0) {
+    return { value: orderTotal, last: true };
+  }
+  const already = Number(order.units_in_other_shipments ?? 0);
+  const last = already + units >= ordered;
+  return { value: Math.round((orderTotal * units) / ordered), last };
+};
+
+const codShare = (
+  order: OrderLike,
+  share: number,
+  orderTotal: number,
+  last: boolean
+): number => {
+  const assigned = Number(order.cod_in_other_shipments ?? 0);
+  const remaining = Math.max(0, orderTotal - assigned);
+  return last ? remaining : Math.min(share, remaining);
 };

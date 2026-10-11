@@ -17,7 +17,9 @@ bash docker/e2e/run.sh down    # stop and delete the data volume
 | -------------- | ------------------------------------------------------------ | --------- |
 | postgres       | database (volume `e2e_postgres`)                             | 5544      |
 | redis          | event bus, workflow engine, cache                            | -         |
-| mock-providers | J&T, Meta Graph and Payload stand-ins                        | 7070      |
+| mock-providers | J&T, Meta Graph, Payload and OpenAI-style LLM stand-ins      | 7070      |
+| redpanda       | Kafka broker + HTTP proxy, target of the event relay         | 18082     |
+| redpanda-init  | creates the Kafka topics up front                            | -         |
 | migrate        | `medusa db:migrate`                                          | -         |
 | bootstrap      | demo users, then demo catalogue/region/stock                 | -         |
 | medusa-server  | `MEDUSA_WORKER_MODE=server` (HTTP only)                      | 9100      |
@@ -28,7 +30,8 @@ bash docker/e2e/run.sh down    # stop and delete the data volume
 
 - Real: the production Docker image, Postgres, Redis, server/worker split,
   outbox, inbox, idempotency, RBAC, sagas.
-- Mocked: J&T (HMAC verified, idempotent per `txlogisticId`, failure injection
+- Real: Redpanda (Kafka protocol behind the REST proxy).
+- Mocked: the language model (`/v1/chat/completions`), J&T (HMAC verified, idempotent per `txlogisticId`, failure injection
   at `/__jt/fail`, push webhooks via `/__jt/scan`), Meta Graph, Payload.
 - Swapped by `LOCAL_STACK=true` in `medusa-config.ts`: file storage, analytics
   and notifications use local providers instead of S3, PostHog and Resend.
@@ -43,13 +46,13 @@ Rework needs `supervisor`; creating FG locations needs `admin`.
 
 ## Journeys
 
-`smoke`, `make-to-stock`, `made-to-order`, `social`, `returns`. They are
+`smoke`, `make-to-stock`, `made-to-order`, `social` (including the LLM boundary), `returns` (including exchange), `platform` (promotions, delivery problems, tracking repair, counts and transfers, settings, analytics marts, metrics, Kafka). They are
 re-runnable on the same database (stock assertions are relative to baselines).
 
 ## Chaos scenarios
 
 Workers down, carrier timeout after create, carrier unavailable, 12-way webhook
-burst, `kill -9` on a worker, server restart. Each checks that no order is lost,
+burst, `kill -9` on a worker, server restart, Kafka outage. Each checks that no order is lost,
 duplicated or shipped twice once the system recovers.
 
 ## Notes

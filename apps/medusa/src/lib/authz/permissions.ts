@@ -66,6 +66,7 @@ export const PERMISSIONS = [
   "social:manage",
   "order:read",
   "ops:read",
+  "analytics:read",
   // Changing platform settings and country profiles. ERP_ADMIN only.
   "config:manage",
   // Legacy commerce admin (catalog sync, invoices, analytics). ERP_ADMIN and
@@ -130,6 +131,7 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "manufacturing:release",
     "manufacturing:approve",
     "fg:read",
+    "analytics:read",
   ],
   CUTTING_OPERATOR: [
     "inventory:read",
@@ -169,6 +171,7 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "order:read",
     "social:read",
     "commerce:admin",
+    "analytics:read",
   ],
   CUSTOMER_SUPPORT: [
     "fg:read",
@@ -181,9 +184,16 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "social:manage",
     "manufacturing:read",
   ],
-  FINANCE: ["procurement:read", "returns:read", "returns:refund", "order:read"],
+  FINANCE: [
+    "procurement:read",
+    "returns:read",
+    "returns:refund",
+    "order:read",
+    "analytics:read",
+  ],
   SRE: [
     "ops:read",
+    "analytics:read",
     "inventory:read",
     "inventory:reconcile",
     "fg:read",
@@ -194,6 +204,7 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
   AUDITOR: [
     ...readOnly,
     "ops:read",
+    "analytics:read",
     "inventory:reconcile",
     "manufacturing:read",
     "fg:read",

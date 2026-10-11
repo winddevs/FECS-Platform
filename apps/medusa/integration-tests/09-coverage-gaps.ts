@@ -709,6 +709,47 @@ export default async function verify({ container }: ExecArgs) {
     "a malformed value falls back to the keyword rules"
   );
 
+  console.log(
+    "# NFR-SEC-005: the bot routes free text through a guarded model"
+  );
+  let modelCalls = 0;
+  const agentDeps = {
+    ...deps,
+    flags: { readTools: true, stateChange: false },
+    agent: {
+      decide: async (request: { text: string }) => {
+        modelCalls += 1;
+        return /arrive/.test(request.text)
+          ? { action: "track_shipment" }
+          : { action: "order_status", customer_id: "cus_someone_else" };
+      },
+    },
+  };
+  const agentAsk = async (text: string, id: string) =>
+    (await handleInboundMessage(agentDeps as any, {
+      channel: "MESSENGER",
+      account_id: page,
+      external_user_id: psid,
+      message_id: `mid_agent_${id}_${run}`,
+      text,
+      occurred_at: new Date(),
+    })) as any;
+  const viaRules = await agentAsk("order 1234", "a1");
+  assert(
+    modelCalls === 0 && viaRules.intent === "ORDER",
+    "a message the rules understand never reaches the model"
+  );
+  const viaModel = await agentAsk("when will it arrive?", "a2");
+  assert(
+    modelCalls === 1 && viaModel.intent === "TRACKING",
+    "free text is routed by the model to a read-only action"
+  );
+  const rogue = await agentAsk("please do something odd", "a3");
+  assert(
+    modelCalls === 2 && rogue.intent === "HELP",
+    "an answer that reaches for another customer's data falls back to help"
+  );
+
   console.log("# FR-ADM-003: shipment actions are audited");
   const provider = new SandboxCarrierProvider("SANDBOX");
   registerCarrierProvider(provider);

@@ -1,11 +1,15 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
 
+import { isEnabled } from "../lib/feature-flags";
 import {
   OUTBOX_MODULES,
   type OutboxModuleService,
 } from "../lib/outbox/drainers";
+import { kafkaRestConfigFromEnv } from "../lib/outbox/kafka-rest";
 import { createEventBusPublisher } from "../lib/outbox/publisher";
+import { INTEGRATION_MODULE } from "../modules/integration";
+import type IntegrationModuleService from "../modules/integration/service";
 
 const BATCH_SIZE = 100;
 
@@ -18,7 +22,14 @@ export default async function publishOutbox(
   container: MedusaContainer
 ): Promise<void> {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const publish = createEventBusPublisher(container.resolve(Modules.EVENT_BUS));
+  const relay =
+    isEnabled("KAFKA_RELAY_ENABLED") && kafkaRestConfigFromEnv()
+      ? container.resolve<IntegrationModuleService>(INTEGRATION_MODULE)
+      : null;
+  const publish = createEventBusPublisher(
+    container.resolve(Modules.EVENT_BUS),
+    relay
+  );
 
   for (const name of OUTBOX_MODULES) {
     try {

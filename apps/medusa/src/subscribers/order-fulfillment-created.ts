@@ -1,6 +1,7 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
 
 import { isEnabled } from "../lib/feature-flags";
+import { withCausation } from "../lib/observability/causation";
 import { onFulfillmentCreatedWorkflow } from "../workflows/fulfillment-created";
 
 export default async function orderFulfillmentCreated({
@@ -16,16 +17,18 @@ export default async function orderFulfillmentCreated({
   if (!ship && !carrier) {
     return;
   }
-  await onFulfillmentCreatedWorkflow(container).run({
-    input: {
-      order_id: event.data.order_id,
-      fulfillment_id: event.data.fulfillment_id,
-      actor_id: "system:fulfillment-created",
-      correlation_id: `ful_${event.data.fulfillment_id}`,
-      ship_finished_goods: ship,
-      create_carrier_shipment: carrier,
-    },
-  });
+  await withCausation(`fulfillment.created:${event.data.fulfillment_id}`, () =>
+    onFulfillmentCreatedWorkflow(container).run({
+      input: {
+        order_id: event.data.order_id,
+        fulfillment_id: event.data.fulfillment_id,
+        actor_id: "system:fulfillment-created",
+        correlation_id: `ful_${event.data.fulfillment_id}`,
+        ship_finished_goods: ship,
+        create_carrier_shipment: carrier,
+      },
+    })
+  );
 }
 
 export const config: SubscriberConfig = {

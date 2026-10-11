@@ -1143,4 +1143,31 @@ assert(
   "FG transfers and location kinds are listable"
 );
 
+console.log("# analytics marts (section 27)");
+const marts = await call(roles.sre, "GET", "/admin/analytics-marts");
+assert(
+  marts.status === 200 &&
+    marts.body.marts.includes("carrier_performance") &&
+    marts.body.marts.length === 14,
+  "SRE lists the 14 marts"
+);
+const mart = await call(
+  roles.planner,
+  "GET",
+  "/admin/analytics-marts/production_output_daily?limit=5"
+);
+assert(
+  mart.status === 200 && mart.body.limit === 5 && Array.isArray(mart.body.rows),
+  "a planner reads a mart, paginated"
+);
+assert(
+  (await call(roles.sre, "GET", "/admin/analytics-marts/users;DROP")).status ===
+    404,
+  "a mart name that is not on the list is refused (never interpolated)"
+);
+assert(
+  (await call(roles.cutter, "GET", "/admin/analytics-marts")).status === 403,
+  "a cutting operator cannot read analytics"
+);
+
 console.log(`HTTP TEST PASSED (${checks} checks)`);

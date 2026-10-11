@@ -20,6 +20,7 @@ export const OUTBOX_TABLES = [
   "fulfillment_outbox_event",
   "social_outbox_event",
   "returns_outbox_event",
+  "kafka_relay_event",
 ] as const;
 
 export const IDEMPOTENCY_TABLES = [

@@ -1,5 +1,17 @@
 import { model } from "@medusajs/framework/utils";
 
+import { defineOutboxEventModel } from "../../../lib/outbox/model";
+
+export const KAFKA_RELAY_TABLE = "kafka_relay_event";
+
+/**
+ * Copy of every domain event, queued for Kafka (ADR-006). The domain outbox
+ * delivers to the internal event bus first; the relay then carries the same
+ * event to Kafka with its own retry, so a Kafka outage never delays internal
+ * subscribers and no event is lost for the analytics consumers.
+ */
+export const KafkaRelayEvent = defineOutboxEventModel(KAFKA_RELAY_TABLE);
+
 export const SETTING_SCOPES = ["GLOBAL", "COUNTRY", "WAREHOUSE"] as const;
 export type SettingScope = (typeof SETTING_SCOPES)[number];
 

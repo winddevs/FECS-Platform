@@ -309,6 +309,79 @@ export const returns = async (ctx) => {
     async () => (await stock("TEE-BLK-L")) === lBefore - 1
   );
   check(true, "the storefront no longer offers the reserved L");
+  section("7.4 exchange: the replacement is sent once the old piece is back");
+  const tooSoon = await api(
+    t.warehouse,
+    "POST",
+    `/admin/returns/${exchange.body.id}/ship-replacement`,
+    {}
+  );
+  check(
+    tooSoon.status >= 400 && tooSoon.status < 500,
+    "the replacement is not sent before the returned piece arrives"
+  );
+  check(
+    (
+      await api(
+        t.warehouse,
+        "POST",
+        `/admin/returns/${exchange.body.id}/receive`,
+        {}
+      )
+    ).status === 200,
+    "warehouse receives the piece to be exchanged"
+  );
+  check(
+    (
+      await api(
+        t.packer,
+        "POST",
+        `/admin/returns/${exchange.body.id}/ship-replacement`,
+        {}
+      )
+    ).status === 403,
+    "packers cannot send replacements (fulfillment rights are needed)"
+  );
+  const sent = await api(
+    t.warehouse,
+    "POST",
+    `/admin/returns/${exchange.body.id}/ship-replacement`,
+    {}
+  );
+  check(
+    sent.status === 200 && sent.body.replay === false,
+    `the replacement is sent (${sent.status} ${JSON.stringify(sent.body).slice(0, 200)})`
+  );
+  const replacementParcel = await eventually(
+    "the replacement parcel at the carrier",
+    async () =>
+      (await mock.state()).parcels.find(
+        (p) => p.txlogisticId === `X-${exchange.body.id}`
+      )
+  );
+  check(
+    replacementParcel.items.some((i) => i.sku === "TEE-BLK-L" && i.qty === 1) &&
+      Number(replacementParcel.codAmount ?? 0) === 0,
+    "a parcel with 1 x TEE-BLK-L, no cash on delivery, is booked for the customer"
+  );
+  check(
+    (await ctx.fgOnHand("TEE-BLK-L")) === lBefore - 1,
+    "the replacement piece left the finished-goods ledger"
+  );
+  const again = await api(
+    t.warehouse,
+    "POST",
+    `/admin/returns/${exchange.body.id}/ship-replacement`,
+    {}
+  );
+  check(
+    again.status === 200 &&
+      again.body.replay === true &&
+      (await mock.state()).parcels.filter(
+        (p) => p.txlogisticId === `X-${exchange.body.id}`
+      ).length === 1,
+    "sending it again changes nothing: still one parcel"
+  );
   const rec = await api(
     t.warehouse,
     "GET",

@@ -16,6 +16,7 @@ export const FEATURE_FLAGS = [
   "AGENT_READ_TOOLS_ENABLED",
   "AGENT_STATE_CHANGE_ENABLED",
   "AGENT_LLM_ENABLED",
+  "KAFKA_RELAY_ENABLED",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];

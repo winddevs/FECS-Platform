@@ -294,6 +294,9 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
     "inventory:reconcile"
   ),
 
+  // ---- analytics (read-only marts) ---------------------------------------------
+  guarded("/admin/analytics-marts", "GET", "analytics:read"),
+  guarded("/admin/analytics-marts/:mart", "GET", "analytics:read"),
   // ---- configuration ----------------------------------------------------------
   guarded("/admin/settings", "GET", "ops:read"),
   {

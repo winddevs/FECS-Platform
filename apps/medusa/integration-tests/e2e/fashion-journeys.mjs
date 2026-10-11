@@ -6,7 +6,8 @@ import { checkCount, mock } from "./lib.mjs";
 import { setup } from "./setup.mjs";
 
 const wanted = (
-  process.env.JOURNEYS ?? "smoke,make-to-stock,made-to-order,social,returns"
+  process.env.JOURNEYS ??
+  "smoke,make-to-stock,made-to-order,social,returns,platform"
 ).split(",");
 const journeys = {
   smoke: () => import("./smoke.mjs").then((m) => m.smoke),
@@ -16,6 +17,7 @@ const journeys = {
     import("./made-to-order.mjs").then((m) => m.madeToOrder),
   social: () => import("./social.mjs").then((m) => m.social),
   returns: () => import("./returns.mjs").then((m) => m.returns),
+  platform: () => import("./platform.mjs").then((m) => m.platform),
 };
 
 const started = Date.now();

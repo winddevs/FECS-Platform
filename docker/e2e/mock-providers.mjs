@@ -22,6 +22,7 @@ const PLATFORM_URL = process.env.PLATFORM_URL ?? "http://medusa-server:9000";
 const parcels = new Map(); // billCode -> parcel
 const byReference = new Map(); // txlogisticId -> billCode
 const messages = []; // Graph API messages the platform sent
+const llmRequests = []; // what the language model was asked
 const log = [];
 let parcelSeq = 0;
 let failure = null; // { mode, remaining }
@@ -98,6 +99,7 @@ const server = createServer(async (req, res) => {
       parcels: [...parcels.values()],
       create_calls: parcelSeq,
       messages,
+      llm_requests: llmRequests,
       log: log.slice(-50),
     });
   }
@@ -105,6 +107,7 @@ const server = createServer(async (req, res) => {
     parcels.clear();
     byReference.clear();
     messages.length = 0;
+    llmRequests.length = 0;
     log.length = 0;
     failure = null;
     return send(res, 200, { ok: true });
@@ -214,6 +217,31 @@ const server = createServer(async (req, res) => {
     });
   }
 
+  // ---- language model (OpenAI-compatible chat completions) ---------------------
+  if (path === "/v1/chat/completions" && req.method === "POST") {
+    const payload = JSON.parse(body);
+    const [system, user] = payload.messages ?? [];
+    const text = String(user?.content ?? "").toLowerCase();
+    llmRequests.push({
+      system: system?.content,
+      text: user?.content,
+      model: payload.model,
+    });
+    let answer = { action: "help" };
+    if (/ignore|refund|jailbreak/.test(text)) {
+      // A model that was talked into reaching for someone else's data.
+      answer = { action: "order_status", customer_id: "cus_somebody_else" };
+    } else if (/arrive|hàng đến|package|parcel/.test(text)) {
+      answer = { action: "track_shipment" };
+    } else if (/blazer|jacket|vest/.test(text)) {
+      answer = { action: "search_products", query: "blazer" };
+    } else if (/person|someone/.test(text)) {
+      answer = { action: "talk_to_human" };
+    }
+    return send(res, 200, {
+      choices: [{ message: { content: JSON.stringify(answer) } }],
+    });
+  }
   // ---- Payload CMS (product sync target) ----------------------------------------
   if (path.startsWith("/api/")) {
     return send(res, 200, {

@@ -167,3 +167,63 @@ export const layPlan = async (token, moId, sizeRatio) => {
     size_ratio: index === 0 ? sizeRatio : {},
   }));
 };
+
+export const KAFKA_REST =
+  process.env.KAFKA_REST_URL ?? "http://localhost:18082";
+export const KAFKA_PREFIX = process.env.KAFKA_TOPIC_PREFIX ?? "e2e.";
+
+const kafkaJson = "application/vnd.kafka.v2+json";
+
+/**
+ * Reads everything on the given topics from the beginning through the broker's
+ * HTTP proxy, the way an analytics consumer would. Returns the records seen
+ * within `seconds`.
+ */
+export const kafkaRead = async (topics, seconds = 8) => {
+  const group = `e2e-${run}-${++keySeq}`;
+  const created = await fetch(`${KAFKA_REST}/consumers/${group}`, {
+    method: "POST",
+    headers: { "content-type": kafkaJson },
+    body: JSON.stringify({
+      name: "reader",
+      format: "json",
+      "auto.offset.reset": "earliest",
+      "auto.commit.enable": "false",
+    }),
+  });
+  if (!created.ok) {
+    throw new Error(`Kafka consumer create failed: ${created.status}`);
+  }
+  const { base_uri: base } = await created.json();
+  try {
+    await fetch(`${base}/subscription`, {
+      method: "POST",
+      headers: { "content-type": kafkaJson },
+      body: JSON.stringify({ topics }),
+    });
+    const records = [];
+    const deadline = Date.now() + seconds * 1000;
+    while (Date.now() < deadline) {
+      const res = await fetch(
+        `${base}/records?timeout=1500&max_bytes=5000000`,
+        {
+          headers: { accept: "application/vnd.kafka.json.v2+json" },
+        }
+      );
+      if (res.ok) {
+        records.push(...(await res.json()));
+      }
+    }
+    return records;
+  } finally {
+    await fetch(base, { method: "DELETE" }).catch(() => undefined);
+  }
+};
+
+/** Scrapes /internal/metrics as the monitoring system does. */
+export const scrapeMetrics = async () =>
+  (
+    await fetch(`${BASE}/internal/metrics`, {
+      headers: { authorization: `Bearer ${METRICS_TOKEN}` },
+    })
+  ).text();

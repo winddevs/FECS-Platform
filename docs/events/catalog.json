@@ -3,7 +3,7 @@
   "events": {
     "finished-goods.receipt_posted.v1": {
       "version": 1,
-      "producer_module": "finishedGoods"
+      "producer_module": "social"
     },
     "finished-goods.sellable_changed.v1": {
       "version": 1,
@@ -17,11 +17,23 @@
       "version": 1,
       "producer_module": "fulfillment"
     },
-    "fulfillment.shipment_status_changed.v1": {
+    "fulfillment.shipment_exception_opened.v1": {
       "version": 1,
       "producer_module": "fulfillment"
     },
+    "fulfillment.shipment_exception_resolved.v1": {
+      "version": 1,
+      "producer_module": "fulfillment"
+    },
+    "fulfillment.shipment_status_changed.v1": {
+      "version": 1,
+      "producer_module": "social"
+    },
     "inventory.cycle_count_adjusted.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.cycle_count_submitted.v1": {
       "version": 1,
       "producer_module": "materialInventory"
     },
@@ -65,6 +77,18 @@
       "version": 1,
       "producer_module": "materialInventory"
     },
+    "inventory.transfer_cancelled.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.transfer_dispatched.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
+    "inventory.transfer_received.v1": {
+      "version": 1,
+      "producer_module": "materialInventory"
+    },
     "manufacturing.batch_cut.v1": {
       "version": 1,
       "producer_module": "manufacturing"
@@ -79,7 +103,7 @@
     },
     "manufacturing.mo_status_changed.v1": {
       "version": 1,
-      "producer_module": "manufacturing"
+      "producer_module": "social"
     },
     "manufacturing.mrp_run_completed.v1": {
       "version": 1,
@@ -131,9 +155,13 @@
     },
     "returns.refund_completed.v1": {
       "version": 1,
-      "producer_module": "returns"
+      "producer_module": "social"
     },
     "returns.refund_requested.v1": {
+      "version": 1,
+      "producer_module": "returns"
+    },
+    "returns.replacement_shipped.v1": {
       "version": 1,
       "producer_module": "returns"
     },
@@ -159,7 +187,7 @@
     },
     "returns.return_received.v1": {
       "version": 1,
-      "producer_module": "returns"
+      "producer_module": "social"
     },
     "returns.return_rejected.v1": {
       "version": 1,

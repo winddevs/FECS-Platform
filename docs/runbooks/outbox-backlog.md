@@ -21,3 +21,13 @@ stock sync, notifications) are delayed. Nothing is lost.
    uses `SKIP LOCKED`, so extra replicas just add throughput.
 
 Consumers dedupe by `event_id` and drop stale versions, so re-delivery is safe.
+
+## Kafka relay (`kafka_relay_event`)
+
+The Kafka feed has its own queue and job (`publish-kafka-relay`, every 2s). A
+Kafka or REST-proxy outage only grows `kafka_relay_event`; business flows do not
+wait for it, and the queue drains when Kafka returns (at-least-once; consumers
+dedupe by `event_id`). Check `last_error` on the oldest `PENDING` row: a
+missing topic ("unknown topic") means the topics were not provisioned, and a
+timeout means the proxy or broker is down. Alert on provider `kafka` call
+failures in `fashion_provider_call_duration_ms`.

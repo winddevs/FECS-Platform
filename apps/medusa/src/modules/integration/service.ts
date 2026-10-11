@@ -6,10 +6,18 @@ import {
   generateEntityId,
 } from "@medusajs/framework/utils";
 
+import {
+  drainOutboxBatched,
+  type ClaimedOutboxRow,
+  type DrainResult,
+  type OutboxBatchPublishFn,
+} from "../../lib/outbox/outbox";
 import { safeTable, type SqlExecutor } from "../../lib/sql";
 import { AuditLog } from "./models/audit-log";
 import {
   CountryProfile,
+  KAFKA_RELAY_TABLE,
+  KafkaRelayEvent,
   OpsGauge,
   PlatformSetting,
   type SettingScope,
@@ -45,6 +53,7 @@ class IntegrationModuleService extends MedusaService({
   PlatformSetting,
   CountryProfile,
   OpsGauge,
+  KafkaRelayEvent,
 }) {
   protected baseRepository_: DAL.RepositoryService;
 
@@ -310,6 +319,50 @@ class IntegrationModuleService extends MedusaService({
     return existing
       ? await this.updateCountryProfiles({ id: existing.id, ...data })
       : await this.createCountryProfiles(data);
+  }
+
+  /**
+   * Queues a copy of a delivered domain event for Kafka. Idempotent on the
+   * event id, so a domain outbox row that is retried queues it only once.
+   */
+  @InjectTransactionManager()
+  async enqueueKafkaRelay(
+    row: ClaimedOutboxRow,
+    @MedusaContext() sharedContext: Context = {}
+  ): Promise<void> {
+    const executor = sharedContext.transactionManager as unknown as SqlExecutor;
+    await executor.execute(
+      `INSERT INTO "${KAFKA_RELAY_TABLE}"
+         (id, event_id, event_type, event_version, aggregate_type, aggregate_id, topic,
+          partition_key, payload, status, attempts, available_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'PENDING', 0, now(), now(), now())
+       ON CONFLICT (event_id) WHERE deleted_at IS NULL DO NOTHING`,
+      [
+        generateEntityId(undefined, "obx"),
+        row.event_id,
+        row.event_type,
+        row.payload.event_version ?? 1,
+        row.payload.aggregate_type,
+        row.payload.aggregate_id,
+        row.topic,
+        row.partition_key,
+        JSON.stringify(row.payload),
+      ]
+    );
+  }
+
+  @InjectTransactionManager()
+  async publishKafkaRelay(
+    limit: number,
+    publishMany: OutboxBatchPublishFn,
+    @MedusaContext() sharedContext: Context = {}
+  ): Promise<DrainResult> {
+    return await drainOutboxBatched(
+      sharedContext.transactionManager as unknown as SqlExecutor,
+      KAFKA_RELAY_TABLE,
+      limit,
+      publishMany
+    );
   }
 
   async setGauge(name: string, value: number) {

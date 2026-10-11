@@ -95,14 +95,13 @@ export const drainOutbox = async (
   return total;
 };
 
-const drainRound = async (
+/** An event is claimable only when no EARLIER event of its aggregate is pending. */
+const claimRound = async (
   executor: SqlExecutor,
-  tableName: string,
-  limit: number,
-  publish: OutboxPublishFn
-): Promise<DrainResult> => {
-  const table = safeTable(tableName);
-  const rows = await executor.execute<ClaimedOutboxRow>(
+  table: string,
+  limit: number
+): Promise<ClaimedOutboxRow[]> =>
+  await executor.execute<ClaimedOutboxRow>(
     // An event is claimable only when no EARLIER event of the same aggregate is
     // still pending (in flight or waiting out a backoff), so consumers see one
     // aggregate's events in the order they were written.
@@ -121,44 +120,131 @@ const drainRound = async (
     [limit]
   );
 
+const markPublished = async (
+  executor: SqlExecutor,
+  table: string,
+  ids: string[]
+): Promise<void> => {
+  if (ids.length === 0) {
+    return;
+  }
+  await executor.execute(
+    `UPDATE ${table}
+     SET status = 'PUBLISHED', published_at = now(), attempts = attempts + 1,
+         last_error = NULL, updated_at = now()
+     WHERE id IN (?)`,
+    [ids]
+  );
+};
+
+// The only failure here is the transport (event bus, Kafka) being unavailable.
+// Giving up would silently drop business events after a ~10 minute outage, so
+// rows stay PENDING with a capped backoff and the attempts counter feeds an
+// alert. FAILED is reserved for operators who park a poison event by hand.
+const markFailed = async (
+  executor: SqlExecutor,
+  table: string,
+  row: ClaimedOutboxRow,
+  error: unknown
+): Promise<void> => {
+  const message = error instanceof Error ? error.message : String(error);
+  const nextAttempts = row.attempts + 1;
+  await executor.execute(
+    `UPDATE ${table}
+     SET status = ?, attempts = ?, last_error = ?,
+         available_at = now() + (? || ' seconds')::interval, updated_at = now()
+     WHERE id = ?`,
+    [
+      "PENDING",
+      nextAttempts,
+      message.slice(0, 1000),
+      String(backoffSeconds(nextAttempts)),
+      row.id,
+    ]
+  );
+};
+
+const drainRound = async (
+  executor: SqlExecutor,
+  tableName: string,
+  limit: number,
+  publish: OutboxPublishFn
+): Promise<DrainResult> => {
+  const table = safeTable(tableName);
+  const rows = await claimRound(executor, table, limit);
   const result: DrainResult = { published: 0, failed: 0 };
   for (const row of rows) {
     try {
       await publish(row);
-      await executor.execute(
-        `UPDATE ${table}
-         SET status = 'PUBLISHED', published_at = now(), attempts = attempts + 1,
-             last_error = NULL, updated_at = now()
-         WHERE id = ?`,
-        [row.id]
-      );
+      await markPublished(executor, table, [row.id]);
       result.published += 1;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const nextAttempts = row.attempts + 1;
-      // The only failure here is the transport (event bus) being unavailable.
-      // Giving up would silently drop business events after a ~10 minute
-      // outage, so rows stay PENDING with a capped backoff and the attempts
-      // counter feeds an alert. FAILED is reserved for operators who park a
-      // poison event by hand.
-      await executor.execute(
-        `UPDATE ${table}
-         SET status = ?, attempts = ?, last_error = ?,
-             available_at = now() + (? || ' seconds')::interval, updated_at = now()
-         WHERE id = ?`,
-        [
-          "PENDING",
-          nextAttempts,
-          message.slice(0, 1000),
-          String(backoffSeconds(nextAttempts)),
-          row.id,
-        ]
-      );
+      await markFailed(executor, table, row, error);
       result.failed += 1;
     }
   }
   return result;
 };
 
+export type OutboxBatchPublishFn = (rows: ClaimedOutboxRow[]) => Promise<void>;
+
+/**
+ * Like drainOutbox, but hands each topic's claimed rows to the transport in ONE
+ * call (a Kafka produce request carries many records). The groups of a round
+ * are sent in parallel, and a round that had a failure ends the drain, so a
+ * slow or unreachable broker holds the transaction for one timeout, not for
+ * one timeout per event. Order inside a topic is the claim order.
+ */
+export const drainOutboxBatched = async (
+  executor: SqlExecutor,
+  tableName: string,
+  limit: number,
+  publishMany: OutboxBatchPublishFn
+): Promise<DrainResult> => {
+  const table = safeTable(tableName);
+  const total: DrainResult = { published: 0, failed: 0 };
+  for (let round = 0; round < MAX_DRAIN_ROUNDS; round += 1) {
+    const left = limit - total.published - total.failed;
+    if (left <= 0) {
+      break;
+    }
+    const rows = await claimRound(executor, table, left);
+    if (rows.length === 0) {
+      break;
+    }
+    const groups = new Map<string, ClaimedOutboxRow[]>();
+    for (const row of rows) {
+      groups.set(row.topic, [...(groups.get(row.topic) ?? []), row]);
+    }
+    const outcomes = await Promise.allSettled(
+      [...groups.values()].map(async (group) => {
+        await publishMany(group);
+        return group;
+      })
+    );
+    let failedInRound = false;
+    for (const [index, outcome] of outcomes.entries()) {
+      if (outcome.status === "fulfilled") {
+        await markPublished(
+          executor,
+          table,
+          outcome.value.map((row) => row.id)
+        );
+        total.published += outcome.value.length;
+        continue;
+      }
+      failedInRound = true;
+      const group = [...groups.values()][index];
+      for (const row of group) {
+        await markFailed(executor, table, row, outcome.reason);
+      }
+      total.failed += group.length;
+    }
+    if (failedInRound) {
+      break;
+    }
+  }
+  return total;
+};
 export const newId = (prefix: string): string =>
   generateEntityId(undefined, prefix);

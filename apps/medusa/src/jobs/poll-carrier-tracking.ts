@@ -11,7 +11,7 @@ import { FASHION_FULFILLMENT_MODULE } from "../modules/fulfillment";
 import type FulfillmentModuleService from "../modules/fulfillment/service";
 
 const BATCH_SIZE = 50;
-const STALE_AFTER_SECONDS = 15 * 60;
+const DEFAULT_STALE_AFTER_SECONDS = 15 * 60;
 
 /**
  * Reconciliation poll (FR-FUL-006): webhooks are primary, polling repairs
@@ -33,7 +33,9 @@ export default async function pollCarrierTracking(
   const claimed = await service.claimShipmentsToPoll({
     carrier_code: provider.code,
     limit: BATCH_SIZE,
-    stale_after_seconds: STALE_AFTER_SECONDS,
+    stale_after_seconds: Number(
+      process.env.TRACKING_POLL_STALE_SECONDS ?? DEFAULT_STALE_AFTER_SECONDS
+    ),
   });
   for (const shipment of claimed) {
     try {
@@ -51,5 +53,6 @@ export default async function pollCarrierTracking(
 
 export const config = {
   name: "poll-carrier-tracking",
-  schedule: "*/5 * * * *",
+  // Every minute; a parcel is only polled again once its last poll is stale.
+  schedule: "* * * * *",
 };

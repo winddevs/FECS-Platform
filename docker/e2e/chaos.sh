@@ -56,4 +56,14 @@ for _ in $(seq 1 60); do curl -fs http://localhost:9100/internal/ready >/dev/nul
 placed=$(e2e place); order=$(echo "$placed" | field "['order_id']")
 e2e await-shipment "$order:1" >/dev/null && ok "orders keep flowing after a server restart"
 
+step "7. Kafka is down while the business keeps working; events are delivered when it returns"
+dc stop redpanda >/dev/null
+probe=$(e2e kafka-produce); material=$(echo "$probe" | field "['material_id']")
+ok "with Kafka down a stock receipt is still accepted (the database is the source of truth)"
+sleep 20
+queued=$(e2e kafka-queue | field "['pending']")
+[ "$queued" -ge 1 ] && ok "the event waits in the relay queue ($queued pending)"
+dc up -d redpanda >/dev/null
+for _ in $(seq 1 60); do dc ps --format json redpanda 2>/dev/null | grep -q '"Health":"healthy"' && break; sleep 2; done
+e2e kafka-await "$material" >/dev/null && ok "Kafka is back: the event arrives, exactly once"
 echo; echo "CHAOS PASSED ($pass scenarios)"

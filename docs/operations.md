@@ -120,6 +120,81 @@ They still require a signed webhook: HMAC-SHA256 of the body with
 that secret every webhook is rejected, so a mis-set flag in production cannot
 open the webhook routes.
 
+### Kafka event feed
+
+Domain events (inventory, procurement, manufacturing, quality, finished goods,
+fulfillment, returns, notifications) are also delivered to Kafka, one topic per
+bounded context: `<prefix>fashion.<context>.events.v1`, keyed by aggregate id
+so one aggregate's events stay ordered. Delivery is at-least-once; consumers
+deduplicate on the envelope's `event_id`.
+
+- Enable with `KAFKA_RELAY_ENABLED=true` and `KAFKA_REST_URL` (Confluent REST
+  Proxy, Redpanda HTTP Proxy or Strimzi bridge). Optional: `KAFKA_REST_USER` /
+  `KAFKA_REST_PASSWORD`, `KAFKA_TOPIC_PREFIX`, `KAFKA_REST_TIMEOUT_MS`.
+- Create the topics up front. The proxies do not create a topic on first
+  produce.
+- Kafka is never the source of truth. When it is down, events wait in
+  `kafka_relay_event` and leave when it returns; orders, stock and shipments
+  are unaffected. Watch `fashion_outbox_pending` and the Kafka provider-call
+  metrics; see `docs/runbooks/outbox-backlog.md`.
+- The client speaks the REST proxy protocol, not the native Kafka protocol.
+
+### Analytics marts
+
+Fourteen read-only SQL views in schema `analytics` (production output,
+material consumption, sell-through, carrier performance, order conversion,
+fulfillment lead time, SKU margin inputs, ...). They are (re)created at start
+by the integration module's loader and are served by
+`GET /admin/analytics-marts` and `GET /admin/analytics-marts/:mart`
+(permission `analytics:read`, read-only transaction, allow-listed names). Point
+a BI tool at the schema with a read-only database role.
+
+### Settings and country profiles
+
+`GET/PUT/DELETE /admin/settings/:key` (permission `config:manage`, ERP_ADMIN)
+override business rules per GLOBAL, COUNTRY or WAREHOUSE scope; environment
+variables are the fallback. Values are validated against the registry in
+`src/lib/config/settings.ts` and cached for 20 seconds per process.
+`/admin/country-profiles` holds the country's carrier, currency, warehouses,
+return window and social channels, so a second country is configuration.
+
+### Delivery problems and tracking repair
+
+- A failed or stuck parcel opens a `shipment_exception` (support queue:
+  `GET /admin/fulfillment/exceptions`); a later good scan resolves it.
+- Parcels whose webhook never arrived are polled by `poll-carrier-tracking`
+  (every minute; stale after `TRACKING_POLL_STALE_SECONDS`, default 15 min).
+- A returned parcel can be replaced on purpose (`replace` on the shipment), and
+  the old shipment is kept as history.
+- Carrier status codes map through `JT_STATUS_MAP_JSON` (exact codes first,
+  keyword rules after). The real J&T contract is not verified here: set the map
+  from the carrier's documentation before going live.
+
+### Stock operations
+
+Cycle counts are maker-checker (count, then another person approves the
+adjustment). Transfers between warehouses are in transit until received
+(`dispatch` / `receive` / `cancel`), for materials and finished goods. Rolls and
+lots carry Code 128 labels (`/admin/material-inventory/labels/:type/:code`) and scans resolve through
+`/admin/material-inventory/scan/:code`.
+
+### AI assistant boundary
+
+`AGENT_LLM_ENABLED` lets a language model help only when the rules found no
+intent. The model may choose one read-only action (order status, tracking,
+production status, return policy); its answer is validated against a strict
+schema, and PII is masked before the text leaves the platform. Checkout, link,
+stop and mute are never model-selectable. Configure with `AGENT_LLM_*`
+(OpenAI-compatible endpoint).
+
+### Startup checks
+
+The integration module's loader runs in every process before traffic: it
+refuses to start in production with missing or default secrets
+(`SKIP_SECRET_CHECK=true` overrides, for emergencies only), masks PII in logs
+and creates the analytics views. Medusa 2 does not run a top-level
+`src/loaders` folder, so do not add startup code there.
+
 ## Local end-to-end stack
 
 `bash docker/e2e/run.sh up|test|chaos|down` starts the production image with

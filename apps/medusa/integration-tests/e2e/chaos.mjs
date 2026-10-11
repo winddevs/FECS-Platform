@@ -3,7 +3,17 @@
 // prints machine-readable `RESULT {json}` lines.
 //
 //   SCENARIO=place|await-shipment|shipment-state|stock|scan-burst|arm
-import { check, eventually, login, mock, api, run } from "./lib.mjs";
+import {
+  check,
+  eventually,
+  login,
+  mock,
+  api,
+  run,
+  kafkaRead,
+  KAFKA_PREFIX,
+  scrapeMetrics,
+} from "./lib.mjs";
 import { newCustomer, orderDetail, placeOrder, setup } from "./setup.mjs";
 
 const scenario = process.env.SCENARIO;
@@ -127,6 +137,77 @@ if (scenario === "place") {
     `/admin/fulfillment/shipments/${shipment.id}`
   );
   result({ ok: true, status: events.status });
+} else if (scenario === "kafka-produce") {
+  // A business operation that emits a domain event; it must succeed whether or
+  // not Kafka is reachable.
+  const material = (
+    await api(
+      ctx.t.procurement,
+      "POST",
+      "/admin/material-inventory/materials",
+      {
+        code: `KAFKA-${run}-${Date.now() % 100000}`,
+        name: "Kafka outage probe",
+        uom: "pcs",
+      }
+    )
+  ).body.material;
+  const location = (
+    await api(ctx.t.admin, "POST", "/admin/material-inventory/locations", {
+      code: `KL-${run}-${Date.now() % 100000}`,
+      name: "Probe store",
+      warehouse_code: "HCM",
+    })
+  ).body.location;
+  const receipt = await api(
+    ctx.t.warehouse,
+    "POST",
+    "/admin/material-inventory/receipts",
+    {
+      material_id: material.id,
+      location_id: location.id,
+      lot: { lot_no: `K-${run}` },
+      qty: 3,
+    }
+  );
+  if (receipt.status !== 201) {
+    console.error(
+      "receipt failed",
+      receipt.status,
+      JSON.stringify(receipt.body)
+    );
+    process.exit(1);
+  }
+  result({ material_id: material.id });
+} else if (scenario === "kafka-queue") {
+  // How many events wait in the relay queue (what monitoring would see).
+  const text = await scrapeMetrics();
+  const match = text.match(
+    /fashion_outbox_pending\{table="kafka_relay_event"\} (\d+)/
+  );
+  result({ pending: Number(match?.[1] ?? 0) });
+} else if (scenario === "kafka-await") {
+  // The probe's event reaches Kafka once the broker is back, exactly once.
+  const topic = `${KAFKA_PREFIX}fashion.inventory.events.v1`;
+  let seen = [];
+  await eventually(
+    "the event on Kafka",
+    async () => {
+      seen = (await kafkaRead([topic], 5)).filter(
+        (r) =>
+          r.value?.event_type === "inventory.material_received.v1" &&
+          r.value?.data?.material_id === arg
+      );
+      return seen.length > 0;
+    },
+    { timeout: 120_000, every: 1000 }
+  );
+  check(
+    new Set(seen.map((r) => r.value.event_id)).size === seen.length &&
+      seen.length === 1,
+    "exactly one copy of the event reached Kafka"
+  );
+  result({ copies: seen.length });
 } else {
   console.error(`unknown SCENARIO ${scenario}`);
   process.exit(1);

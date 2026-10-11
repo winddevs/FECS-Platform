@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { registerInboxHandlers } from "../lib/inbox/bootstrap";
 import { inboxHandlerFor } from "../lib/inbox/registry";
+import { withCausation } from "../lib/observability/causation";
 import { INTEGRATION_MODULE } from "../modules/integration";
 import type IntegrationModuleService from "../modules/integration/service";
 
@@ -32,7 +33,8 @@ export default async function processInbox(
       continue;
     }
     try {
-      await handler(container, event);
+      // Events produced while handling a webhook name that webhook as their cause.
+      await withCausation(`inbox:${event.id}`, () => handler(container, event));
       await integration.markInboxProcessed(event.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

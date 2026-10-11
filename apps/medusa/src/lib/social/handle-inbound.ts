@@ -83,7 +83,7 @@ export const handleInboundMessage = async (
     external_user_id: inbound.external_user_id,
     at: inbound.occurred_at,
   });
-  const intent = parseIntent(inbound.text);
+  const intent = await resolveIntent(deps, inbound.text, locale);
 
   const recorded = await service.recordInbound({
     identity_id: identity.id,

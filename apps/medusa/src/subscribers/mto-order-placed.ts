@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { isEnabled } from "../lib/feature-flags";
 import { lineQuantity } from "../lib/medusa-number";
+import { withCausation } from "../lib/observability/causation";
 import { MANUFACTURING_MODULE } from "../modules/manufacturing";
 import type ManufacturingModuleService from "../modules/manufacturing/service";
 
@@ -68,15 +69,18 @@ export default async function mtoOrderPlaced({
   if (lines.length === 0) {
     return;
   }
-  await container
-    .resolve<ManufacturingModuleService>(MANUFACTURING_MODULE)
-    .enqueueProductionRequests({
-      order_id: event.data.id,
-      actor_id: "system:order-placed",
-      correlation_id: `order_${event.data.id}`,
-      payment_confirmed: false, // the worker confirms against Medusa payments
-      lines,
-    });
+  // Medusa's own events have no envelope; the order id names the cause.
+  await withCausation(`order.placed:${event.data.id}`, () =>
+    container
+      .resolve<ManufacturingModuleService>(MANUFACTURING_MODULE)
+      .enqueueProductionRequests({
+        order_id: event.data.id,
+        actor_id: "system:order-placed",
+        correlation_id: `order_${event.data.id}`,
+        payment_confirmed: false, // the worker confirms against Medusa payments
+        lines,
+      })
+  );
 }
 
 export const config: SubscriberConfig = {

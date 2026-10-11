@@ -14,8 +14,8 @@
 name: fashion-e2e
 
 x-secrets: &secrets
-  JWT_SECRET: e2e-jwt-secret
-  COOKIE_SECRET: e2e-cookie-secret
+  JWT_SECRET: e2e-jwt-secret-0123456789abcdef
+  COOKIE_SECRET: e2e-cookie-secret-0123456789abcd
   METRICS_TOKEN: e2e-metrics-token
   SANDBOX_WEBHOOK_SECRET: unused
 
@@ -68,6 +68,16 @@ x-medusa-env: &medusa-env
   SOCIAL_DEFAULT_LOCALE: en
   STOREFRONT_URL: http://localhost:8000
   RETURN_WINDOW_DAYS: "14"
+  # Polling repairs a missed webhook; shortened so the journey does not wait 15 minutes.
+  TRACKING_POLL_STALE_SECONDS: "20"
+  # Kafka backbone (Redpanda through its HTTP proxy) and the language model (mock)
+  KAFKA_RELAY_ENABLED: "true"
+  KAFKA_REST_URL: http://redpanda:8082
+  KAFKA_TOPIC_PREFIX: e2e.
+  AGENT_LLM_ENABLED: "true"
+  AGENT_LLM_BASE_URL: http://mock-providers:7000/v1
+  AGENT_LLM_API_KEY: mock-llm-key
+  AGENT_LLM_MODEL: mock-model
 
 x-medusa: &medusa
   build:
@@ -79,6 +89,7 @@ x-medusa: &medusa
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
     mock-providers: { condition: service_healthy }
+    redpanda-init: { condition: service_completed_successfully }
 
 services:
   postgres:
@@ -102,6 +113,49 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  # Kafka-compatible broker with an HTTP proxy, the target of the event relay.
+  redpanda:
+    image: redpandadata/redpanda:v24.3.7
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --advertise-pandaproxy-addr=redpanda:8082
+      - --set
+      - redpanda.auto_create_topics_enabled=true
+    ports: ["18082:8082"]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  # Topics are provisioned up front, as they would be in production: the HTTP
+  # proxy does not create a topic on first produce.
+  redpanda-init:
+    image: redpandadata/redpanda:v24.3.7
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        rpk -X brokers=redpanda:9092 topic create
+        e2e.fashion.inventory.events.v1
+        e2e.fashion.procurement.events.v1
+        e2e.fashion.manufacturing.events.v1
+        e2e.fashion.quality.events.v1
+        e2e.fashion.finished-goods.events.v1
+        e2e.fashion.fulfillment.events.v1
+        e2e.fashion.notification.events.v1 ||
+        rpk -X brokers=redpanda:9092 topic list
+    restart: "no"
+    depends_on:
+      redpanda: { condition: service_healthy }
   mock-providers:
     image: node:22-slim
     command: ["node", "/mock/mock-providers.mjs"]
@@ -172,7 +226,9 @@ services:
       META_APP_SECRET: meta-app-secret
       METRICS_TOKEN: e2e-metrics-token
       JT_WEBHOOK_SECRET: jt-webhook-secret
-      JOURNEYS: ${JOURNEYS:-smoke,make-to-stock,made-to-order,social,returns}
+      KAFKA_REST_URL: http://redpanda:8082
+      KAFKA_TOPIC_PREFIX: e2e.
+      JOURNEYS: ${JOURNEYS:-smoke,make-to-stock,made-to-order,social,returns,platform}
     volumes:
       - ../apps/medusa/integration-tests/e2e:/e2e:ro
       - ../apps/medusa/src/api:/src-api:ro

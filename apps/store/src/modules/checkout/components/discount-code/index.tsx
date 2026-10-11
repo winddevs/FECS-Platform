@@ -18,6 +18,12 @@ type DiscountCodeProps = {
   };
 };
 
+/** Codes the customer typed in; automatic promotions re-apply on their own. */
+const toManualCodes = (
+  promotions: { code?: string | null; is_automatic?: boolean | null }[]
+): string[] =>
+  promotions.flatMap((p) => (p.code && !p.is_automatic ? [p.code] : []));
+
 const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
   const t = useTranslations("checkout.discount");
   const locale = useLocale();
@@ -29,9 +35,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
       (promotion) => promotion.code !== code
     );
 
-    await applyPromotions(
-      validPromotions.filter((p) => p.code === undefined).map((p) => p.code!)
-    );
+    await applyPromotions(toManualCodes(validPromotions));
   };
 
   const addPromotionCode = async (formData: FormData) => {
@@ -42,9 +46,8 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
     const input = document.getElementById(
       "promotion-input"
     ) as HTMLInputElement;
-    const codes = promotions
-      .filter((p) => p.code === undefined)
-      .map((p) => p.code!);
+    // `promo_codes` replaces the cart's codes, so resend the ones already applied.
+    const codes = toManualCodes(promotions);
     codes.push(code.toString());
 
     await applyPromotions(codes);
@@ -64,7 +67,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               type="button"
-              className="txt-medium text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
+              className="txt-medium min-h-11 text-ui-fg-interactive hover:text-ui-fg-interactive-hover focus-visible:outline-2 focus-visible:outline-offset-2"
               data-testid="add-discount-button"
             >
               {t("add")}
@@ -84,6 +87,8 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                   name="code"
                   aria-label={t("inputLabel")}
                   type="text"
+                  autoComplete="off"
+                  spellCheck={false}
                   autoFocus={false}
                   data-testid="discount-input"
                 />

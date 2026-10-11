@@ -18,11 +18,11 @@
     },
     "profile": {
       "title": "Hồ sơ",
-      "description": "Xem và chỉnh sửa hồ sơ FECS Fashion của bạn."
+      "description": "Xem và chỉnh sửa hồ sơ bibaestudios của bạn."
     },
     "signIn": {
       "title": "Đăng nhập",
-      "description": "Đăng nhập vào tài khoản FECS Fashion của bạn."
+      "description": "Đăng nhập vào tài khoản bibaestudios của bạn."
     }
   },
   "pages": {
@@ -76,9 +76,9 @@
     "join": "Đăng ký ngay"
   },
   "register": {
-    "title": "Trở thành thành viên FECS Fashion",
-    "subtitle": "Tạo hồ sơ thành viên FECS Fashion để có trải nghiệm mua sắm tốt hơn.",
-    "agree": "Khi tạo tài khoản, bạn đồng ý với <privacy>Chính sách bảo mật</privacy> và <terms>Điều khoản sử dụng</terms> của FECS Fashion.",
+    "title": "Trở thành thành viên bibaestudios",
+    "subtitle": "Tạo hồ sơ thành viên bibaestudios để có trải nghiệm mua sắm tốt hơn.",
+    "agree": "Khi tạo tài khoản, bạn đồng ý với <privacy>Chính sách bảo mật</privacy> và <terms>Điều khoản sử dụng</terms> của bibaestudios.",
     "submit": "Đăng ký",
     "alreadyMember": "Bạn đã có tài khoản?",
     "signIn": "Đăng nhập"

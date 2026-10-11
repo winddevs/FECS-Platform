@@ -1,7 +1,7 @@
 import merge from "lodash.merge";
 import type { Metadata } from "next";
 
-import { DEFAULT_LOCALE, localization } from "@/i18n/localization";
+import { DEFAULT_LOCALE } from "@/i18n/localization";
 import { intlTag } from "@/lib/util/locale-format";
 
 type MetadataGenerator = Omit<Metadata, "description" | "title"> & {
@@ -12,21 +12,9 @@ type MetadataGenerator = Omit<Metadata, "description" | "title"> & {
   locale?: string;
 };
 
-/** hreflang map: every supported language plus x-default (the shop language). */
-const languageAlternates = (): Record<string, string> => ({
-  ...Object.fromEntries(
-    localization.locales.map((l) => [l.code, `/${l.code}`] as const)
-  ),
-  "x-default": `/${DEFAULT_LOCALE}`,
-});
-
-const applicationName = "FECS Fashion";
-const author: Metadata["authors"] = {
-  name: "Abbes Mohamed",
-  url: "https://github.com/abbesm0hamed",
-};
-const publisher = "Abbes Mohamed";
-const twitterHandle = "@thr3add";
+const applicationName = "bibaestudios";
+const author = { name: applicationName };
+const publisher = applicationName;
 
 export const createMetadata = ({
   title,
@@ -60,16 +48,13 @@ export const createMetadata = ({
     publisher,
     twitter: {
       card: "summary_large_image",
-      creator: twitterHandle,
     },
     icons: {
       icon: "/favicon/favicon.ico",
     },
-    manifest: "/favicon/site.webmanifest",
-    alternates: {
-      canonical: "/",
-      languages: languageAlternates(),
-    },
+    // No default `alternates`: a root-level canonical of "/" would be inherited
+    // by every page and tell search engines each one duplicates the home page.
+    // Pages set their own via `localizedAlternates()` (lib/seo/alternates.ts).
   };
 
   const metadata: Metadata = merge(defaultMetadata, properties);

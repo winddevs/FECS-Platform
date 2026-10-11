@@ -123,14 +123,25 @@ export default function ProductActions({
 
     setIsAdding(true);
 
-    await addToCart({
-      variantId: selectedVariant.id,
-      quantity: 1,
-      countryCode,
-    });
-
-    setIsAdding(false);
+    try {
+      await addToCart({
+        variantId: selectedVariant.id,
+        quantity: 1,
+        countryCode,
+      });
+    } finally {
+      // Always release the button, even when the request fails.
+      setIsAdding(false);
+    }
   };
+
+  // Ask for a selection first; only report "out of stock" for a real variant.
+  const addToCartLabel = (() => {
+    if (!selectedVariant) {
+      return t("selectVariant");
+    }
+    return inStock ? t("addToCart") : t("outOfStock");
+  })();
 
   return (
     <>
@@ -172,15 +183,11 @@ export default function ProductActions({
             !isValidVariant
           }
           variant="primary"
-          className="w-full h-10"
+          className="w-full h-11"
           isLoading={isAdding}
           data-testid="add-product-button"
         >
-          {!selectedVariant && !options
-            ? t("selectVariant")
-            : !inStock || !isValidVariant
-              ? t("outOfStock")
-              : t("addToCart")}
+          {addToCartLabel}
         </Button>
         <MobileActions
           product={product}

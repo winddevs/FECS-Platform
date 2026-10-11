@@ -84,13 +84,15 @@ const CartDropdown = ({
       onMouseLeave={close}
     >
       <Popover className="relative h-full">
-        <PopoverButton className="h-full">
+        <PopoverButton as={Fragment}>
           <LocalizedClientLink
-            className="hover:text-ui-fg-base"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center hover:text-ui-fg-base"
             href="/cart"
             data-testid="nav-cart-link"
           >
-            {tNav("cart", { count: totalItems })}
+            <span aria-live="polite" aria-atomic="true">
+              {tNav("cart", { count: totalItems })}
+            </span>
           </LocalizedClientLink>
         </PopoverButton>
         <Transition
@@ -198,15 +200,16 @@ const CartDropdown = ({
                       })}
                     </span>
                   </div>
-                  <LocalizedClientLink href="/cart" passHref>
-                    <Button
-                      className="w-full"
-                      size="large"
-                      data-testid="go-to-cart-button"
-                    >
+                  <Button
+                    asChild
+                    className="w-full"
+                    size="large"
+                    data-testid="go-to-cart-button"
+                  >
+                    <LocalizedClientLink href="/cart">
                       {t("goToCart")}
-                    </Button>
-                  </LocalizedClientLink>
+                    </LocalizedClientLink>
+                  </Button>
                 </div>
               </>
             ) : (

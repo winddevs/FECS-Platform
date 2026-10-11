@@ -30,8 +30,11 @@
     "title": "Tóm tắt",
     "goToCheckout": "Tiến hành thanh toán"
   },
+  "item": {
+    "remove": "Xóa sản phẩm"
+  },
   "select": {
-    "placeholder": "Chọn...",
+    "placeholder": "Chọn…",
     "quantity": "Số lượng"
   }
 }

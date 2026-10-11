@@ -1,4 +1,5 @@
 import { Heading } from "@medusajs/ui";
+import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import { useTranslations } from "next-intl";
 
 const Hero = () => {
@@ -21,6 +22,13 @@ const Hero = () => {
             {t("subtitle")}
           </Heading>
         </span>
+        <LocalizedClientLink
+          href="/store"
+          className="inline-flex min-h-11 items-center justify-center rounded-rounded bg-ui-bg-interactive px-8 text-base font-medium text-ui-fg-on-color transition-colors hover:bg-ui-bg-interactive-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-border-interactive"
+          data-testid="hero-cta"
+        >
+          {t("cta")}
+        </LocalizedClientLink>
       </div>
     </div>
   );

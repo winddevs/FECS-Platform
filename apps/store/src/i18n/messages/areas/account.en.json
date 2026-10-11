@@ -18,11 +18,11 @@
     },
     "profile": {
       "title": "Profile",
-      "description": "View and edit your FECS Fashion profile."
+      "description": "View and edit your bibaestudios profile."
     },
     "signIn": {
       "title": "Sign in",
-      "description": "Sign in to your FECS Fashion account."
+      "description": "Sign in to your bibaestudios account."
     }
   },
   "pages": {
@@ -76,9 +76,9 @@
     "join": "Join us"
   },
   "register": {
-    "title": "Become a FECS Fashion Member",
-    "subtitle": "Create your FECS Fashion Member profile, and get access to an enhanced shopping experience.",
-    "agree": "By creating an account, you agree to FECS Fashion's <privacy>Privacy Policy</privacy> and <terms>Terms of Use</terms>.",
+    "title": "Become a bibaestudios Member",
+    "subtitle": "Create your bibaestudios Member profile, and get access to an enhanced shopping experience.",
+    "agree": "By creating an account, you agree to bibaestudios's <privacy>Privacy Policy</privacy> and <terms>Terms of Use</terms>.",
     "submit": "Join",
     "alreadyMember": "Already a member?",
     "signIn": "Sign in"

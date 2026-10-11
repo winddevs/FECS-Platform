@@ -28,7 +28,7 @@ export async function Header({ locale }: { locale: TypedLocale }) {
                 className="txt-compact-xlarge-plus text-foreground hover:text-foreground/80 uppercase mr-8"
                 data-testid="nav-store-link"
               >
-                FECS Fashion
+                bibaestudios
               </LocalizedClientLink>
             </div>
 

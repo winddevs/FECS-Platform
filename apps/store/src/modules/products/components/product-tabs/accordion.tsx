@@ -58,7 +58,10 @@ const Item: React.FC<AccordionItemProps> = ({
             <div className="flex items-center gap-4">
               <Text className="text-ui-fg-subtle text-sm">{title}</Text>
             </div>
-            <AccordionPrimitive.Trigger>
+            <AccordionPrimitive.Trigger
+              aria-label={title}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-border-interactive"
+            >
               {customTrigger || <MorphingTrigger />}
             </AccordionPrimitive.Trigger>
           </div>

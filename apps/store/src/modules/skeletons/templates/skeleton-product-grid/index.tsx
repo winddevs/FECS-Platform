@@ -2,7 +2,9 @@ import repeat from "@lib/util/repeat";
 import SkeletonProductPreview from "@modules/skeletons/components/skeleton-product-preview";
 
 const SkeletonProductGrid = ({
-  numberOfProducts = 8,
+  // Matches PRODUCT_LIMIT in store/templates/paginated-products.tsx so the
+  // footer does not jump when the real grid replaces the skeleton.
+  numberOfProducts = 12,
 }: {
   numberOfProducts?: number;
 }) => {

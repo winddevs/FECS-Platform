@@ -60,6 +60,7 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
             thumbnail={item.thumbnail}
             images={item.variant?.product?.images}
             size="square"
+            alt={item.product_title ?? undefined}
           />
         </LocalizedClientLink>
       </Table.Cell>
@@ -81,14 +82,16 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
             <CartItemSelect
               value={item.quantity}
               onChange={(value) => changeQuantity(parseInt(value.target.value))}
-              className="w-14 h-10 p-4"
+              className="w-14 h-11 p-4"
+              disabled={updating}
               aria-label={t("quantity")}
               data-testid="product-select-button"
             >
               {/* TODO: Update this with the v2 way of managing inventory */}
               {Array.from(
                 {
-                  length: Math.min(maxQuantity, 10),
+                  // Never hide the current quantity if it is above the cap.
+                  length: Math.max(Math.min(maxQuantity, 10), item.quantity),
                 },
                 (_, i) => (
                   <option value={i + 1} key={i}>
@@ -96,10 +99,6 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
                   </option>
                 )
               )}
-
-              <option value={1} key={1}>
-                1
-              </option>
             </CartItemSelect>
             {updating && <Spinner />}
           </div>

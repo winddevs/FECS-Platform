@@ -1,4 +1,5 @@
 {
+  "skipLink": "Bỏ qua để đến nội dung chính",
   "nav": {
     "account": "Tài khoản",
     "cart": "Giỏ hàng ({count})"
@@ -10,7 +11,7 @@
     "store": "Cửa hàng",
     "account": "Tài khoản",
     "cart": "Giỏ hàng",
-    "copyright": "© {year} FECS Fashion. Bảo lưu mọi quyền."
+    "copyright": "© {year} bibaestudios. Bảo lưu mọi quyền."
   },
   "countrySelect": {
     "shippingTo": "Giao hàng đến:"
@@ -29,7 +30,7 @@
   "cartMismatch": {
     "error": "Đã xảy ra lỗi khi chuyển giỏ hàng của bạn",
     "retry": "Chuyển lại",
-    "transferring": "Đang chuyển..."
+    "transferring": "Đang chuyển…"
   },
   "footer": {
     "categories": "Danh mục",

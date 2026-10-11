@@ -1,7 +1,8 @@
 {
   "hero": {
     "title": "Mẫu khởi tạo thương mại điện tử",
-    "subtitle": "với PayloadCMS và Medusa"
+    "subtitle": "với PayloadCMS và Medusa",
+    "cta": "Mua sắm ngay"
   },
   "featured": {
     "viewAll": "Xem tất cả"

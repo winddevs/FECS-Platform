@@ -10,15 +10,30 @@ const MedusaCTA = () => {
   return (
     <Text className="flex gap-x-2 txt-compact-small-plus items-center">
       {t("poweredBy")}
-      <a href="https://www.medusajs.com" target="_blank" rel="noreferrer">
+      <a
+        href="https://www.medusajs.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Medusa"
+      >
         <Medusa fill="#9ca3af" className="fill-[#9ca3af]" />
       </a>
       &
-      <a href="https://payloadcms.dev" target="_blank" rel="noreferrer">
+      <a
+        href="https://payloadcms.dev"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Payload CMS"
+      >
         <PayloadCMS fill="#9ca3af" />
       </a>
       &
-      <a href="https://nextjs.org" target="_blank" rel="noreferrer">
+      <a
+        href="https://nextjs.org"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Next.js"
+      >
         <NextJs fill="#9ca3af" />
       </a>
     </Text>

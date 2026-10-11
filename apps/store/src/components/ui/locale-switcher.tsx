@@ -59,7 +59,7 @@ export default function LocaleSwitcher() {
     <Select items={options} onValueChange={onSelectChange} value={locale}>
       <SelectTrigger
         aria-label={t("label")}
-        className="w-auto text-sm bg-transparent gap-2 pl-0 md:pl-3 border-none"
+        className="w-auto min-h-11 text-sm bg-transparent gap-2 pl-0 md:pl-3 border-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2"
       >
         <SelectValue placeholder={t("label")} />
       </SelectTrigger>

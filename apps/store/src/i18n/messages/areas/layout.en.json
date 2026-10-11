@@ -1,4 +1,5 @@
 {
+  "skipLink": "Skip to main content",
   "nav": {
     "account": "Account",
     "cart": "Cart ({count})"
@@ -10,7 +11,7 @@
     "store": "Store",
     "account": "Account",
     "cart": "Cart",
-    "copyright": "© {year} FECS Fashion. All rights reserved."
+    "copyright": "© {year} bibaestudios. All rights reserved."
   },
   "countrySelect": {
     "shippingTo": "Shipping to:"
@@ -29,7 +30,7 @@
   "cartMismatch": {
     "error": "Something went wrong when we tried to transfer your cart",
     "retry": "Run transfer again",
-    "transferring": "Transferring..."
+    "transferring": "Transferring…"
   },
   "footer": {
     "categories": "Categories",

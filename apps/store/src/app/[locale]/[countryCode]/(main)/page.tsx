@@ -1,3 +1,4 @@
+import { localizedAlternates } from "@lib/seo/alternates";
 import { FeaturedProductsFallback } from "@modules/home/components/featured-products/FeaturedProductsFallback";
 import { FeaturedProductsSection } from "@modules/home/components/featured-products/FeaturedProductsSection";
 import Hero from "@modules/home/components/hero";
@@ -6,14 +7,15 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 export async function generateMetadata(props: {
-  params: Promise<{ locale: string }>;
+  params: Promise<{ locale: string; countryCode: string }>;
 }): Promise<Metadata> {
-  const { locale } = await props.params;
+  const { locale, countryCode } = await props.params;
   const t = await getTranslations({ locale, namespace: "metadata" });
 
   return {
     title: t("title"),
     description: t("description"),
+    alternates: localizedAlternates({ locale, countryCode }),
   };
 }
 

@@ -30,8 +30,11 @@
     "title": "Summary",
     "goToCheckout": "Go to checkout"
   },
+  "item": {
+    "remove": "Remove item"
+  },
   "select": {
-    "placeholder": "Select...",
+    "placeholder": "Select…",
     "quantity": "Quantity"
   }
 }

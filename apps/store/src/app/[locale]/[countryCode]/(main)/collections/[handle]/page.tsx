@@ -3,6 +3,7 @@ import { listProductFilterOptions } from "@lib/data/product-options";
 import { listProductTags } from "@lib/data/product-tags";
 import { listProductTypes } from "@lib/data/product-types";
 import { listRegions } from "@lib/data/regions";
+import { localizedAlternates } from "@lib/seo/alternates";
 import { StoreCollection, StoreRegion } from "@medusajs/types";
 import CollectionTemplate from "@modules/collections/templates";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
@@ -78,8 +79,13 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   });
 
   const metadata = {
-    title: `${collection.title} | FECS Fashion`,
+    title: `${collection.title} | bibaestudios`,
     description: t("collectionDescription", { title: collection.title }),
+    alternates: localizedAlternates({
+      locale: params.locale,
+      countryCode: params.countryCode,
+      path: `/collections/${params.handle}`,
+    }),
   } as Metadata;
 
   return metadata;

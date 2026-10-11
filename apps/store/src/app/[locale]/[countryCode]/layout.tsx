@@ -1,8 +1,12 @@
 import "@/styles/globals.css";
 import { createMetadata } from "@lib/seo/metadata";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, setRequestLocale } from "next-intl/server";
+import {
+  getMessages,
+  getTranslations,
+  setRequestLocale,
+} from "next-intl/server";
 // import { getBaseURL } from '@lib/util/env';
 import { notFound } from "next/navigation";
 import type { TypedLocale } from "payload";
@@ -29,6 +33,14 @@ type Args = {
 
 export const instant = false;
 
+// viewport-fit=cover lets sticky bars use env(safe-area-inset-*) on notched
+// phones. Zoom stays enabled on purpose (accessibility).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default async function RootLayout({ children, params }: Args) {
   const { locale } = await params;
   const currentLocale = localization.locales.find((loc) => loc.code === locale);
@@ -40,6 +52,7 @@ export default async function RootLayout({ children, params }: Args) {
   setRequestLocale(locale);
 
   const messages = await getMessages();
+  const tLayout = await getTranslations({ locale, namespace: "layout" });
 
   return (
     <html
@@ -51,20 +64,24 @@ export default async function RootLayout({ children, params }: Args) {
       <head>
         <InitTheme />
         <link href="/favicon/favicon.ico" rel="icon" sizes="32x32" />
-        <link href="/favicon/favicon.svg" rel="icon" type="image/svg+xml" />
-        <link href="/favicon/apple-touch-icon.png" rel="apple-touch-icon" />
-        <link
-          href="/favicon/favicon-96x96.png"
-          rel="icon"
-          type="image/png"
-          sizes="96x96"
-        />
       </head>
       <body className="font-default">
         <Providers>
           <NextIntlClientProvider messages={messages}>
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:shadow-lg"
+            >
+              {tLayout("skipLink")}
+            </a>
             <Header locale={locale} />
-            <main className="relative">{children}</main>
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="relative outline-none"
+            >
+              {children}
+            </main>
           </NextIntlClientProvider>
         </Providers>
       </body>

@@ -11,6 +11,8 @@ type ThumbnailProps = {
   size?: "small" | "medium" | "large" | "full" | "square";
   isFeatured?: boolean;
   className?: string;
+  /** Descriptive alt text, e.g. the product title. Falls back to a generic label. */
+  alt?: string;
   "data-testid"?: string;
 };
 
@@ -20,6 +22,7 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
   size = "small",
   isFeatured,
   className,
+  alt,
   "data-testid": dataTestid,
 }) => {
   const initialImage = thumbnail || images?.[0]?.url;
@@ -43,6 +46,7 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
     >
       <ImageOrPlaceholder
         image={initialImage}
+        alt={alt}
         size={size}
         isFeatured={isFeatured}
       />
@@ -52,15 +56,19 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
 
 const ImageOrPlaceholder = ({
   image,
+  alt,
   size,
   isFeatured,
-}: Pick<ThumbnailProps, "size"> & { image?: string; isFeatured?: boolean }) => {
+}: Pick<ThumbnailProps, "size" | "alt"> & {
+  image?: string;
+  isFeatured?: boolean;
+}) => {
   const t = useTranslations("products.images");
 
   return image ? (
     <Image
       src={image}
-      alt={t("thumbnail")}
+      alt={alt || t("thumbnail")}
       className="absolute inset-0 object-contain object-center"
       draggable={false}
       quality={50}

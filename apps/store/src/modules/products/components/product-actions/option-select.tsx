@@ -22,25 +22,36 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
 }) => {
   const t = useTranslations("products.actions");
   const filteredOptions = (option.values ?? []).map((v) => v.value);
+  const label = t("selectOption", { title });
 
   return (
     <div className="flex flex-col gap-y-3">
-      <span className="text-sm">{t("selectOption", { title })}</span>
+      <span className="text-sm">{label}</span>
       <div
-        className="flex flex-wrap justify-between gap-2"
+        role="group"
+        aria-label={label}
+        className="flex flex-wrap gap-2"
         data-testid={dataTestId}
       >
         {filteredOptions.map((v) => {
+          const isSelected = v === current;
+
           return (
             <button
+              type="button"
               onClick={() => updateOption(option.id, v)}
               key={v}
+              aria-pressed={isSelected}
               className={clx(
-                "border-ui-border-base bg-ui-bg-subtle border text-small-regular h-10 rounded-rounded p-2 flex-1 ",
+                // 44px minimum touch target (WCAG 2.5.5 / storefront guidelines)
+                "border-ui-border-base bg-ui-bg-subtle border text-small-regular min-h-11 min-w-11 rounded-rounded px-3 py-2 flex-1 touch-manipulation",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-border-interactive",
+                "disabled:cursor-not-allowed disabled:opacity-60",
                 {
-                  "border-ui-border-interactive": v === current,
+                  "border-ui-border-interactive bg-ui-bg-base font-medium shadow-borders-interactive-with-active":
+                    isSelected,
                   "hover:shadow-elevation-card-rest transition-shadow ease-in-out duration-150":
-                    v !== current,
+                    !isSelected,
                 }
               )}
               disabled={disabled}

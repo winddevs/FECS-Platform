@@ -366,7 +366,7 @@ export default buildConfig({
   // Resend over SMTP (smtp.resend.com:465, user "resend", password = API key).
   email: nodemailerAdapter({
     defaultFromAddress: process.env.EMAIL_FROM || "",
-    defaultFromName: "FECS Fashion",
+    defaultFromName: "bibaestudios",
     transportOptions: {
       host: process.env.SMTP_HOST || "smtp.resend.com",
       port: Number(process.env.SMTP_PORT || 465),

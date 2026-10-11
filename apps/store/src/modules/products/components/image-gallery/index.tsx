@@ -26,7 +26,8 @@ const ImageGallery = ({ images }: ImageGalleryProps) => {
               {!!image.url && (
                 <Image
                   src={image.url}
-                  priority={index <= 2 ? true : false}
+                  priority={index === 0}
+                  loading={index === 0 ? "eager" : "lazy"}
                   className="absolute inset-0 rounded-rounded"
                   alt={image.alt || t("productImage", { number: index + 1 })}
                   fill

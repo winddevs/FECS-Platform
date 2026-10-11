@@ -112,12 +112,14 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({
     return (
       <>
         <button
+          type="button"
           onClick={() => {
             setIsSearchModalOpen(true);
           }}
-          className="text-ui-fg-subtle hover:text-ui-fg-base flex items-center gap-2"
+          aria-label={t("title")}
+          className="text-ui-fg-subtle hover:text-ui-fg-base flex min-h-11 min-w-11 items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-border-interactive"
         >
-          <SearchIcon className="w-4 h-4" />
+          <SearchIcon className="w-4 h-4" aria-hidden="true" />
           <span className="txt-compact-small hidden sm:inline">
             {t("title")}
           </span>

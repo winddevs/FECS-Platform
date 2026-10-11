@@ -167,3 +167,25 @@
     @apply text-[32px] leading-[44px] font-semibold;
   }
 }
+
+/* Respect the OS "reduce motion" setting for transitions and animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * The Medusa preset's light interactive blue (#3b82f6) is 3.67:1 on white,
+ * below the 4.5:1 WCAG AA minimum for normal text. Use the next shade down.
+ */
+html[data-mode="light"] {
+  --fg-interactive: rgba(37, 99, 235, 1);
+  --fg-interactive-hover: rgba(29, 78, 216, 1);
+  --bg-interactive: rgba(37, 99, 235, 1);
+}

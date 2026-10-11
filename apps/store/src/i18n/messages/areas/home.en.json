@@ -1,7 +1,8 @@
 {
   "hero": {
     "title": "Ecommerce Starter Template",
-    "subtitle": "with payloadcms and medusa"
+    "subtitle": "with payloadcms and medusa",
+    "cta": "Shop now"
   },
   "featured": {
     "viewAll": "View all"

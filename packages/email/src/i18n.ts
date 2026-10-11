@@ -146,8 +146,8 @@ export type EmailCopy = {
 export const emailCopy: Record<EmailLocale, EmailCopy> = {
   vi: {
     common: {
-      brand: "FECS Fashion",
-      footerRights: (year) => `© ${year} FECS Fashion. Bảo lưu mọi quyền.`,
+      brand: "bibaestudios",
+      footerRights: (year) => `© ${year} bibaestudios. Bảo lưu mọi quyền.`,
       greeting: (email) => (email ? `Xin chào ${email},` : "Xin chào,"),
       copyUrlHint:
         "Hoặc sao chép và dán đường dẫn này vào trình duyệt của bạn:",
@@ -155,10 +155,10 @@ export const emailCopy: Record<EmailLocale, EmailCopy> = {
     subjects: {
       "order-placed": "Xác nhận đơn hàng của bạn",
       "password-reset": "Đặt lại mật khẩu của bạn",
-      "user-invited": "Bạn được mời tham gia FECS Fashion",
+      "user-invited": "Bạn được mời tham gia bibaestudios",
     },
     orderPlaced: {
-      preview: "Cảm ơn bạn đã đặt hàng tại FECS Fashion",
+      preview: "Cảm ơn bạn đã đặt hàng tại bibaestudios",
       badge: "Đã xác nhận đơn hàng",
       heading: (firstName) =>
         firstName
@@ -201,7 +201,7 @@ export const emailCopy: Record<EmailLocale, EmailCopy> = {
         "Vì lý do bảo mật, đừng chia sẻ liên kết này với bất kỳ ai. Nếu nút ở trên không hoạt động, hãy sao chép và dán đường dẫn vào trình duyệt web của bạn.",
     },
     userInvited: {
-      preview: "Bạn được mời tham gia nền tảng của FECS Fashion",
+      preview: "Bạn được mời tham gia nền tảng của bibaestudios",
       badge: "Lời mời",
       heading: "Bạn được mời tham gia",
       intro:
@@ -213,8 +213,8 @@ export const emailCopy: Record<EmailLocale, EmailCopy> = {
   },
   en: {
     common: {
-      brand: "FECS Fashion",
-      footerRights: (year) => `© ${year} FECS Fashion. All rights reserved.`,
+      brand: "bibaestudios",
+      footerRights: (year) => `© ${year} bibaestudios. All rights reserved.`,
       greeting: (email) => (email ? `Hello ${email},` : "Hello,"),
       copyUrlHint: "Or copy and paste this URL into your browser:",
     },
@@ -224,7 +224,7 @@ export const emailCopy: Record<EmailLocale, EmailCopy> = {
       "user-invited": "You're Invited!",
     },
     orderPlaced: {
-      preview: "Thank you for your order from FECS Fashion",
+      preview: "Thank you for your order from bibaestudios",
       badge: "Order Confirmed",
       heading: (firstName) =>
         firstName

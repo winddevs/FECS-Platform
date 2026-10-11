@@ -26,8 +26,8 @@ export const generateMeta = async (args: {
   const ogImage = getImageURL(doc?.meta?.image);
 
   const title = doc?.meta?.title
-    ? doc?.meta?.title + " | FECS Fashion"
-    : "FECS Fashion";
+    ? doc?.meta?.title + " | bibaestudios"
+    : "bibaestudios";
 
   return {
     description: doc?.meta?.description,

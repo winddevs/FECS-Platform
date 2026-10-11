@@ -208,7 +208,7 @@ function FreeShippingPopup({
   return (
     <div
       className={clx(
-        "fixed bottom-5 right-5 flex flex-col items-end gap-2 transition-all duration-500 ease-in-out z-10",
+        "fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 flex flex-col items-end gap-2 transition-[opacity,visibility] duration-500 ease-in-out z-10",
         {
           "opacity-0 invisible delay-1000": price.target_reached,
           "opacity-0 invisible": isClosed,
@@ -218,7 +218,7 @@ function FreeShippingPopup({
     >
       <div>
         <Button
-          className="rounded-full bg-neutral-900 shadow-none outline-none border-none text-[15px] p-2"
+          className="rounded-full bg-neutral-900 shadow-none outline-none border-none text-[15px] p-2 min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-white"
           onClick={() => setIsClosed(true)}
           aria-label={t("close")}
         >
@@ -226,7 +226,7 @@ function FreeShippingPopup({
         </Button>
       </div>
 
-      <div className="w-[400px] bg-black text-white p-6 rounded-lg ">
+      <div className="w-[min(400px,calc(100vw-2.5rem))] bg-black text-white p-6 rounded-lg">
         <div className="pb-4">
           <div className="space-y-3">
             <div className="flex justify-between text-[15px] text-neutral-400">
@@ -275,14 +275,14 @@ function FreeShippingPopup({
 
         <div className="flex gap-3">
           <LocalizedClientLink
-            className="rounded-2xl bg-transparent shadow-none outline-none border-[1px] border-white text-[15px] py-2.5 px-4"
+            className="rounded-2xl bg-transparent shadow-none outline-none border-[1px] border-white text-[15px] py-3 px-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             href="/cart"
           >
             {t("viewCart")}
           </LocalizedClientLink>
 
           <LocalizedClientLink
-            className="flex-grow rounded-2xl bg-white text-neutral-950 shadow-none outline-none border-[1px] border-white text-[15px] py-2.5 px-4 text-center"
+            className="flex-grow rounded-2xl bg-white text-neutral-950 shadow-none outline-none border-[1px] border-white text-[15px] py-3 px-4 text-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             href="/store"
           >
             {t("viewProducts")}

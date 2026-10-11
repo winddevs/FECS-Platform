@@ -3,6 +3,7 @@ import { listProductFilterOptions } from "@lib/data/product-options";
 import { listProductTags } from "@lib/data/product-tags";
 import { listProductTypes } from "@lib/data/product-types";
 import { listRegions } from "@lib/data/regions";
+import { localizedAlternates } from "@lib/seo/alternates";
 import { StoreRegion } from "@medusajs/types";
 import CategoryTemplate from "@modules/categories/templates";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
@@ -76,11 +77,13 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       t("categoryDescription", { name: productCategory.name });
 
     return {
-      title: `${productCategory.name} | FECS Fashion`,
+      title: `${productCategory.name} | bibaestudios`,
       description,
-      alternates: {
-        canonical: `${params.category.join("/")}`,
-      },
+      alternates: localizedAlternates({
+        locale: params.locale,
+        countryCode: params.countryCode,
+        path: `/categories/${params.category.join("/")}`,
+      }),
     };
   } catch (error) {
     notFound();

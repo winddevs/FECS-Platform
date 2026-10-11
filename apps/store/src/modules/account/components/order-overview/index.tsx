@@ -33,11 +33,11 @@ const OrderOverview = ({ orders }: { orders: HttpTypes.StoreOrder[] }) => {
       <h2 className="text-large-semi">{t("emptyTitle")}</h2>
       <p className="text-base-regular">{t("emptyText")}</p>
       <div className="mt-4">
-        <LocalizedClientLink href="/" passHref>
-          <Button data-testid="continue-shopping-button">
+        <Button asChild data-testid="continue-shopping-button">
+          <LocalizedClientLink href="/">
             {t("continueShopping")}
-          </Button>
-        </LocalizedClientLink>
+          </LocalizedClientLink>
+        </Button>
       </div>
     </div>
   );

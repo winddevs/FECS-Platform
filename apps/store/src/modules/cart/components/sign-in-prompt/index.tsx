@@ -16,15 +16,16 @@ const SignInPrompt = () => {
         </Text>
       </div>
       <div>
-        <LocalizedClientLink href="/account">
-          <Button
-            variant="secondary"
-            className="h-10"
-            data-testid="sign-in-button"
-          >
+        <Button
+          asChild
+          variant="secondary"
+          className="h-11"
+          data-testid="sign-in-button"
+        >
+          <LocalizedClientLink href="/account">
             {t("button")}
-          </Button>
-        </LocalizedClientLink>
+          </LocalizedClientLink>
+        </Button>
       </div>
     </div>
   );

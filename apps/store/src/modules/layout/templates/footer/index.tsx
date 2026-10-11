@@ -23,7 +23,7 @@ export default async function Footer() {
               href="/"
               className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
             >
-              FECS Fashion
+              bibaestudios
             </LocalizedClientLink>
           </div>
           <div className="text-small-regular gap-10 md:gap-x-16 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
@@ -156,7 +156,7 @@ export default async function Footer() {
           </div>
         </div>
         <div className="flex w-full mb-16 justify-between text-ui-fg-muted">
-          <Text className="txt-compact-small">© FECS Fashion</Text>
+          <Text className="txt-compact-small">© bibaestudios</Text>
           <MedusaCTA />
         </div>
       </div>

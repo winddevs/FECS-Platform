@@ -2,7 +2,8 @@
 
 import { clx } from "@medusajs/ui";
 import { useTranslations } from "next-intl";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export function Pagination({
   page,
@@ -14,7 +15,6 @@ export function Pagination({
   "data-testid"?: string;
 }) {
   const t = useTranslations("store.pagination");
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -22,31 +22,31 @@ export function Pagination({
   const arrayRange = (start: number, stop: number) =>
     Array.from({ length: stop - start + 1 }, (_, index) => start + index);
 
-  // Function to handle page changes
-  const handlePageChange = (newPage: number) => {
+  // Real links keep every page crawlable, prefetchable and middle-clickable.
+  const getPageHref = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
-    router.push(`${pathname}?${params.toString()}`);
+    return `${pathname}?${params.toString()}`;
   };
 
-  // Function to render a page button
+  // Function to render a page link (min 44px touch target)
   const renderPageButton = (
     p: number,
     label: string | number,
     isCurrent: boolean
   ) => (
-    <button
+    <Link
       key={p}
-      className={clx("txt-xlarge-plus text-ui-fg-muted", {
-        "text-ui-fg-base hover:text-ui-fg-subtle": isCurrent,
-      })}
-      disabled={isCurrent}
+      href={getPageHref(p)}
+      className={clx(
+        "txt-xlarge-plus text-ui-fg-muted inline-flex min-h-11 min-w-11 items-center justify-center",
+        { "text-ui-fg-base pointer-events-none": isCurrent }
+      )}
       aria-label={t("goToPage", { page: p })}
       aria-current={isCurrent ? "page" : undefined}
-      onClick={() => handlePageChange(p)}
     >
       {label}
-    </button>
+    </Link>
   );
 
   // Function to render ellipsis
@@ -112,7 +112,7 @@ export function Pagination({
   // Render the component
   return (
     <nav className="flex justify-center w-full mt-12" aria-label={t("label")}>
-      <div className="flex gap-3 items-end" data-testid={dataTestid}>
+      <div className="flex gap-1 items-center" data-testid={dataTestid}>
         {renderPageButtons()}
       </div>
     </nav>

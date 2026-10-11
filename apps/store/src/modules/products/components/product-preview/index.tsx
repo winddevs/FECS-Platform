@@ -47,6 +47,7 @@ export default async function ProductPreview({
           thumbnail={thumbnailData?.url || product.thumbnail}
           images={productImages}
           size="full"
+          alt={product.payload_product?.title || product.title}
           isFeatured={isFeatured}
         />
         <div className="flex txt-compact-medium mt-4 justify-between">

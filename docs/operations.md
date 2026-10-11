@@ -197,6 +197,9 @@ and creates the analytics views. Medusa 2 does not run a top-level
 
 ## Local end-to-end stack
 
+For a guided demo on a laptop (stack, storefront, demo accounts, a 20 minute
+script) see `docs/local-demo.md`.
+
 `bash docker/e2e/run.sh up|test|chaos|down` starts the production image with
 Postgres, Redis, a server and two workers, and mock J&T/Meta/Payload providers,
 then runs the fashion use-case journeys and failure scenarios. See

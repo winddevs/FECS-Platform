@@ -20,6 +20,9 @@ modules. Start with [`docs/README.md`](docs/README.md); deployment and on-call
 material is in [`docs/operations.md`](docs/operations.md), [`docs/runbooks`](docs/runbooks)
 and [`infra/`](infra).
 
+To run the whole platform locally and walk through an end-to-end demo, follow
+[`docs/local-demo.md`](docs/local-demo.md).
+
 ## Getting Started
 
 ### Prerequisites

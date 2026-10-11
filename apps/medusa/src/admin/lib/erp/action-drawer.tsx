@@ -1,6 +1,7 @@
 import { Button } from "@medusajs/ui";
 import { useState } from "react";
 
+import { tr } from "../i18n";
 import type { WriteMethod } from "./api";
 import { FormFields } from "./field-inputs";
 import { FormDrawer } from "./form-drawer";
@@ -60,7 +61,8 @@ export const ActionDrawer = ({
   const command = useErpCommand({
     endpoint,
     method,
-    successMessage: successMessage ?? `${label} done`,
+    successMessage: successMessage ?? "{label} done",
+    successVars: { label: tr(label) },
     onSuccess: (result) => {
       setOpen(false);
       onSuccess?.(result);
@@ -97,7 +99,7 @@ export const ActionDrawer = ({
         size="small"
         variant={variant}
       >
-        {label}
+        {tr(label)}
       </Button>
       <FormDrawer
         description={description}

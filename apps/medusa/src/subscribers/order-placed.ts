@@ -14,72 +14,34 @@ export default async function orderPlacedHandler({
     },
   });
 
+  // The invoice is attached to the single order confirmation email. A failure
+  // to render it must never block the confirmation itself.
+  let invoicePdfBase64: string | undefined;
+  try {
+    const {
+      result: { pdf_buffer },
+    } = await generateInvoicePdfWorkflow(container).run({
+      input: {
+        order_id: data.id,
+      },
+    });
+    // Medusa notification attachments carry base64 content; the Resend
+    // provider forwards it as-is.
+    invoicePdfBase64 = Buffer.from(pdf_buffer).toString("base64");
+  } catch (error) {
+    const logger = container.resolve("logger");
+    logger.warn(
+      `Could not generate the invoice for order ${data.id}; sending the confirmation without it: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
   await sendOrderConfirmationWorkflow(container).run({
     input: {
       id: data.id,
+      invoice_pdf_base64: invoicePdfBase64,
     },
-  });
-
-  // Generate invoice PDF and send as email attachment
-  const query = container.resolve("query");
-  const notificationModuleService = container.resolve("notification");
-
-  const {
-    data: [order],
-  } = await query.graph({
-    entity: "order",
-    fields: [
-      "id",
-      "display_id",
-      "created_at",
-      "currency_code",
-      "total",
-      "email",
-      "items.*",
-      "items.variant.*",
-      "items.variant.product.*",
-      "shipping_address.*",
-      "billing_address.*",
-      "shipping_methods.*",
-      "tax_total",
-      "subtotal",
-      "discount_total",
-    ],
-    filters: {
-      id: data.id,
-    },
-  });
-
-  const {
-    result: { pdf_buffer },
-  } = await generateInvoicePdfWorkflow(container).run({
-    input: {
-      order_id: data.id,
-    },
-  });
-
-  const buffer = Buffer.from(pdf_buffer);
-
-  // Convert to binary string to pass as attachment
-  const binaryString = [...buffer]
-    .map((byte) => byte.toString(2).padStart(8, "0"))
-    .join("");
-
-  await notificationModuleService.createNotifications({
-    to: order.email || "",
-    template: "order-placed",
-    channel: "email",
-    // for testing:
-    // channel: "feed",
-    data: order,
-    attachments: [
-      {
-        content: binaryString,
-        filename: `invoice-${order.id}.pdf`,
-        content_type: "application/pdf",
-        disposition: "attachment",
-      },
-    ],
   });
 }
 

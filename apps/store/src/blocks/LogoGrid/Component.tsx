@@ -3,6 +3,7 @@
 import type { Button } from "@ecommerce/ui/components/button";
 import type { Media } from "@payload-types";
 import type { DefaultTypedEditorState } from "@payloadcms/richtext-lexical";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
@@ -35,6 +36,7 @@ export type LogoGridBlockType = {
 
 export const LogoGrid: React.FC<LogoGridBlockType> = (props) => {
   const { content, hasLink, link, logos } = props;
+  const t = useTranslations("blocks.alt");
 
   const getLinkUrl = (linkData: any): string | null => {
     if (!linkData) return null;
@@ -86,7 +88,7 @@ export const LogoGrid: React.FC<LogoGridBlockType> = (props) => {
                   <div className="relative h-16 w-full">
                     <Image
                       src={logoMedia.url}
-                      alt={logoMedia.alt || "Logo"}
+                      alt={logoMedia.alt || t("logo")}
                       fill
                       className="object-contain"
                     />

@@ -19,6 +19,7 @@ import type {
 } from "../../lib/erp/resource-types";
 import { StatusBadge } from "../../lib/erp/status-badge";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 
 const BASE = "/admin/social/identities";
 
@@ -76,7 +77,7 @@ const MessageItem = ({ message }: { message: Row }) => {
     >
       <div className="flex items-center gap-x-2">
         <Badge color={outgoing ? "blue" : "grey"} size="2xsmall">
-          {outgoing ? "Agent / bot" : "Customer"}
+          {outgoing ? tr("Agent / bot") : tr("Customer")}
         </Badge>
         <Text className="text-ui-fg-subtle" leading="compact" size="small">
           {formatDateTime(message.created_at)}
@@ -104,12 +105,12 @@ const Conversation = ({ id }: { id: string }) => {
       {({ messages }) =>
         messages.length === 0 ? (
           <Text className="text-ui-fg-subtle" size="small">
-            No messages yet.
+            {tr("No messages yet.")}
           </Text>
         ) : (
           // The API returns newest first; read top-down oldest first.
           <ol
-            aria-label="Conversation history"
+            aria-label={tr("Conversation history")}
             className="flex flex-col gap-y-2"
           >
             {oldestFirst(messages).map((message) => (
@@ -172,7 +173,9 @@ const ConversationScreen = ({
             />
           )
         }
-        title={`${String(identity.channel)} conversation`}
+        title={tr("{channel} conversation", {
+          channel: String(identity.channel),
+        })}
       >
         <KeyValueGrid columns={identityColumns} row={current} />
       </DetailSection>

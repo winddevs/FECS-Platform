@@ -2,11 +2,13 @@
 
 import type { Button } from "@ecommerce/ui/components/button";
 import type { HoverHighlightsBlock as HoverHighlightsBlockProps } from "@payload-types";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
 
 export const HoverHighlights: React.FC<HoverHighlightsBlockProps> = (props) => {
+  const t = useTranslations("blocks.alt");
   const { beforeText, highlights, afterText, link } = props;
   const [activeHighlight, setActiveHighlight] = useState<string | null>(null);
 
@@ -91,7 +93,7 @@ export const HoverHighlights: React.FC<HoverHighlightsBlockProps> = (props) => {
                           <div className="relative h-full">
                             <Image
                               src={bottomMediaUrl}
-                              alt={`${highlight.text} secondary`}
+                              alt={t("secondary", { text: highlight.text })}
                               fill
                               className="object-cover"
                               sizes="(max-width: 768px) 100vw, 50vw"

@@ -2,6 +2,7 @@ import { listCategories } from "@lib/data/categories";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import CartButton from "@modules/layout/components/cart-button";
 import type { Header as MedusaHeader } from "@payload-types";
+import { getTranslations } from "next-intl/server";
 import type { TypedLocale } from "payload";
 import { Suspense } from "react";
 
@@ -11,6 +12,7 @@ import { CategoryDropdown } from "./CategoryDropdown";
 import { HeaderClient } from "./Component.client";
 
 export async function Header({ locale }: { locale: TypedLocale }) {
+  const t = await getTranslations({ locale, namespace: "components.header" });
   const headerData: MedusaHeader = await getCachedGlobal("header", 1, locale);
   const categories = await listCategories({ limit: 100 });
 
@@ -26,7 +28,7 @@ export async function Header({ locale }: { locale: TypedLocale }) {
                 className="txt-compact-xlarge-plus text-foreground hover:text-foreground/80 uppercase mr-8"
                 data-testid="nav-store-link"
               >
-                Medusa Store
+                FECS Fashion
               </LocalizedClientLink>
             </div>
 
@@ -40,7 +42,7 @@ export async function Header({ locale }: { locale: TypedLocale }) {
                   href="/account"
                   data-testid="nav-account-link"
                 >
-                  Account
+                  {t("account")}
                 </LocalizedClientLink>
               </div>
             </div>
@@ -65,7 +67,7 @@ export async function Header({ locale }: { locale: TypedLocale }) {
                     href="/cart"
                     data-testid="nav-cart-link"
                   >
-                    Cart (0)
+                    {t("cart", { count: 0 })}
                   </LocalizedClientLink>
                 }
               >

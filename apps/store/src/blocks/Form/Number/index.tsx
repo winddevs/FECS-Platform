@@ -1,6 +1,7 @@
 import { Input } from "@ecommerce/ui/components/input";
 import { Label } from "@ecommerce/ui/components/label";
 import type { TextField } from "@payloadcms/plugin-form-builder/types";
+import { useTranslations } from "next-intl";
 import React from "react";
 import type {
   FieldErrorsImpl,
@@ -16,6 +17,7 @@ export const Number: React.FC<
     register: UseFormRegister<FieldValues>;
   }
 > = ({ name, defaultValue, errors, label, register, required, width }) => {
+  const t = useTranslations("blocks.form");
   return (
     <Width width={width}>
       <Label htmlFor={name}>
@@ -23,7 +25,7 @@ export const Number: React.FC<
 
         {required && (
           <span className="required">
-            * <span className="sr-only">(required)</span>
+            * <span className="sr-only">{t("required")}</span>
           </span>
         )}
       </Label>

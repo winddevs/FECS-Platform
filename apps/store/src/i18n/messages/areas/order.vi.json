@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "confirmedTitle": "Xác nhận đơn hàng",
+    "confirmedDescription": "Bạn đã đặt hàng thành công"
+  },
+  "completed": {
+    "thankYou": "Cảm ơn bạn!",
+    "placed": "Đơn hàng của bạn đã được đặt thành công.",
+    "summary": "Tóm tắt"
+  },
+  "details": {
+    "title": "Chi tiết đơn hàng",
+    "backToOverview": "Quay lại danh sách",
+    "confirmationSent": "Chúng tôi đã gửi thông tin xác nhận đơn hàng đến <emailTag>{email}</emailTag>.",
+    "orderDate": "Ngày đặt hàng:",
+    "orderNumber": "Mã đơn hàng:",
+    "orderStatus": "Trạng thái đơn hàng:",
+    "paymentStatus": "Trạng thái thanh toán:",
+    "downloadInvoice": "Tải hóa đơn",
+    "invoiceSuccess": "Đã tạo và tải hóa đơn thành công",
+    "invoiceFailed": "Không thể tạo hóa đơn: {error}"
+  },
+  "status": {
+    "fulfillment": {
+      "not_fulfilled": "Chưa xử lý",
+      "partially_fulfilled": "Đã xử lý một phần",
+      "fulfilled": "Đã xử lý",
+      "partially_shipped": "Đã gửi một phần",
+      "shipped": "Đã gửi hàng",
+      "partially_delivered": "Đã giao một phần",
+      "delivered": "Đã giao hàng",
+      "canceled": "Đã hủy"
+    },
+    "payment": {
+      "not_paid": "Chưa thanh toán",
+      "awaiting": "Chờ thanh toán",
+      "authorized": "Đã ủy quyền",
+      "partially_authorized": "Đã ủy quyền một phần",
+      "captured": "Đã thanh toán",
+      "partially_captured": "Đã thanh toán một phần",
+      "partially_refunded": "Đã hoàn tiền một phần",
+      "refunded": "Đã hoàn tiền",
+      "canceled": "Đã hủy",
+      "requires_action": "Cần xử lý thêm"
+    }
+  },
+  "onboarding": {
+    "title": "Đơn hàng thử nghiệm của bạn đã được tạo thành công! 🎉",
+    "subtitle": "Bây giờ bạn có thể hoàn tất thiết lập cửa hàng trong trang quản trị.",
+    "cta": "Hoàn tất thiết lập trong trang quản trị"
+  },
+  "delivery": {
+    "title": "Giao hàng",
+    "shippingAddress": "Địa chỉ giao hàng",
+    "contact": "Liên hệ",
+    "method": "Phương thức"
+  },
+  "payment": {
+    "title": "Thanh toán",
+    "method": "Phương thức thanh toán",
+    "details": "Chi tiết thanh toán",
+    "paidAt": "Đã thanh toán {amount} lúc {date}"
+  },
+  "summary": {
+    "title": "Tóm tắt đơn hàng",
+    "subtotal": "Tạm tính",
+    "discount": "Giảm giá",
+    "giftCard": "Thẻ quà tặng",
+    "shipping": "Phí vận chuyển",
+    "taxes": "Thuế",
+    "total": "Tổng cộng"
+  },
+  "help": {
+    "title": "Bạn cần hỗ trợ?",
+    "contact": "Liên hệ",
+    "returns": "Đổi trả"
+  },
+  "transfer": {
+    "requestTitle": "Yêu cầu chuyển đơn hàng {id}",
+    "requestIntro": "Bạn nhận được yêu cầu chuyển quyền sở hữu đơn hàng ({id}). Nếu đồng ý, bạn có thể chấp nhận việc chuyển bằng cách nhấn nút bên dưới.",
+    "ifAccept": "Nếu bạn chấp nhận, chủ sở hữu mới sẽ tiếp nhận mọi trách nhiệm và quyền liên quan đến đơn hàng này.",
+    "ifIgnore": "Nếu bạn không nhận ra yêu cầu này hoặc muốn giữ quyền sở hữu, bạn không cần làm gì thêm.",
+    "acceptedTitle": "Đã chuyển đơn hàng!",
+    "acceptedText": "Đơn hàng {id} đã được chuyển thành công cho chủ sở hữu mới.",
+    "acceptFailed": "Đã xảy ra lỗi khi chấp nhận yêu cầu chuyển. Vui lòng thử lại.",
+    "declinedTitle": "Đã từ chối chuyển đơn hàng!",
+    "declinedText": "Yêu cầu chuyển đơn hàng {id} đã được từ chối thành công.",
+    "declineFailed": "Đã xảy ra lỗi khi từ chối yêu cầu chuyển. Vui lòng thử lại.",
+    "errorMessage": "Thông báo lỗi: {error}",
+    "acceptedInline": "Đã chuyển đơn hàng thành công!",
+    "declinedInline": "Đã từ chối chuyển đơn hàng thành công!",
+    "accept": "Chấp nhận chuyển",
+    "decline": "Từ chối chuyển"
+  }
+}

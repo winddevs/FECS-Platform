@@ -1,7 +1,7 @@
 "use server";
 
 import { sdk } from "@lib/config";
-import medusaError from "@lib/util/medusa-error";
+import medusaError, { AppError } from "@lib/util/medusa-error";
 import { HttpTypes } from "@medusajs/types";
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
@@ -55,7 +55,10 @@ export async function getOrSetCart(countryCode: string) {
   const region = await getRegion(countryCode);
 
   if (!region) {
-    throw new Error(`Region not found for country code: ${countryCode}`);
+    throw new AppError(
+      `Region not found for country code: ${countryCode}`,
+      "regionNotFound"
+    );
   }
 
   let cart = await retrieveCart();
@@ -91,8 +94,9 @@ export async function updateCart(data: HttpTypes.StoreUpdateCart) {
   const cartId = await getCartId();
 
   if (!cartId) {
-    throw new Error(
-      "No existing cart found, please create one before updating"
+    throw new AppError(
+      "No existing cart found, please create one before updating",
+      "cartNotFound"
     );
   }
 
@@ -124,13 +128,13 @@ export async function addToCart({
   countryCode: string;
 }) {
   if (!variantId) {
-    throw new Error("Missing variant ID when adding to cart");
+    throw new AppError("Missing variant ID when adding to cart", "invalidItem");
   }
 
   const cart = await getOrSetCart(countryCode);
 
   if (!cart) {
-    throw new Error("Error retrieving or creating cart");
+    throw new AppError("Error retrieving or creating cart", "cartNotFound");
   }
 
   const headers = {
@@ -165,13 +169,19 @@ export async function updateLineItem({
   quantity: number;
 }) {
   if (!lineId) {
-    throw new Error("Missing lineItem ID when updating line item");
+    throw new AppError(
+      "Missing lineItem ID when updating line item",
+      "invalidItem"
+    );
   }
 
   const cartId = await getCartId();
 
   if (!cartId) {
-    throw new Error("Missing cart ID when updating line item");
+    throw new AppError(
+      "Missing cart ID when updating line item",
+      "cartNotFound"
+    );
   }
 
   const headers = {
@@ -192,13 +202,19 @@ export async function updateLineItem({
 
 export async function deleteLineItem(lineId: string) {
   if (!lineId) {
-    throw new Error("Missing lineItem ID when deleting line item");
+    throw new AppError(
+      "Missing lineItem ID when deleting line item",
+      "invalidItem"
+    );
   }
 
   const cartId = await getCartId();
 
   if (!cartId) {
-    throw new Error("Missing cart ID when deleting line item");
+    throw new AppError(
+      "Missing cart ID when deleting line item",
+      "cartNotFound"
+    );
   }
 
   const headers = {
@@ -259,7 +275,7 @@ export async function applyPromotions(codes: string[]) {
   const cartId = await getCartId();
 
   if (!cartId) {
-    throw new Error("No existing cart found");
+    throw new AppError("No existing cart found", "cartNotFound");
   }
 
   const headers = {
@@ -337,11 +353,17 @@ export async function submitPromotionForm(
 export async function setAddresses(currentState: unknown, formData: FormData) {
   try {
     if (!formData) {
-      throw new Error("No form data found when setting addresses");
+      throw new AppError(
+        "No form data found when setting addresses",
+        "invalidRequest"
+      );
     }
     const cartId = getCartId();
     if (!cartId) {
-      throw new Error("No existing cart found when setting addresses");
+      throw new AppError(
+        "No existing cart found when setting addresses",
+        "cartNotFound"
+      );
     }
 
     const data = {
@@ -395,7 +417,10 @@ export async function placeOrder(locale: string, cartId?: string) {
   const id = cartId || (await getCartId());
 
   if (!id) {
-    throw new Error("No existing cart found when placing an order");
+    throw new AppError(
+      "No existing cart found when placing an order",
+      "cartNotFound"
+    );
   }
 
   const headers = {
@@ -439,7 +464,10 @@ export async function updateRegion(
   const region = await getRegion(countryCode);
 
   if (!region) {
-    throw new Error(`Region not found for country code: ${countryCode}`);
+    throw new AppError(
+      `Region not found for country code: ${countryCode}`,
+      "regionNotFound"
+    );
   }
 
   if (cartId) {

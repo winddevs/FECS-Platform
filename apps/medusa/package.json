@@ -23,6 +23,8 @@
     "test:http": "bash integration-tests/run-http.sh",
     "test:perf": "bash integration-tests/perf/run-perf.sh",
     "build:check": "npx medusa build > /tmp/medusa-build.log 2>&1; node scripts/check-build-errors.mjs /tmp/medusa-build.log",
+    "i18n:check": "node --experimental-strip-types --no-warnings scripts/check-admin-i18n.mjs",
+    "i18n:errors": "node --experimental-strip-types --no-warnings scripts/check-error-messages.mjs",
     "events:check": "node scripts/check-event-catalog.mjs --check",
     "events:write": "node scripts/check-event-catalog.mjs --write",
     "grant-role": "npx medusa exec ./src/scripts/grant-fashion-role.ts"
@@ -50,6 +52,8 @@
     "@sentry/opentelemetry-node": "^7.114.0",
     "@tanstack/react-query": "^5.101.4",
     "algoliasearch": "catalog:",
+    "axios": "^1.18.1",
+    "pdfmake": "^0.3.11",
     "qs": "catalog:",
     "react-hook-form": "catalog:",
     "resend": "^6.18.1"

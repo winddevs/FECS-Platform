@@ -2,6 +2,7 @@
 
 import { IconBadge, clx } from "@medusajs/ui";
 import ChevronDown from "@modules/common/icons/chevron-down";
+import { useTranslations } from "next-intl";
 import {
   SelectHTMLAttributes,
   forwardRef,
@@ -18,7 +19,8 @@ type NativeSelectProps = {
 } & Omit<SelectHTMLAttributes<HTMLSelectElement>, "size">;
 
 const CartItemSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
-  ({ placeholder = "Select...", className, children, ...props }, ref) => {
+  ({ placeholder, className, children, ...props }, ref) => {
+    const t = useTranslations("cart.select");
     const innerRef = useRef<HTMLSelectElement>(null);
     const [isPlaceholder, setIsPlaceholder] = useState(false);
 
@@ -54,7 +56,7 @@ const CartItemSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
             className="appearance-none bg-transparent border-none px-4 transition-colors duration-150 focus:border-gray-700 outline-none w-16 h-16 items-center justify-center"
           >
             <option disabled value="">
-              {placeholder}
+              {placeholder ?? t("placeholder")}
             </option>
             {children}
           </select>

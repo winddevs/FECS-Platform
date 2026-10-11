@@ -1,4 +1,5 @@
 import config from "@payload-config";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next/types";
 import { getPayload } from "payload";
 import React from "react";
@@ -12,7 +13,16 @@ import PageClient from "./page.client";
 export const dynamic = "force-static";
 export const revalidate = 600;
 
-export default async function Page() {
+type Args = {
+  params: Promise<{
+    locale: string;
+  }>;
+};
+
+export default async function Page({ params }: Args) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale });
   const payload = await getPayload({ config });
 
   const posts = await payload.find({
@@ -33,7 +43,7 @@ export default async function Page() {
       <PageClient />
       <div className="content-container mb-16">
         <div className="prose dark:prose-invert max-w-none">
-          <h1>Posts</h1>
+          <h1>{t("posts")}</h1>
         </div>
       </div>
 
@@ -57,8 +67,10 @@ export default async function Page() {
   );
 }
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata({ params }: Args): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "components.posts" });
   return {
-    title: "ecommerce blog",
+    title: t("blogTitle"),
   };
 }

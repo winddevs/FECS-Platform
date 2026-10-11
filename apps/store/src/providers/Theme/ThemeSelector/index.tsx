@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ecommerce/ui/components/select";
+import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 
 import { useTheme } from "..";
@@ -15,6 +16,7 @@ import { themeLocalStorageKey } from "./types";
 
 export const ThemeSelector: React.FC = () => {
   const { setTheme } = useTheme();
+  const t = useTranslations("components.theme");
   const [value, setValue] = useState("");
 
   const onThemeChange = (themeToSet: Theme | "auto") => {
@@ -32,18 +34,25 @@ export const ThemeSelector: React.FC = () => {
     setValue(preference ?? "auto");
   }, []);
 
+  const options = [
+    { value: "auto", label: t("auto") },
+    { value: "light", label: t("light") },
+    { value: "dark", label: t("dark") },
+  ];
   return (
-    <Select onValueChange={onThemeChange} value={value}>
+    <Select items={options} onValueChange={onThemeChange} value={value}>
       <SelectTrigger
-        aria-label="Select a theme"
+        aria-label={t("label")}
         className="w-full bg-transparent gap-2 p-0 border-none"
       >
-        <SelectValue placeholder="Theme" />
+        <SelectValue placeholder={t("placeholder")} />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false} side="bottom" sideOffset={4}>
-        <SelectItem value="auto">Auto</SelectItem>
-        <SelectItem value="light">Light</SelectItem>
-        <SelectItem value="dark">Dark</SelectItem>
+        {options.map(({ value: optionValue, label }) => (
+          <SelectItem key={optionValue} value={optionValue}>
+            {label}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

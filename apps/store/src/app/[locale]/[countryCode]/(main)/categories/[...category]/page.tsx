@@ -7,10 +7,15 @@ import { StoreRegion } from "@medusajs/types";
 import CategoryTemplate from "@modules/categories/templates";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 type Props = {
-  params: Promise<{ category: string[]; countryCode: string }>;
+  params: Promise<{
+    category: string[];
+    countryCode: string;
+    locale: string;
+  }>;
   searchParams: Promise<{
     sortBy?: SortOptions;
     page?: string;
@@ -61,12 +66,17 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   try {
     const productCategory = await getCategoryByHandle(params.category);
 
-    const title = productCategory.name + " | Medusa Store";
+    const t = await getTranslations({
+      locale: params.locale,
+      namespace: "store.metadata",
+    });
 
-    const description = productCategory.description ?? `${title} category.`;
+    const description =
+      productCategory.description ??
+      t("categoryDescription", { name: productCategory.name });
 
     return {
-      title: `${title} | Medusa Store`,
+      title: `${productCategory.name} | FECS Fashion`,
       description,
       alternates: {
         canonical: `${params.category.join("/")}`,

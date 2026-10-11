@@ -3,6 +3,7 @@ import { getProductPrice } from "@lib/util/get-product-price";
 import { HttpTypes } from "@medusajs/types";
 import { Text } from "@medusajs/ui";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
+import { getLocale } from "next-intl/server";
 
 import {
   getProductImages,
@@ -30,7 +31,9 @@ export default async function ProductPreview({
   //   return null
   // }
 
+  const locale = await getLocale();
   const { cheapestPrice } = getProductPrice({
+    locale,
     product,
   });
 

@@ -3,6 +3,7 @@
 import { updateCustomer } from "@lib/data/customer";
 import { HttpTypes } from "@medusajs/types";
 import Input from "@modules/common/components/input";
+import { useTranslations } from "next-intl";
 import React, { useEffect, useActionState } from "react";
 
 import AccountInfo from "../account-info";
@@ -12,6 +13,8 @@ type MyInformationProps = {
 };
 
 const ProfileEmail: React.FC<MyInformationProps> = ({ customer }) => {
+  const t = useTranslations("account.profile");
+  const tf = useTranslations("account.form");
   const [successState, setSuccessState] = React.useState(false);
 
   const updateCustomerPhone = async (
@@ -46,7 +49,7 @@ const ProfileEmail: React.FC<MyInformationProps> = ({ customer }) => {
   return (
     <form action={formAction} className="w-full">
       <AccountInfo
-        label="Phone"
+        label={t("phoneLabel")}
         currentInfo={`${customer.phone}`}
         isSuccess={successState}
         isError={!!state.error}
@@ -56,7 +59,7 @@ const ProfileEmail: React.FC<MyInformationProps> = ({ customer }) => {
       >
         <div className="grid grid-cols-1 gap-y-2">
           <Input
-            label="Phone"
+            label={tf("phone")}
             name="phone"
             type="phone"
             autoComplete="phone"

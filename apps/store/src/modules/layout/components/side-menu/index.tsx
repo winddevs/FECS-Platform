@@ -5,18 +5,20 @@ import { ArrowRightMini, XMark } from "@medusajs/icons";
 import { HttpTypes } from "@medusajs/types";
 import { Text, clx, useToggleState } from "@medusajs/ui";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
+import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useState } from "react";
 
 import CountrySelect from "../country-select";
 
-const SideMenuItems = {
-  Home: "/",
-  Store: "/store",
-  Account: "/account",
-  Cart: "/cart",
-};
+const SideMenuItems = [
+  { name: "home", href: "/" },
+  { name: "store", href: "/store" },
+  { name: "account", href: "/account" },
+  { name: "cart", href: "/cart" },
+] as const;
 
 const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
+  const t = useTranslations("layout.sideMenu");
   const toggleState = useToggleState();
   const [year, setYear] = useState<number | null>(null);
 
@@ -35,7 +37,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                   data-testid="nav-menu-button"
                   className="relative h-full flex items-center transition-all ease-out duration-200 focus:outline-none hover:text-ui-fg-base"
                 >
-                  Menu
+                  {t("menu")}
                 </Popover.Button>
               </div>
 
@@ -55,21 +57,26 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                     className="flex flex-col h-full bg-[rgba(3,7,18,0.5)] rounded-rounded justify-between p-6"
                   >
                     <div className="flex justify-end" id="xmark">
-                      <button data-testid="close-menu-button" onClick={close}>
+                      <button
+                        type="button"
+                        aria-label={t("close")}
+                        data-testid="close-menu-button"
+                        onClick={close}
+                      >
                         <XMark />
                       </button>
                     </div>
                     <ul className="flex flex-col gap-6 items-start justify-start">
-                      {Object.entries(SideMenuItems).map(([name, href]) => {
+                      {SideMenuItems.map(({ name, href }) => {
                         return (
                           <li key={name}>
                             <LocalizedClientLink
                               href={href}
                               className="text-xl sm:text-3xl leading-8 sm:leading-10 hover:text-ui-fg-disabled"
                               onClick={close}
-                              data-testid={`${name.toLowerCase()}-link`}
+                              data-testid={`${name}-link`}
                             >
-                              {name}
+                              {t(name)}
                             </LocalizedClientLink>
                           </li>
                         );
@@ -95,7 +102,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                         />
                       </div>
                       <Text className="flex justify-between txt-compact-small">
-                        © {year} Medusa Store. All rights reserved.
+                        {t("copyright", { year: year ?? "" })}
                       </Text>
                     </div>
                   </div>

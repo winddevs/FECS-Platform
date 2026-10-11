@@ -10,6 +10,7 @@ import {
 import { updateRegion } from "@lib/data/cart";
 import { StateType } from "@lib/hooks/use-toggle-state";
 import { HttpTypes } from "@medusajs/types";
+import { useTranslations } from "next-intl";
 import { useParams, usePathname } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import ReactCountryFlag from "react-country-flag";
@@ -26,6 +27,7 @@ type CountrySelectProps = {
 };
 
 const CountrySelect = ({ toggleState, regions }: CountrySelectProps) => {
+  const t = useTranslations("layout.countrySelect");
   const [current, setCurrent] = useState<
     | { country: string | undefined; region: string; label: string | undefined }
     | undefined
@@ -74,7 +76,7 @@ const CountrySelect = ({ toggleState, regions }: CountrySelectProps) => {
       >
         <ListboxButton className="py-1 w-full">
           <div className="txt-compact-small flex items-start gap-x-2">
-            <span>Shipping to:</span>
+            <span>{t("shippingTo")}</span>
             {current && (
               <span className="txt-compact-small flex items-center gap-x-2">
                 {/* @ts-ignore */}

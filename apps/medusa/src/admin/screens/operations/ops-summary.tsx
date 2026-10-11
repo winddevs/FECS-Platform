@@ -9,6 +9,7 @@ import {
 import { formatDateTime, formatValue } from "../../lib/erp/format";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 
 type Summary = {
   generated_at: string;
@@ -21,19 +22,17 @@ type Summary = {
   open_manufacturing_exceptions: Row[];
 };
 
-const EMPTY_MESSAGE = "Nothing needs attention.";
-
 const AutoTable = ({ label, rows }: { label: string; rows: Row[] }) => (
   <MiniTable
     columns={autoColumns(rows)}
-    empty={EMPTY_MESSAGE}
-    label={label}
+    empty={tr("Nothing needs attention.")}
+    label={tr(label)}
     rows={rows}
   />
 );
 
 const FeatureFlags = ({ flags }: { flags: Record<string, unknown> }) => (
-  <ul aria-label="Feature flags" className="flex flex-wrap gap-2">
+  <ul aria-label={tr("Feature flags")} className="flex flex-wrap gap-2">
     {Object.entries(flags).map(([name, value]) => (
       <li key={name}>
         <Badge color={value === true ? "green" : "grey"} size="small">
@@ -63,7 +62,9 @@ export const OpsSummary = () => {
         <div className="flex flex-col divide-y">
           <DetailSection title="Feature flags">
             <Text className="text-ui-fg-subtle" size="small">
-              Generated {formatDateTime(summary.generated_at)}
+              {tr("Generated {time}", {
+                time: formatDateTime(summary.generated_at),
+              })}
             </Text>
             <FeatureFlags flags={summary.feature_flags} />
           </DetailSection>

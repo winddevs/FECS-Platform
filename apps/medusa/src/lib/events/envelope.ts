@@ -30,6 +30,17 @@ export type BuildEnvelopeInput<TData> = {
   data: TData;
 };
 
+let lastOccurredMs = 0;
+/**
+ * Strictly increasing per process. Events of one aggregate written in one
+ * transaction share `created_at`, so their order is decided by `occurred_at`;
+ * two events in the same millisecond must not tie.
+ */
+const nextOccurredAt = (): string => {
+  const now = Date.now();
+  lastOccurredMs = now > lastOccurredMs ? now : lastOccurredMs + 1;
+  return new Date(lastOccurredMs).toISOString();
+};
 export const buildEnvelope = <TData extends Record<string, unknown>>(
   input: BuildEnvelopeInput<TData>
 ): EventEnvelope<TData> => ({
@@ -38,7 +49,7 @@ export const buildEnvelope = <TData extends Record<string, unknown>>(
   event_version: input.eventVersion ?? 1,
   aggregate_type: input.aggregateType,
   aggregate_id: input.aggregateId,
-  occurred_at: new Date().toISOString(),
+  occurred_at: nextOccurredAt(),
   correlation_id: input.correlationId ?? `cor_${randomUUID()}`,
   causation_id: input.causationId ?? currentCausation(),
   producer: input.producer,

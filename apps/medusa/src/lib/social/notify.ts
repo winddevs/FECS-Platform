@@ -2,6 +2,7 @@ import {
   ChannelError,
   type MessageChannel,
 } from "../../integrations/channel/channel";
+import type { Locale } from "../../modules/socialCommerce/lib/messages";
 import {
   evaluateOutbound,
   type NotificationCategory,
@@ -14,7 +15,11 @@ export type NotifyInput = {
   /** Stable per business fact, e.g. "shipment:<id>:OUT_FOR_DELIVERY". */
   dedupe_key: string;
   event_type: string;
-  text: string;
+  /**
+   * The text, or a function that writes it in the customer's language (the
+   * identity's learned language, else `deps.locale`).
+   */
+  text: string | ((locale: Locale) => string);
   /** Lets the customer switch this kind of message off. */
   category?: NotificationCategory;
 };
@@ -24,6 +29,10 @@ export type NotifyResult = {
   skipped: Array<{ identity_id: string; reason: string }>;
 };
 
+const identityLocale = (identity: IdentityView, fallback?: Locale): Locale =>
+  identity.locale === "en" || identity.locale === "vi"
+    ? identity.locale
+    : (fallback ?? "vi");
 /** Reasons that may clear on their own: the message is kept, not dropped. */
 const DEFERRABLE_REASONS = new Set(["OUTSIDE_WINDOW", "RATE_LIMITED"]);
 /** A deferred message older than this is no longer worth sending. */
@@ -33,6 +42,8 @@ const MAX_FLUSH_PER_CALL = 3;
 type NotifyDeps = {
   service: SocialCommerceModuleService;
   channel: MessageChannel;
+  /** Language used for customers whose own language is not known yet. */
+  locale?: Locale;
   /** Rate limit per customer and hour; defaults to the policy constant. */
   maxPerHour?: number;
   now?: () => Date;
@@ -67,7 +78,10 @@ export const notifyCustomer = async (
     }
     const outcome = await sendOrDefer(deps, identity, {
       dedupe_key: input.dedupe_key,
-      text: input.text,
+      text:
+        typeof input.text === "function"
+          ? input.text(identityLocale(identity, deps.locale))
+          : input.text,
       category: input.category,
       maxPerHour: deps.maxPerHour,
       now,

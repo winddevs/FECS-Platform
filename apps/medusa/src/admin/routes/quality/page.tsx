@@ -7,7 +7,8 @@ import { BundleStation } from "../../screens/shopfloor/bundle-station";
 import { inspectionsList } from "../../screens/shopfloor/shopfloor-config";
 
 export const config = defineRouteConfig({
-  label: "Quality",
+  label: "menu.quality",
+  translationNs: "fecs",
   icon: QualityIcon,
 });
 

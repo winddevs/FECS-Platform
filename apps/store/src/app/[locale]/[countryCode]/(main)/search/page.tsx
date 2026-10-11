@@ -1,4 +1,5 @@
 import config from "@payload-config";
+import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next/types";
 import { getPayload } from "payload";
 import React from "react";
@@ -17,6 +18,7 @@ type Args = {
 export default async function Page({
   searchParams: searchParamsPromise,
 }: Args) {
+  const t = await getTranslations("search");
   const { q: query } = await searchParamsPromise;
   const payload = await getPayload({ config });
 
@@ -67,7 +69,7 @@ export default async function Page({
       <PageClient />
       <div className="container mb-16">
         <div className="prose dark:prose-invert max-w-none text-center">
-          <h1 className="mb-8 lg:mb-16">Search</h1>
+          <h1 className="mb-8 lg:mb-16">{t("title")}</h1>
 
           <div className="max-w-[50rem] mx-auto">
             <Search />
@@ -78,14 +80,19 @@ export default async function Page({
       {posts.totalDocs > 0 ? (
         <CollectionArchive posts={posts.docs as CardPostData[]} />
       ) : (
-        <div className="content-container">No results found.</div>
+        <div className="content-container">{t("noResults")}</div>
       )}
     </div>
   );
 }
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata(props: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: "search.metadata" });
+
   return {
-    title: "Holmena for powerful digital solutions",
+    title: t("title"),
   };
 }

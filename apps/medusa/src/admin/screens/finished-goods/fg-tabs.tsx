@@ -13,6 +13,7 @@ import type { FormValues } from "../../lib/erp/form-fields";
 import { ResourceTable } from "../../lib/erp/resource-table";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   allocationsList,
   balancesList,
@@ -95,14 +96,18 @@ const BatchTrace = ({ id, onBack }: { id: string; onBack: () => void }) => {
       <QueryBoundary query={query}>
         {({ batch, shipments }) => (
           <>
-            <DetailSection title={`Trace of batch ${String(batch.batch_no)}`}>
+            <DetailSection
+              title={tr("Trace of batch {batch_no}", {
+                batch_no: String(batch.batch_no),
+              })}
+            >
               <KeyValueGrid columns={traceBatchColumns} row={batch} />
             </DetailSection>
             <DetailSection title="Shipped to">
               <MiniTable
                 columns={shipmentLineColumns}
-                empty="Nothing from this batch has shipped yet."
-                label="Shipments fed by this batch"
+                empty={tr("Nothing from this batch has shipped yet.")}
+                label={tr("Shipments fed by this batch")}
                 rows={shipments}
               />
             </DetailSection>

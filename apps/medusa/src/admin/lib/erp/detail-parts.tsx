@@ -2,6 +2,7 @@ import { Button, Heading, Table, Text } from "@medusajs/ui";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import { tr } from "../i18n";
 import { describeError } from "./api";
 import { Cell } from "./cells";
 import type { ColumnConfig, Row } from "./resource-types";
@@ -29,14 +30,14 @@ export const QueryBoundary = <T,>({
         role="alert"
       >
         <Text className="text-ui-fg-error" size="small">
-          {describeError(query.error ?? new Error("No data"))}
+          {describeError(query.error ?? new Error(tr("No data")))}
         </Text>
         <Button
           onClick={() => query.refetch()}
           size="small"
           variant="secondary"
         >
-          Retry
+          {tr("Retry")}
         </Button>
       </div>
     );
@@ -54,9 +55,9 @@ export const DetailSection = ({
   actions?: ReactNode;
   children: ReactNode;
 }) => (
-  <section aria-label={title} className="flex flex-col gap-y-3 px-6 py-4">
+  <section aria-label={tr(title)} className="flex flex-col gap-y-3 px-6 py-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <Heading level="h3">{title}</Heading>
+      <Heading level="h3">{tr(title)}</Heading>
       {actions ? (
         <div className="flex flex-wrap items-center gap-2">{actions}</div>
       ) : null}
@@ -78,7 +79,7 @@ export const KeyValueGrid = ({
       <div className="flex flex-col gap-y-1" key={column.key}>
         <dt>
           <Text className="text-ui-fg-subtle" leading="compact" size="small">
-            {column.label}
+            {tr(column.label)}
           </Text>
         </dt>
         <dd>
@@ -108,23 +109,23 @@ export const MiniTable = ({
   if (rows.length === 0) {
     return (
       <Text className="text-ui-fg-subtle" size="small">
-        {empty}
+        {tr(empty)}
       </Text>
     );
   }
   return (
     <div className="overflow-x-auto">
-      <Table aria-label={label}>
+      <Table aria-label={tr(label)}>
         <Table.Header>
           <Table.Row>
             {columns.map((column) => (
               <Table.HeaderCell key={column.key}>
-                {column.label}
+                {tr(column.label)}
               </Table.HeaderCell>
             ))}
             {renderRowActions ? (
               <Table.HeaderCell>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{tr("Actions")}</span>
               </Table.HeaderCell>
             ) : null}
           </Table.Row>
@@ -161,7 +162,7 @@ export const BackBar = ({
 }) => (
   <div className="px-6 pt-4">
     <Button onClick={onBack} size="small" variant="transparent">
-      {`< Back to ${label}`}
+      {tr("< Back to {label}", { label: tr(label) })}
     </Button>
   </div>
 );

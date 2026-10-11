@@ -9,7 +9,8 @@ import {
 } from "../../screens/production/production-tabs";
 
 export const config = defineRouteConfig({
-  label: "Production",
+  label: "menu.production",
+  translationNs: "fecs",
   icon: ProductionIcon,
 });
 

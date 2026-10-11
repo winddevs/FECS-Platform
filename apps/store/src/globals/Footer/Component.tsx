@@ -1,4 +1,5 @@
 import type { Footer } from "@payload-types";
+import { getTranslations } from "next-intl/server";
 import NextImage from "next/image";
 import type { TypedLocale } from "payload";
 import React from "react";
@@ -8,6 +9,7 @@ import { ThemeSelector } from "@/providers/Theme/ThemeSelector";
 import { getCachedGlobal } from "@/utilities/getGlobals";
 
 export async function Footer({ locale }: { locale: TypedLocale }) {
+  const t = await getTranslations({ locale, namespace: "components.footer" });
   const footerData: Footer = await getCachedGlobal("footer", 1, locale);
   const footerLogo = footerData?.logo;
   const footerColumns = footerData?.columns || [];
@@ -20,7 +22,7 @@ export async function Footer({ locale }: { locale: TypedLocale }) {
             <div className="h-20 sm:h-32 md:h-38 lg:h-48 xl:h-56 relative overflow-hidden">
               <NextImage
                 src={footerLogo.url}
-                alt={footerLogo.alt || "Footer logo"}
+                alt={footerLogo.alt || t("logoAlt")}
                 width={footerLogo.width || 200}
                 height={footerLogo.height || 30}
                 className="object-contain w-full h-auto max-w-full absolute left-0 top-[25%] sm:top-[30%] md:top-[40%] lg:top-[15%] xl:top-[5%]"
@@ -33,7 +35,7 @@ export async function Footer({ locale }: { locale: TypedLocale }) {
         </div>
 
         <div className="flex items-center justify-between content-container w-full flex-wrap">
-          <p className="text-sm text-gray-500">© 2026 Ecommerce</p>
+          <p className="text-sm text-gray-500">© FECS Fashion</p>
           <div className="flex gap-4">
             <a href="#" className="text-gray-500 hover:text-primary">
               instagram

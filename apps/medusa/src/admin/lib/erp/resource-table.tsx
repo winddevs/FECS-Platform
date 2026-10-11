@@ -1,6 +1,7 @@
 import { Button, Heading, Table, Text } from "@medusajs/ui";
 import { type ReactNode, type SyntheticEvent, useMemo, useState } from "react";
 
+import { tr } from "../i18n";
 import { type QueryParams, describeError } from "./api";
 import { Cell, autoColumns } from "./cells";
 import { FilterBar } from "./resource-filters";
@@ -85,6 +86,7 @@ export const ResourceTable = ({
   toolbar,
   renderRowActions,
 }: ResourceTableProps) => {
+  const title = tr(config.title);
   const pageSize = config.pageSize ?? DEFAULT_PAGE_SIZE;
   const [filters, setFilters] = useState<Record<string, string>>({
     ...config.defaultFilters,
@@ -127,7 +129,7 @@ export const ResourceTable = ({
     if (isLoading) {
       return (
         <StateMessage>
-          <Spinner label={`Loading ${config.title}`} />
+          <Spinner label={tr("Loading {title}", { title })} />
         </StateMessage>
       );
     }
@@ -139,7 +141,7 @@ export const ResourceTable = ({
               {describeError(error)}
             </Text>
             <Button onClick={() => refetch()} size="small" variant="secondary">
-              Retry
+              {tr("Retry")}
             </Button>
           </div>
         </StateMessage>
@@ -149,7 +151,9 @@ export const ResourceTable = ({
       return (
         <StateMessage>
           <Text className="text-ui-fg-subtle" size="small">
-            {config.emptyMessage ?? `No ${config.title.toLowerCase()} found.`}
+            {config.emptyMessage
+              ? tr(config.emptyMessage)
+              : tr("No {title} found.", { title: title.toLowerCase() })}
           </Text>
         </StateMessage>
       );
@@ -161,12 +165,12 @@ export const ResourceTable = ({
             <Table.Row>
               {columns.map((column) => (
                 <Table.HeaderCell key={column.key}>
-                  {column.label}
+                  {tr(column.label)}
                 </Table.HeaderCell>
               ))}
               {renderRowActions ? (
                 <Table.HeaderCell>
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{tr("Actions")}</span>
                 </Table.HeaderCell>
               ) : null}
             </Table.Row>
@@ -219,13 +223,13 @@ export const ResourceTable = ({
   const canNext = hasMore(data, offset, rows.length);
 
   return (
-    <section aria-label={config.title} className="flex flex-col">
+    <section aria-label={title} className="flex flex-col">
       <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-4">
         <div>
-          <Heading level="h2">{config.title}</Heading>
+          <Heading level="h2">{title}</Heading>
           {config.description ? (
             <Text className="text-ui-fg-subtle" size="small">
-              {config.description}
+              {tr(config.description)}
             </Text>
           ) : null}
         </div>
@@ -236,7 +240,7 @@ export const ResourceTable = ({
             size="small"
             variant="transparent"
           >
-            Refresh
+            {tr("Refresh")}
           </Button>
           {toolbar}
         </div>
@@ -253,12 +257,12 @@ export const ResourceTable = ({
       {renderBody()}
       {rows.length > 0 || offset > 0 ? (
         <nav
-          aria-label={`${config.title} pages`}
+          aria-label={tr("{title} pages", { title })}
           className="flex items-center justify-between px-6 py-3"
         >
           <Text className="text-ui-fg-subtle" size="small">
             {offset + 1} - {offset + rows.length}
-            {total === undefined ? "" : ` of ${total}`}
+            {total === undefined ? "" : ` ${tr("of {total}", { total })}`}
           </Text>
           <div className="flex gap-x-2">
             <Button
@@ -267,7 +271,7 @@ export const ResourceTable = ({
               size="small"
               variant="secondary"
             >
-              Previous
+              {tr("Previous")}
             </Button>
             <Button
               disabled={!canNext}
@@ -275,7 +279,7 @@ export const ResourceTable = ({
               size="small"
               variant="secondary"
             >
-              Next
+              {tr("Next")}
             </Button>
           </div>
         </nav>

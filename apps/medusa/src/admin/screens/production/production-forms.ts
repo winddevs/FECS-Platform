@@ -1,5 +1,6 @@
 import type { FieldConfig } from "../../lib/erp/form-fields";
 import type { Row } from "../../lib/erp/resource-types";
+import { tr, trStatus } from "../../lib/i18n";
 
 const MO_TYPES = ["MTS", "MTO", "REPLENISHMENT", "SAMPLE", "REWORK"] as const;
 
@@ -74,7 +75,7 @@ export const issueFabricFields: readonly FieldConfig[] = [
 const batchOptions = (batches: readonly Row[]) =>
   batches.map((batch) => ({
     value: String(batch.id),
-    label: `${String(batch.batch_no)} (${String(batch.status)})`,
+    label: `${String(batch.batch_no)} (${trStatus(String(batch.status))})`,
   }));
 
 export const cutPlanFields = (
@@ -108,7 +109,10 @@ export const cutPlanFields = (
         required: true,
         options: rolls.map((roll) => ({
           value: String(roll.roll_code),
-          label: `${String(roll.roll_code)} (assigned ${String(roll.assigned)})`,
+          label: tr("{roll} (assigned {qty})", {
+            roll: String(roll.roll_code),
+            qty: String(roll.assigned),
+          }),
         })),
       },
       {

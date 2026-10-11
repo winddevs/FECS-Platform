@@ -5,8 +5,10 @@ import Radio from "@modules/common/components/radio";
 import SkeletonCardDetails from "@modules/skeletons/components/skeleton-card-details";
 import { CardElement } from "@stripe/react-stripe-js";
 import { StripeCardElementOptions } from "@stripe/stripe-js";
+import { useTranslations } from "next-intl";
 import React, { useContext, useMemo, type JSX } from "react";
 
+import { getPaymentProviderTitleKey } from "../../utils/payment-provider-title";
 import PaymentTest from "../payment-test";
 import { StripeContext } from "../payment-wrapper/stripe-wrapper";
 
@@ -25,7 +27,12 @@ const PaymentContainer: React.FC<PaymentContainerProps> = ({
   disabled = false,
   children,
 }) => {
+  const t = useTranslations("checkout.payment.providers");
   const isDevelopment = process.env.NODE_ENV === "development";
+  const titleKey = getPaymentProviderTitleKey(paymentProviderId);
+  const title = titleKey
+    ? t(titleKey)
+    : paymentInfoMap[paymentProviderId]?.title || paymentProviderId;
 
   return (
     <RadioGroupOption
@@ -43,9 +50,7 @@ const PaymentContainer: React.FC<PaymentContainerProps> = ({
       <div className="flex items-center justify-between ">
         <div className="flex items-center gap-x-4">
           <Radio checked={selectedPaymentOptionId === paymentProviderId} />
-          <Text className="text-base-regular">
-            {paymentInfoMap[paymentProviderId]?.title || paymentProviderId}
-          </Text>
+          <Text className="text-base-regular">{title}</Text>
           {isManual(paymentProviderId) && isDevelopment && (
             <PaymentTest className="hidden small:block" />
           )}
@@ -77,6 +82,7 @@ export const StripeCardContainer = ({
   setError: (error: string | null) => void;
   setCardComplete: (complete: boolean) => void;
 }) => {
+  const t = useTranslations("checkout.payment");
   const stripeReady = useContext(StripeContext);
 
   const useOptions: StripeCardElementOptions = useMemo(() => {
@@ -107,7 +113,7 @@ export const StripeCardContainer = ({
         (stripeReady ? (
           <div className="my-4 transition-all duration-150 ease-in-out">
             <Text className="txt-medium-plus text-ui-fg-base mb-1">
-              Enter your card details:
+              {t("cardPrompt")}
             </Text>
             <CardElement
               options={useOptions as StripeCardElementOptions}

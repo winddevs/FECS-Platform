@@ -1,8 +1,10 @@
 "use client";
 
+import { formatDate } from "@lib/util/locale-format";
 import { HttpTypes } from "@medusajs/types";
 import { Text } from "@medusajs/ui";
 import { Button, toast } from "@medusajs/ui";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { sdk } from "../../../../lib/config";
@@ -12,17 +14,59 @@ type OrderDetailsProps = {
   showStatus?: boolean;
 };
 
-const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
-  const formatStatus = (str: string) => {
-    const formatted = str.split("_").join(" ");
+const FULFILLMENT_STATUSES = [
+  "not_fulfilled",
+  "partially_fulfilled",
+  "fulfilled",
+  "partially_shipped",
+  "shipped",
+  "partially_delivered",
+  "delivered",
+  "canceled",
+] as const;
 
-    return formatted.slice(0, 1).toUpperCase() + formatted.slice(1);
-  };
+const PAYMENT_STATUSES = [
+  "not_paid",
+  "awaiting",
+  "authorized",
+  "partially_authorized",
+  "captured",
+  "partially_captured",
+  "partially_refunded",
+  "refunded",
+  "canceled",
+  "requires_action",
+] as const;
+
+const isOneOf = <T extends string>(
+  list: readonly T[],
+  value: string
+): value is T => (list as readonly string[]).includes(value);
+
+// Fallback for statuses the storefront has no translation for.
+const humanizeStatus = (str: string) => {
+  const formatted = str.split("_").join(" ");
+  return formatted.slice(0, 1).toUpperCase() + formatted.slice(1);
+};
+
+const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
+  const t = useTranslations("order");
+  const locale = useLocale();
+
+  const fulfillmentLabel = (status: string) =>
+    isOneOf(FULFILLMENT_STATUSES, status)
+      ? t(`status.fulfillment.${status}`)
+      : humanizeStatus(status);
+
+  const paymentLabel = (status: string) =>
+    isOneOf(PAYMENT_STATUSES, status)
+      ? t(`status.payment.${status}`)
+      : humanizeStatus(status);
+
   const [isDownloading, setIsDownloading] = useState(false);
 
   const downloadInvoice = async () => {
     setIsDownloading(true);
-
     try {
       const response: Response = await sdk.client.fetch(
         `/store/orders/${order.id}/invoices`,
@@ -44,9 +88,9 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       setIsDownloading(false);
-      toast.success("Invoice generated and downloaded successfully");
+      toast.success(t("details.invoiceSuccess"));
     } catch (error) {
-      toast.error(`Failed to generate invoice: ${error}`);
+      toast.error(t("details.invoiceFailed", { error: String(error) }));
       setIsDownloading(false);
     }
   };
@@ -54,23 +98,27 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
   return (
     <div>
       <Text>
-        We have sent the order confirmation details to{" "}
-        <span
-          className="text-ui-fg-medium-plus font-semibold"
-          data-testid="order-email"
-        >
-          {order.email}
-        </span>
-        .
+        {t.rich("details.confirmationSent", {
+          email: order.email ?? "",
+          emailTag: (chunks) => (
+            <span
+              className="text-ui-fg-medium-plus font-semibold"
+              data-testid="order-email"
+            >
+              {chunks}
+            </span>
+          ),
+        })}
       </Text>
       <Text className="mt-2">
-        Order date:{" "}
+        {t("details.orderDate")}{" "}
         <span data-testid="order-date">
-          {new Date(order.created_at).toDateString()}
+          {formatDate(order.created_at, locale)}
         </span>
       </Text>
       <Text className="mt-2 text-ui-fg-interactive">
-        Order number: <span data-testid="order-id">{order.display_id}</span>
+        {t("details.orderNumber")}{" "}
+        <span data-testid="order-id">{order.display_id}</span>
       </Text>
       <Button
         variant="secondary"
@@ -78,25 +126,25 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
         disabled={isDownloading}
         isLoading={isDownloading}
       >
-        Download Invoice
+        {t("details.downloadInvoice")}
       </Button>
 
       <div className="flex items-center text-compact-small gap-x-4 mt-4">
         {showStatus && (
           <>
             <Text>
-              Order status:{" "}
+              {t("details.orderStatus")}{" "}
               <span className="text-ui-fg-subtle " data-testid="order-status">
-                {formatStatus(order.fulfillment_status)}
+                {fulfillmentLabel(order.fulfillment_status)}
               </span>
             </Text>
             <Text>
-              Payment status:{" "}
+              {t("details.paymentStatus")}{" "}
               <span
                 className="text-ui-fg-subtle "
-                sata-testid="order-payment-status"
+                data-testid="order-payment-status"
               >
-                {formatStatus(order.payment_status)}
+                {paymentLabel(order.payment_status)}
               </span>
             </Text>
           </>

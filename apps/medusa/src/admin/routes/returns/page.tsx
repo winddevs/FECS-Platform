@@ -5,7 +5,8 @@ import { TabbedPage } from "../../lib/erp/page-shell";
 import { ReturnsTab } from "../../screens/returns/returns-tab";
 
 export const config = defineRouteConfig({
-  label: "Returns",
+  label: "menu.returns",
+  translationNs: "fecs",
   icon: ReturnsIcon,
 });
 

@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "account": "Tài khoản",
+    "cart": "Giỏ hàng ({count})"
+  },
+  "sideMenu": {
+    "menu": "Menu",
+    "close": "Đóng menu",
+    "home": "Trang chủ",
+    "store": "Cửa hàng",
+    "account": "Tài khoản",
+    "cart": "Giỏ hàng",
+    "copyright": "© {year} FECS Fashion. Bảo lưu mọi quyền."
+  },
+  "countrySelect": {
+    "shippingTo": "Giao hàng đến:"
+  },
+  "cartDropdown": {
+    "title": "Giỏ hàng",
+    "quantity": "Số lượng: {count}",
+    "remove": "Xóa",
+    "subtotal": "Tạm tính",
+    "excludingTaxes": "(chưa gồm thuế)",
+    "goToCart": "Xem giỏ hàng",
+    "empty": "Giỏ hàng của bạn đang trống.",
+    "allProductsLink": "Đến trang tất cả sản phẩm",
+    "explore": "Khám phá sản phẩm"
+  },
+  "cartMismatch": {
+    "error": "Đã xảy ra lỗi khi chuyển giỏ hàng của bạn",
+    "retry": "Chuyển lại",
+    "transferring": "Đang chuyển..."
+  },
+  "footer": {
+    "categories": "Danh mục",
+    "socials": "Mạng xã hội",
+    "theme": "Giao diện",
+    "collections": "Bộ sưu tập",
+    "links": "Liên kết",
+    "blog": "Blog",
+    "poweredBy": "Được cung cấp bởi"
+  }
+}

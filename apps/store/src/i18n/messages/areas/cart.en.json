@@ -1,0 +1,37 @@
+{
+  "title": "Cart",
+  "metadata": {
+    "title": "Cart",
+    "description": "View your cart",
+    "notFoundTitle": "404",
+    "notFoundDescription": "Something went wrong"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The cart you tried to access does not exist. Clear your cookies and try again.",
+    "goHome": "Go to frontpage"
+  },
+  "empty": {
+    "description": "You don't have anything in your cart. Let's change that, use the link below to start browsing our products.",
+    "explore": "Explore products"
+  },
+  "signIn": {
+    "title": "Already have an account?",
+    "subtitle": "Sign in for a better experience.",
+    "button": "Sign in"
+  },
+  "table": {
+    "item": "Item",
+    "quantity": "Quantity",
+    "price": "Price",
+    "total": "Total"
+  },
+  "summary": {
+    "title": "Summary",
+    "goToCheckout": "Go to checkout"
+  },
+  "select": {
+    "placeholder": "Select...",
+    "quantity": "Quantity"
+  }
+}

@@ -1,4 +1,5 @@
 import config from "@payload-config";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next/types";
 import { getPayload } from "payload";
@@ -15,11 +16,14 @@ export const revalidate = 600;
 type Args = {
   params: Promise<{
     pageNumber: string;
+    locale: string;
   }>;
 };
 
 export default async function Page({ params: paramsPromise }: Args) {
-  const { pageNumber } = await paramsPromise;
+  const { pageNumber, locale } = await paramsPromise;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale });
   const payload = await getPayload({ config });
 
   const sanitizedPageNumber = Number(pageNumber);
@@ -39,7 +43,7 @@ export default async function Page({ params: paramsPromise }: Args) {
       <PageClient />
       <div className="content-container mb-16">
         <div className="prose dark:prose-invert max-w-none">
-          <h1>Posts</h1>
+          <h1>{t("posts")}</h1>
         </div>
       </div>
 
@@ -66,9 +70,10 @@ export default async function Page({ params: paramsPromise }: Args) {
 export async function generateMetadata({
   params: paramsPromise,
 }: Args): Promise<Metadata> {
-  const { pageNumber } = await paramsPromise;
+  const { pageNumber, locale } = await paramsPromise;
+  const t = await getTranslations({ locale, namespace: "components.posts" });
   return {
-    title: `Holmena for digital solutions Posts Page ${pageNumber || ""}`,
+    title: t("pageTitle", { page: pageNumber || "" }),
   };
 }
 

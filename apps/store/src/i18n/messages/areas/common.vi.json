@@ -1,0 +1,24 @@
+{
+  "cartTotals": {
+    "subtotal": "Tạm tính (chưa gồm phí vận chuyển và thuế)",
+    "discount": "Giảm giá",
+    "shipping": "Phí vận chuyển",
+    "taxes": "Thuế",
+    "giftCard": "Thẻ quà tặng",
+    "total": "Tổng cộng"
+  },
+  "lineItem": {
+    "variant": "Phân loại: {title}",
+    "original": "Giá gốc:"
+  },
+  "input": {
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu"
+  },
+  "modal": {
+    "close": "Đóng"
+  },
+  "nativeSelect": {
+    "placeholder": "Chọn..."
+  }
+}

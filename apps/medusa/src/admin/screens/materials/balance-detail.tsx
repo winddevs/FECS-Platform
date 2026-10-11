@@ -7,6 +7,7 @@ import {
 import { ResourceTable } from "../../lib/erp/resource-table";
 import type { ResourceConfig, Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   adjustmentFields,
   cycleCountFields,
@@ -101,7 +102,7 @@ export const BalanceDetail = ({
             />
           </>
         }
-        title={`Balance ${balanceId}`}
+        title={tr("Balance {id}", { id: balanceId })}
       >
         <KeyValueGrid columns={balanceColumns} row={current} />
       </DetailSection>

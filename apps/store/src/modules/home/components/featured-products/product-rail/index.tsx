@@ -3,6 +3,7 @@ import { HttpTypes } from "@medusajs/types";
 import { Text } from "@medusajs/ui";
 import InteractiveLink from "@modules/common/components/interactive-link";
 import ProductPreview from "@modules/products/components/product-preview";
+import { getTranslations } from "next-intl/server";
 
 export default async function ProductRail({
   collection,
@@ -11,6 +12,7 @@ export default async function ProductRail({
   collection: HttpTypes.StoreCollection;
   region: HttpTypes.StoreRegion;
 }) {
+  const t = await getTranslations("home.featured");
   const {
     response: { products: pricedProducts },
   } = await listProducts({
@@ -30,7 +32,7 @@ export default async function ProductRail({
       <div className="flex justify-between mb-8">
         <Text className="txt-xlarge">{collection.title}</Text>
         <InteractiveLink href={`/collections/${collection.handle}`}>
-          View all
+          {t("viewAll")}
         </InteractiveLink>
       </div>
       <ul className="grid grid-cols-2 small:grid-cols-3 gap-x-6 gap-y-24 small:gap-y-36">

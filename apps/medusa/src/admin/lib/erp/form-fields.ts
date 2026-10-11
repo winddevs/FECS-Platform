@@ -1,3 +1,4 @@
+import { tr, trStatus } from "../i18n";
 import { newId } from "./id";
 import type { RefKind } from "./refs";
 
@@ -79,19 +80,28 @@ export const buildInitialValues = (
 
 export const optionValue = (option: FieldOption): string =>
   typeof option === "string" ? option : option.value;
-export const optionLabel = (option: FieldOption): string =>
-  typeof option === "string" ? option : option.label;
+
+const ENUM_CODE = /^[A-Z0-9_]+$/;
+
+/** Display text of an option: enum codes via trStatus, other text via tr. */
+export const optionLabel = (option: FieldOption): string => {
+  if (typeof option !== "string") {
+    return tr(option.label);
+  }
+  return ENUM_CODE.test(option) ? trStatus(option) : tr(option);
+};
 
 const parseNumber = (
   field: FieldConfig,
   raw: string
 ): { value?: number; error?: string } => {
   const parsed = Number(raw);
+  const label = tr(field.label);
   if (!Number.isFinite(parsed)) {
-    return { error: `${field.label} must be a number` };
+    return { error: tr("{label} must be a number", { label }) };
   }
   if (field.type === "integer" && !Number.isInteger(parsed)) {
-    return { error: `${field.label} must be a whole number` };
+    return { error: tr("{label} must be a whole number", { label }) };
   }
   return { value: parsed };
 };
@@ -100,9 +110,10 @@ type Parsed = { skip?: boolean; value?: unknown; error?: string };
 
 const parseScalar = (field: FieldConfig, raw: string): Parsed => {
   const text = raw.trim();
+  const label = tr(field.label);
   if (text === "" || text === NONE_OPTION) {
     return field.required
-      ? { error: `${field.label} is required` }
+      ? { error: tr("{label} is required", { label }) }
       : { skip: true };
   }
   switch (field.type) {
@@ -119,7 +130,9 @@ const parseScalar = (field: FieldConfig, raw: string): Parsed => {
       return items.length === 0
         ? {
             skip: !field.required,
-            error: field.required ? `${field.label} is required` : undefined,
+            error: field.required
+              ? tr("{label} is required", { label })
+              : undefined,
           }
         : { value: items };
     }
@@ -127,12 +140,12 @@ const parseScalar = (field: FieldConfig, raw: string): Parsed => {
       try {
         return { value: JSON.parse(text) as unknown };
       } catch {
-        return { error: `${field.label} must be valid JSON` };
+        return { error: tr("{label} must be valid JSON", { label }) };
       }
     case "datetime": {
       const date = new Date(text);
       return Number.isNaN(date.getTime())
-        ? { error: `${field.label} is not a valid date` }
+        ? { error: tr("{label} is not a valid date", { label }) }
         : { value: date.toISOString() };
     }
     default:
@@ -143,7 +156,11 @@ const parseScalar = (field: FieldConfig, raw: string): Parsed => {
 const parseLines = (field: FieldConfig, rows: FormValues[]): Parsed => {
   if (rows.length === 0) {
     return field.required
-      ? { error: `Add at least one ${field.label.toLowerCase()} row` }
+      ? {
+          error: tr("Add at least one {label} row", {
+            label: tr(field.label).toLowerCase(),
+          }),
+        }
       : { skip: true };
   }
   const bodies: Record<string, unknown>[] = [];
@@ -151,7 +168,13 @@ const parseLines = (field: FieldConfig, rows: FormValues[]): Parsed => {
     const result = serializeValues(field.fields ?? [], row);
     if (!result.ok) {
       const first = Object.values(result.errors)[0];
-      return { error: `${field.label}, row ${index + 1}: ${first}` };
+      return {
+        error: tr("{label}, row {row}: {message}", {
+          label: tr(field.label),
+          row: index + 1,
+          message: first ?? "",
+        }),
+      };
     }
     bodies.push(result.body);
   }
@@ -162,7 +185,12 @@ const parseGroup = (field: FieldConfig, value: FormValues): Parsed => {
   const result = serializeValues(field.fields ?? [], value);
   if (!result.ok) {
     const first = Object.values(result.errors)[0];
-    return { error: `${field.label}: ${first}` };
+    return {
+      error: tr("{label}: {message}", {
+        label: tr(field.label),
+        message: first ?? "",
+      }),
+    };
   }
   return Object.keys(result.body).length === 0 && !field.required
     ? { skip: true }

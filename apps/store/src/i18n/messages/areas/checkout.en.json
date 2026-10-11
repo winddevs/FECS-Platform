@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "title": "Checkout"
+  },
+  "layout": {
+    "backToCart": "Back to shopping cart",
+    "back": "Back"
+  },
+  "notFound": {
+    "metaTitle": "404",
+    "metaDescription": "Something went wrong",
+    "title": "Page not found",
+    "description": "The page you tried to access does not exist.",
+    "goHome": "Go to frontpage"
+  },
+  "summary": {
+    "title": "In your cart"
+  },
+  "edit": "Edit",
+  "address": {
+    "title": "Shipping address",
+    "billingTitle": "Billing address",
+    "contact": "Contact",
+    "continue": "Continue to delivery",
+    "sameAsShipping": "Billing address same as shipping address",
+    "sameAddressSummary": "Billing and delivery address are the same.",
+    "savedAddressPrompt": "Hi {name}, do you want to use one of your saved addresses?",
+    "chooseAddress": "Choose an address",
+    "emailTitle": "Enter a valid email address.",
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "address": "Address",
+      "company": "Company",
+      "postalCode": "Postal code",
+      "city": "City",
+      "country": "Country",
+      "province": "State / Province",
+      "email": "Email",
+      "phone": "Phone"
+    }
+  },
+  "delivery": {
+    "title": "Delivery",
+    "shippingMethod": "Shipping method",
+    "shippingMethodHint": "How would you like your order delivered?",
+    "pickup": "Pick up your order",
+    "store": "Store",
+    "chooseStore": "Choose a store near you",
+    "continue": "Continue to payment",
+    "method": "Method"
+  },
+  "payment": {
+    "title": "Payment",
+    "method": "Payment method",
+    "details": "Payment details",
+    "giftCard": "Gift card",
+    "enterCardDetails": "Enter card details",
+    "continueToReview": "Continue to review",
+    "anotherStep": "Another step will appear",
+    "cardPrompt": "Enter your card details:",
+    "testBadge": {
+      "label": "Attention:",
+      "text": "For testing purposes only."
+    },
+    "providers": {
+      "creditCard": "Credit card",
+      "manual": "Manual payment"
+    }
+  },
+  "review": {
+    "title": "Review",
+    "terms": "By clicking the Place Order button, you confirm that you have read, understand and accept our Terms of Use, Terms of Sale and Returns Policy and acknowledge that you have read FECS Fashion's Privacy Policy.",
+    "placeOrder": "Place order",
+    "selectPaymentMethod": "Select a payment method"
+  },
+  "discount": {
+    "add": "Add promotion code(s)",
+    "inputLabel": "Promotion code",
+    "apply": "Apply",
+    "applied": "Promotion(s) applied:",
+    "remove": "Remove discount code from order"
+  }
+}

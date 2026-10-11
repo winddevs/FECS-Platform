@@ -30,7 +30,7 @@ type Args = {
 export const instant = false;
 
 export default async function RootLayout({ children, params }: Args) {
-  const { locale } = (await params) ?? "en";
+  const { locale } = await params;
   const currentLocale = localization.locales.find((loc) => loc.code === locale);
   const direction = currentLocale?.rtl ? "rtl" : "ltr";
 
@@ -86,23 +86,25 @@ export const generateMetadata = async ({
 
   const rootMeta = createMetadata({
     metadataBase: new URL(getServerSideURL()),
+    locale,
     openGraph: mergeOpenGraph({
-      title: "ecommerce home page",
-      description: "ecommerce landing page",
+      title: dictionary.messages.metadata.title,
+      description: dictionary.messages.metadata.description,
       url: new URL(getServerSideURL()),
       images: [],
     }),
     other: {
       "facebook-domain-verification": process.env.FACEBOOK_DOMAIN_VERIFICATION!,
     },
-    ...dictionary.messages.metadata,
+    title: dictionary.messages.metadata.title,
+    description: dictionary.messages.metadata.description,
   });
 
   return rootMeta;
 };
 
 export function generateStaticParams() {
-  const defaultRegion = process.env.NEXT_PUBLIC_DEFAULT_REGION || "tn";
+  const defaultRegion = process.env.NEXT_PUBLIC_DEFAULT_REGION || "vn";
 
   return routing.locales.map((locale) => ({
     locale,

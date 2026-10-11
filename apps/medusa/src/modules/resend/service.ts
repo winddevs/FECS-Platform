@@ -1,4 +1,11 @@
-import { EmailTemplate, emailSubjects, renderTemplate } from "@ecommerce/email";
+import {
+  EmailLocale,
+  EmailTemplate,
+  emailSubjects,
+  getEmailSubject,
+  renderTemplate,
+  resolveTemplateLocale,
+} from "@ecommerce/email";
 import {
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
@@ -54,11 +61,12 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
     }
   }
 
-  getTemplateSubject(template: EmailTemplate) {
+  getTemplateSubject(template: EmailTemplate, locale: EmailLocale) {
+    // `html_templates[template].subject` overrides win, regardless of locale.
     if (this.options.html_templates?.[template]?.subject) {
       return this.options.html_templates[template].subject;
     }
-    return emailSubjects[template] || "New Email";
+    return getEmailSubject(template, locale) || "New Email";
   }
 
   async send(
@@ -67,19 +75,23 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
     const template = notification.template as EmailTemplate;
 
     if (
-      !(template in emailSubjects) &&
+      !(template in emailSubjects.vi) &&
       !this.options.html_templates?.[template]
     ) {
       this.logger.error(
-        `Couldn't find an email template for ${notification.template}. The valid options are ${Object.keys(emailSubjects).join(", ")}`
+        `Couldn't find an email template for ${notification.template}. The valid options are ${Object.keys(emailSubjects.vi).join(", ")}`
       );
       return {};
     }
 
+    // `data.locale` -> `data.order.locale` -> `data.order.metadata.locale`
+    // -> env EMAIL_DEFAULT_LOCALE (default "vi"), normalised to vi | en.
+    const locale = resolveTemplateLocale(notification.data);
+
     const commonOptions = {
       from: this.options.from,
       to: [notification.to],
-      subject: this.getTemplateSubject(template),
+      subject: this.getTemplateSubject(template, locale),
     };
 
     let html: string;
@@ -88,7 +100,7 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
       html = this.options.html_templates[template].content;
     } else {
       try {
-        html = await renderTemplate(template, notification.data);
+        html = await renderTemplate(template, notification.data, locale);
       } catch (error) {
         this.logger.error(
           `Failed to render email template ${template}`,
@@ -98,9 +110,19 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
       }
     }
 
+    // Medusa attachments carry base64 `content`, which is what Resend expects
+    // for string content. Resend reads `contentType` (camelCase) and the
+    // content id from `contentId`.
+    const attachments = notification.attachments?.map((attachment) => ({
+      filename: attachment.filename,
+      content: attachment.content,
+      contentType: attachment.content_type,
+    }));
+
     const { data, error } = await this.resendClient.emails.send({
       ...commonOptions,
       html,
+      ...(attachments?.length ? { attachments } : {}),
     });
 
     if (error || !data) {

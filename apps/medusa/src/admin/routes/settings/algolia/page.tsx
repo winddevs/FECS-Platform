@@ -2,6 +2,7 @@ import { defineRouteConfig } from "@medusajs/admin-sdk";
 import { Container, Heading, Button, toast } from "@medusajs/ui";
 import { useMutation, QueryClientProvider } from "@tanstack/react-query";
 
+import { tr } from "../../../lib/i18n";
 import { queryClient } from "../../../lib/query-client";
 import { sdk } from "../../../lib/sdk";
 
@@ -12,11 +13,11 @@ const AlgoliaPageContent = () => {
         method: "POST",
       }),
     onSuccess: () => {
-      toast.success("Successfully triggered data sync to Algolia");
+      toast.success(tr("Successfully triggered data sync to Algolia"));
     },
     onError: (err) => {
       console.error(err);
-      toast.error("Failed to sync data to Algolia");
+      toast.error(tr("Failed to sync data to Algolia"));
     },
   });
 
@@ -27,11 +28,11 @@ const AlgoliaPageContent = () => {
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
-        <Heading level="h2">Algolia Sync</Heading>
+        <Heading level="h2">{tr("Algolia Sync")}</Heading>
       </div>
       <div className="px-6 py-8">
         <Button variant="primary" onClick={handleSync} isLoading={isPending}>
-          Sync Data to Algolia
+          {tr("Sync Data to Algolia")}
         </Button>
       </div>
     </Container>

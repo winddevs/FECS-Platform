@@ -1,0 +1,49 @@
+{
+  "pageRange": {
+    "noResults": "Search produced no results.",
+    "showing": "Showing {range} of {total} {label}",
+    "posts": "{count, plural, one {post} other {posts}}",
+    "items": "{count, plural, one {item} other {items}}"
+  },
+  "pagination": {
+    "label": "Pagination",
+    "goToPrevious": "Go to previous page",
+    "goToNext": "Go to next page"
+  },
+  "card": {
+    "noImage": "No image",
+    "untitledCategory": "Untitled category"
+  },
+  "logo": {
+    "alt": "Ecommerce logo"
+  },
+  "localeSwitcher": {
+    "label": "Language"
+  },
+  "theme": {
+    "label": "Select a theme",
+    "placeholder": "Theme",
+    "auto": "Auto",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "header": {
+    "categories": "Categories",
+    "account": "Account",
+    "cart": "Cart ({count})",
+    "groupImage": "Group image"
+  },
+  "footer": {
+    "logoAlt": "Footer logo"
+  },
+  "searchForm": {
+    "submit": "Submit"
+  },
+  "hero": {
+    "contactUs": "Contact Us"
+  },
+  "posts": {
+    "blogTitle": "Ecommerce blog",
+    "pageTitle": "Posts - page {page}"
+  }
+}

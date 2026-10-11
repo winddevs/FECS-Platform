@@ -1,5 +1,6 @@
 "use client";
 import type { CalloutBlock as COBlockProps, Media } from "@payload-types";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import type React from "react";
 
@@ -13,6 +14,7 @@ export const Callout: React.FC<COBlockProps> = ({
   role,
   imgs = [],
 }) => {
+  const t = useTranslations("blocks.alt");
   // Type guard to check if logo is a Media object
   const logoMedia = typeof logo === "number" ? null : (logo as Media);
 
@@ -23,7 +25,7 @@ export const Callout: React.FC<COBlockProps> = ({
         <div className="mb-6">
           <Image
             src={logoMedia?.url!}
-            alt={logoMedia.alt || "Company logo"}
+            alt={logoMedia.alt || t("companyLogo")}
             width={logoMedia.width || 150}
             height={logoMedia.height || 50}
             className="h-12 w-auto object-contain"
@@ -61,7 +63,7 @@ export const Callout: React.FC<COBlockProps> = ({
               >
                 <Image
                   src={imgMedia?.url!}
-                  alt={imgMedia.alt || "Callout image"}
+                  alt={imgMedia.alt || t("calloutImage")}
                   fill
                   className="object-cover"
                 />

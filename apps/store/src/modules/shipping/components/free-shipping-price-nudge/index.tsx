@@ -10,6 +10,7 @@ import {
 } from "@medusajs/types";
 import { Button, clx } from "@medusajs/ui";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { StoreFreeShippingPrice } from "types/global";
 
@@ -141,6 +142,9 @@ function FreeShippingInline({
     remaining_percentage: number;
   };
 }) {
+  const t = useTranslations("shipping");
+  const locale = useLocale();
+
   return (
     <div className="bg-neutral-100 p-2 rounded-lg border">
       <div className="space-y-1.5">
@@ -149,10 +153,10 @@ function FreeShippingInline({
             {price.target_reached ? (
               <div className="flex items-center gap-1.5">
                 <CheckCircleSolid className="text-green-500 inline-block" />{" "}
-                Free Shipping unlocked!
+                {t("unlocked")}
               </div>
             ) : (
-              `Unlock Free Shipping`
+              t("unlock")
             )}
           </div>
 
@@ -161,14 +165,16 @@ function FreeShippingInline({
               "opacity-0 invisible": price.target_reached,
             })}
           >
-            Only{" "}
-            <span className="text-neutral-950">
-              {convertToLocale({
+            {t.rich("remaining", {
+              amount: (chunks) => (
+                <span className="text-neutral-950">{chunks}</span>
+              ),
+              value: convertToLocale({
                 amount: price.target_remaining,
                 currency_code: cart.currency_code,
-              })}
-            </span>{" "}
-            away
+                locale,
+              }),
+            })}
           </div>
         </div>
         <div className="flex justify-between gap-1">
@@ -195,6 +201,8 @@ function FreeShippingPopup({
   cart: StoreCart;
   price: StoreFreeShippingPrice;
 }) {
+  const t = useTranslations("shipping");
+  const locale = useLocale();
   const [isClosed, setIsClosed] = useState(false);
 
   return (
@@ -212,6 +220,7 @@ function FreeShippingPopup({
         <Button
           className="rounded-full bg-neutral-900 shadow-none outline-none border-none text-[15px] p-2"
           onClick={() => setIsClosed(true)}
+          aria-label={t("close")}
         >
           <XMark />
         </Button>
@@ -225,10 +234,10 @@ function FreeShippingPopup({
                 {price.target_reached ? (
                   <div className="flex items-center gap-1.5">
                     <CheckCircleSolid className="text-green-500 inline-block" />{" "}
-                    Free Shipping unlocked!
+                    {t("unlocked")}
                   </div>
                 ) : (
-                  `Unlock Free Shipping`
+                  t("unlock")
                 )}
               </div>
 
@@ -237,14 +246,16 @@ function FreeShippingPopup({
                   "opacity-0 invisible": price.target_reached,
                 })}
               >
-                Only{" "}
-                <span className="text-white">
-                  {convertToLocale({
+                {t.rich("remaining", {
+                  amount: (chunks) => (
+                    <span className="text-white">{chunks}</span>
+                  ),
+                  value: convertToLocale({
                     amount: price.target_remaining,
                     currency_code: cart.currency_code,
-                  })}
-                </span>{" "}
-                away
+                    locale,
+                  }),
+                })}
               </div>
             </div>
             <div className="flex justify-between gap-1">
@@ -267,14 +278,14 @@ function FreeShippingPopup({
             className="rounded-2xl bg-transparent shadow-none outline-none border-[1px] border-white text-[15px] py-2.5 px-4"
             href="/cart"
           >
-            View cart
+            {t("viewCart")}
           </LocalizedClientLink>
 
           <LocalizedClientLink
             className="flex-grow rounded-2xl bg-white text-neutral-950 shadow-none outline-none border-[1px] border-white text-[15px] py-2.5 px-4 text-center"
             href="/store"
           >
-            View products
+            {t("viewProducts")}
           </LocalizedClientLink>
         </div>
       </div>

@@ -7,7 +7,10 @@ import { isEnabled } from "../lib/feature-flags";
 import { socialLocale } from "../lib/inbox/handlers/meta";
 import { notifyCustomer } from "../lib/social/notify";
 import { SOCIAL_COMMERCE_MODULE } from "../modules/socialCommerce";
-import { orderConfirmedText } from "../modules/socialCommerce/lib/messages";
+import {
+  orderConfirmedText,
+  orderPrefix,
+} from "../modules/socialCommerce/lib/messages";
 import type SocialCommerceModuleService from "../modules/socialCommerce/service";
 
 /**
@@ -35,17 +38,14 @@ export default async function notifyOrderConfirmed({
   if (!order?.customer_id) {
     return;
   }
-  const locale = socialLocale();
-  const prefix =
-    locale === "vi"
-      ? `Đơn #${order.display_id}: `
-      : `Order #${order.display_id}: `;
+  const fallbackLocale = socialLocale();
   await notifyCustomer(
     {
       service: container.resolve<SocialCommerceModuleService>(
         SOCIAL_COMMERCE_MODULE
       ),
       channel: getMessageChannel(),
+      locale: fallbackLocale,
       maxPerHour: await readSetting(container, "social.notifications_per_hour"),
     },
     {
@@ -53,7 +53,8 @@ export default async function notifyOrderConfirmed({
       dedupe_key: `order:${order.id}:CONFIRMED`,
       event_type: "order.placed",
       category: "ORDER",
-      text: `${prefix}${orderConfirmedText(locale)}`,
+      text: (locale) =>
+        `${orderPrefix(order.display_id, locale)}${orderConfirmedText(locale)}`,
     }
   );
 }

@@ -10,6 +10,7 @@ import { LabelButton } from "../../lib/erp/label-dialog";
 import { LookupBox } from "../../lib/erp/lookup-box";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   balanceColumns,
   locationColumns,
@@ -29,19 +30,21 @@ const ScanResult = ({ scan }: { scan: ScanResponse }) => {
         <DetailSection
           actions={
             <LabelButton
-              label="Print label"
+              label={tr("Print label")}
               path={`${BASE}/labels/roll/${encodeURIComponent(String(scan.roll.roll_code))}`}
-              title={`Roll label ${String(scan.roll.roll_code)}`}
+              title={tr("Roll label {code}", {
+                code: String(scan.roll.roll_code),
+              })}
             />
           }
-          title={`Roll ${String(scan.roll.roll_code)}`}
+          title={tr("Roll {code}", { code: String(scan.roll.roll_code) })}
         >
           <KeyValueGrid columns={rollColumns} row={scan.roll} />
         </DetailSection>
         <DetailSection title="Stock of this roll">
           <MiniTable
             columns={balanceColumns}
-            label="Roll balances"
+            label={tr("Roll balances")}
             rows={scan.balances}
           />
         </DetailSection>
@@ -53,19 +56,21 @@ const ScanResult = ({ scan }: { scan: ScanResponse }) => {
       <DetailSection
         actions={
           <LabelButton
-            label="Print label"
+            label={tr("Print label")}
             path={`${BASE}/labels/location/${encodeURIComponent(String(scan.location.code))}`}
-            title={`Location label ${String(scan.location.code)}`}
+            title={tr("Location label {code}", {
+              code: String(scan.location.code),
+            })}
           />
         }
-        title={`Location ${String(scan.location.code)}`}
+        title={tr("Location {code}", { code: String(scan.location.code) })}
       >
         <KeyValueGrid columns={locationColumns} row={scan.location} />
       </DetailSection>
       <DetailSection title="Stock at this location">
         <MiniTable
           columns={balanceColumns}
-          label="Location balances"
+          label={tr("Location balances")}
           rows={scan.balances}
         />
       </DetailSection>
@@ -91,9 +96,9 @@ export const ScanTab = () => {
     <div className="flex flex-col divide-y">
       <div className="px-6 py-4">
         <LookupBox
-          label="Scan or type a roll / location code"
+          label={tr("Scan or type a roll / location code")}
           onLookup={setCode}
-          placeholder="e.g. ROLL-0001"
+          placeholder={tr("e.g. ROLL-0001")}
         />
       </div>
       {code ? <ScanLookup code={code} key={code} /> : null}

@@ -1,7 +1,9 @@
 "use client";
 
 import type { OptionValueGroup } from "@lib/data/product-options";
+import { intlTag } from "@lib/util/locale-format";
 import { Filter, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -39,6 +41,9 @@ const RefinementList = ({
   tags = [],
   optionValues,
 }: RefinementListProps) => {
+  const t = useTranslations("store.filters");
+  const tPrice = useTranslations("store.price");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -174,6 +179,12 @@ const RefinementList = ({
     [types, tags, collections, categories, optionValues]
   );
 
+  const formatPrice = useCallback(
+    (value: string) =>
+      new Intl.NumberFormat(intlTag(locale)).format(Number(value)),
+    [locale]
+  );
+
   const activeFilters = useMemo(() => {
     const result: {
       key: string;
@@ -186,7 +197,7 @@ const RefinementList = ({
         result.push({
           key: "price_from",
           value: values[0],
-          label: `From $${values[0]}`,
+          label: tPrice("from", { amount: formatPrice(values[0]) }),
         });
         continue;
       }
@@ -194,7 +205,7 @@ const RefinementList = ({
         result.push({
           key: "price_to",
           value: values[0],
-          label: `Up to $${values[0]}`,
+          label: tPrice("upTo", { amount: formatPrice(values[0]) }),
         });
         continue;
       }
@@ -204,7 +215,7 @@ const RefinementList = ({
     }
 
     return result;
-  }, [filters, resolveLabel]);
+  }, [filters, resolveLabel, tPrice, formatPrice]);
 
   const handlePriceChange = useCallback(
     (key: string, value: string | null) => {
@@ -218,7 +229,7 @@ const RefinementList = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="size-4" />
-          <span className="text-sm font-medium">Filters</span>
+          <span className="text-sm font-medium">{t("title")}</span>
           {activeCount > 0 && (
             <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
               {activeCount}
@@ -231,7 +242,7 @@ const RefinementList = ({
             onClick={clearFilters}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            Clear all
+            {t("clearAll")}
           </button>
         )}
       </div>
@@ -257,7 +268,7 @@ const RefinementList = ({
       {categories.length > 0 && (
         <>
           <FilterCheckboxGroup
-            title="Categories"
+            title={t("categories")}
             options={categories}
             selected={filters.category_id ?? []}
             onChange={(values) => setFilter("category_id", values)}
@@ -269,7 +280,7 @@ const RefinementList = ({
       {collections.length > 0 && (
         <>
           <FilterCheckboxGroup
-            title="Collections"
+            title={t("collections")}
             options={collections}
             selected={filters.collection_id ?? []}
             onChange={(values) => setFilter("collection_id", values)}
@@ -281,7 +292,7 @@ const RefinementList = ({
       {types.length > 0 && (
         <>
           <FilterCheckboxGroup
-            title="Product Type"
+            title={t("productType")}
             options={types}
             selected={filters.type_id ?? []}
             onChange={(values) => setFilter("type_id", values)}
@@ -293,7 +304,7 @@ const RefinementList = ({
       {tags.length > 0 && (
         <>
           <FilterCheckboxGroup
-            title="Tags"
+            title={t("tags")}
             options={tags}
             selected={filters.tag_id ?? []}
             onChange={(values) => setFilter("tag_id", values)}
@@ -348,7 +359,7 @@ const RefinementList = ({
             className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium hover:bg-accent transition-colors"
           >
             <Filter className="size-4" />
-            Filters
+            {t("title")}
             {activeCount > 0 && (
               <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
                 {activeCount}
@@ -380,7 +391,7 @@ const RefinementList = ({
           className="fixed inset-0 z-50 small:hidden"
           role="dialog"
           aria-modal="true"
-          aria-label="Filters"
+          aria-label={t("title")}
         >
           <div
             className="fixed inset-0 bg-black/50"
@@ -393,7 +404,7 @@ const RefinementList = ({
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <Filter className="size-4" />
-                <span className="text-sm font-medium">Filters</span>
+                <span className="text-sm font-medium">{t("title")}</span>
                 {activeCount > 0 && (
                   <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
                     {activeCount}
@@ -403,6 +414,7 @@ const RefinementList = ({
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(false)}
+                aria-label={t("close")}
                 className="p-1 hover:bg-accent rounded-md transition-colors"
               >
                 <X className="size-4" />

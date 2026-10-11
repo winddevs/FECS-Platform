@@ -1,20 +1,9 @@
+import { useTranslations } from "next-intl";
 import React from "react";
-
-const defaultLabels = {
-  plural: "Docs",
-  singular: "Doc",
-};
-
-const defaultCollectionLabels = {
-  posts: {
-    plural: "Posts",
-    singular: "Post",
-  },
-};
 
 export const PageRange: React.FC<{
   className?: string;
-  collection?: keyof typeof defaultCollectionLabels;
+  collection?: "posts";
   collectionLabels?: {
     plural?: string;
     singular?: string;
@@ -31,6 +20,7 @@ export const PageRange: React.FC<{
     limit,
     totalDocs,
   } = props;
+  const t = useTranslations("components.pageRange");
 
   let indexStart = (currentPage ? currentPage - 1 : 1) * (limit || 1) + 1;
   if (totalDocs && indexStart > totalDocs) indexStart = 0;
@@ -38,21 +28,25 @@ export const PageRange: React.FC<{
   let indexEnd = (currentPage || 1) * (limit || 1);
   if (totalDocs && indexEnd > totalDocs) indexEnd = totalDocs;
 
-  const { plural, singular } =
-    collectionLabelsFromProps ||
-    (collection ? defaultCollectionLabels[collection] : undefined) ||
-    defaultLabels ||
-    {};
+  const hasDocs = typeof totalDocs !== "undefined" && totalDocs > 0;
+  const range = `${indexStart}${indexStart > 0 ? ` - ${indexEnd}` : ""}`;
+
+  // Labels supplied by the caller win; otherwise use the localized ones.
+  const getLabel = (): string => {
+    const count = totalDocs ?? 0;
+    if (collectionLabelsFromProps) {
+      const { plural, singular } = collectionLabelsFromProps;
+      return (count > 1 ? plural : singular) ?? "";
+    }
+    return collection === "posts"
+      ? t("posts", { count })
+      : t("items", { count });
+  };
 
   return (
     <div className={[className, "font-semibold"].filter(Boolean).join(" ")}>
-      {(typeof totalDocs === "undefined" || totalDocs === 0) &&
-        "Search produced no results."}
-      {typeof totalDocs !== "undefined" &&
-        totalDocs > 0 &&
-        `Showing ${indexStart}${indexStart > 0 ? ` - ${indexEnd}` : ""} of ${totalDocs} ${
-          totalDocs > 1 ? plural : singular
-        }`}
+      {!hasDocs && t("noResults")}
+      {hasDocs && t("showing", { range, total: totalDocs, label: getLabel() })}
     </div>
   );
 };

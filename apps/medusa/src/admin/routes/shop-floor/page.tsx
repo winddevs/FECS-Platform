@@ -7,7 +7,8 @@ import { BundleStation } from "../../screens/shopfloor/bundle-station";
 import { bundlesList } from "../../screens/shopfloor/shopfloor-config";
 
 export const config = defineRouteConfig({
-  label: "Shop Floor",
+  label: "menu.shopFloor",
+  translationNs: "fecs",
   icon: ShopFloorIcon,
 });
 

@@ -2,6 +2,7 @@ import type { OptionValueGroup } from "@lib/data/product-options";
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid";
 import RefinementList from "@modules/store/components/refinement-list";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 
 import type { FilterOption } from "../../../types/filters";
@@ -36,6 +37,7 @@ const StoreTemplate = ({
   priceFrom?: string;
   priceTo?: string;
 }) => {
+  const t = useTranslations("store");
   const pageNumber = page ? parseInt(page) : 1;
   const sort = sortBy || "created_at";
 
@@ -54,7 +56,7 @@ const StoreTemplate = ({
       />
       <div className="w-full">
         <div className="mb-8 text-2xl-semi">
-          <h1 data-testid="store-page-title">All products</h1>
+          <h1 data-testid="store-page-title">{t("title")}</h1>
         </div>
         <Suspense fallback={<SkeletonProductGrid />}>
           <PaginatedProducts

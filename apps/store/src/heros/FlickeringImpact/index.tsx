@@ -1,6 +1,7 @@
 import { FlickeringGrid } from "@ecommerce/ui/components/flickeringPatterns/flickeringDots";
 import { cn } from "@ecommerce/ui/lib/utils";
 import type { Page } from "@payload-types";
+import { useTranslations } from "next-intl";
 import React from "react";
 
 import RichText from "@/components/RichText";
@@ -19,6 +20,7 @@ export const FlickeringImpactHero: React.FC<FlickeringImpactHeroType> = ({
   children,
   richText,
 }) => {
+  const t = useTranslations("components.hero");
   return (
     <div className="relative overflow-hidden min-h-[42rem] h-fit fading-border-t">
       <div className="flex flex-col container">
@@ -48,7 +50,7 @@ export const FlickeringImpactHero: React.FC<FlickeringImpactHeroType> = ({
           </div>
           <div className="flex justify-start items-center w-full">
             <button className="fading-border relative p-6 shadow-md">
-              Contact Us
+              {t("contactUs")}
             </button>
           </div>
         </div>

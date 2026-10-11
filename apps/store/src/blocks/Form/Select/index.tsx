@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@ecommerce/ui/components/select";
 import type { SelectField } from "@payloadcms/plugin-form-builder/types";
+import { useTranslations } from "next-intl";
 import React from "react";
 import type { Control, FieldErrorsImpl } from "react-hook-form";
 import { Controller } from "react-hook-form";
@@ -20,13 +21,14 @@ export const Select: React.FC<
     errors: Partial<FieldErrorsImpl>;
   }
 > = ({ name, control, errors, label, options, required, width }) => {
+  const t = useTranslations("blocks.form");
   return (
     <Width width={width}>
       <Label htmlFor={name}>
         {label}
         {required && (
           <span className="required">
-            * <span className="sr-only">(required)</span>
+            * <span className="sr-only">{t("required")}</span>
           </span>
         )}
       </Label>
@@ -39,6 +41,7 @@ export const Select: React.FC<
 
           return (
             <SelectComponent
+              items={options}
               onValueChange={(val) => onChange(val)}
               value={controlledValue?.value}
             >

@@ -1,0 +1,24 @@
+{
+  "cartTotals": {
+    "subtotal": "Subtotal (excl. shipping and taxes)",
+    "discount": "Discount",
+    "shipping": "Shipping",
+    "taxes": "Taxes",
+    "giftCard": "Gift card",
+    "total": "Total"
+  },
+  "lineItem": {
+    "variant": "Variant: {title}",
+    "original": "Original:"
+  },
+  "input": {
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "modal": {
+    "close": "Close"
+  },
+  "nativeSelect": {
+    "placeholder": "Select..."
+  }
+}

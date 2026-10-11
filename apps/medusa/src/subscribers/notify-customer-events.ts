@@ -12,6 +12,7 @@ import {
 } from "../lib/social/notification-events";
 import { notifyCustomer } from "../lib/social/notify";
 import { SOCIAL_COMMERCE_MODULE } from "../modules/socialCommerce";
+import { orderPrefix } from "../modules/socialCommerce/lib/messages";
 import type SocialCommerceModuleService from "../modules/socialCommerce/service";
 
 type Data = Record<string, any>;
@@ -31,8 +32,10 @@ export default async function notifyCustomerEvents({
     return;
   }
   const envelope = event.data;
-  const locale = socialLocale();
-  const notification = describeCustomerNotification(envelope, locale);
+  const fallbackLocale = socialLocale();
+  // Only decides whether this event notifies anyone; the text itself is
+  // written per customer below.
+  const notification = describeCustomerNotification(envelope, fallbackLocale);
   if (!notification) {
     return;
   }
@@ -47,16 +50,14 @@ export default async function notifyCustomerEvents({
   if (!customerId) {
     return;
   }
-  const prefix =
-    locale === "vi"
-      ? `Đơn #${orders[0].display_id}: `
-      : `Order #${orders[0].display_id}: `;
+  const displayId = orders[0].display_id;
   await notifyCustomer(
     {
       service: container.resolve<SocialCommerceModuleService>(
         SOCIAL_COMMERCE_MODULE
       ),
       channel: getMessageChannel(),
+      locale: fallbackLocale,
       maxPerHour: await readSetting(container, "social.notifications_per_hour"),
     },
     {
@@ -64,7 +65,8 @@ export default async function notifyCustomerEvents({
       dedupe_key: notification.dedupe_key,
       category: notification.category,
       event_type: envelope.event_type,
-      text: `${prefix}${notification.text}`,
+      text: (locale) =>
+        `${orderPrefix(displayId, locale)}${describeCustomerNotification(envelope, locale)?.text ?? notification.text}`,
     }
   );
 }

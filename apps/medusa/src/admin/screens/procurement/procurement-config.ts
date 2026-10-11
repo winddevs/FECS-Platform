@@ -4,6 +4,7 @@ import type {
   ResourceConfig,
   Row,
 } from "../../lib/erp/resource-types";
+import { tr } from "../../lib/i18n";
 
 const SUPPLIER_STATUSES = ["ACTIVE", "INACTIVE", "BLOCKED"] as const;
 const PO_STATUSES = [
@@ -156,7 +157,12 @@ export const purchaseOrderFields: readonly FieldConfig[] = [
 
 const lineOption = (line: Row) => ({
   value: String(line.id),
-  label: `#${String(line.line_no)} ${String(line.material_id)} (ordered ${String(line.ordered_qty)}, received ${String(line.received_qty)})`,
+  label: tr("#{line} {material} (ordered {ordered}, received {received})", {
+    line: String(line.line_no),
+    material: String(line.material_id),
+    ordered: String(line.ordered_qty),
+    received: String(line.received_qty),
+  }),
 });
 
 /** Goods receipt form; PO lines become the choices of each receipt line. */

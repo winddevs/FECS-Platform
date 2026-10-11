@@ -6,7 +6,7 @@ import { routing } from "./i18n/routing";
 
 const BACKEND_URL = process.env.MEDUSA_BACKEND_URL;
 const PUBLISHABLE_API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
-const DEFAULT_REGION = process.env.NEXT_PUBLIC_DEFAULT_REGION || "tn";
+const DEFAULT_REGION = process.env.NEXT_PUBLIC_DEFAULT_REGION || "vn";
 
 const regionMapCache = {
   regionMap: new Map<string, HttpTypes.StoreRegion>(),

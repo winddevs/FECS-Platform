@@ -1,5 +1,7 @@
 import { Badge } from "@medusajs/ui";
 
+import { tr, trStatus } from "../i18n";
+
 type BadgeColor = "green" | "red" | "blue" | "orange" | "grey" | "purple";
 
 const GROUPS: Record<Exclude<BadgeColor, "grey">, readonly string[]> = {
@@ -107,11 +109,11 @@ export const StatusBadge = ({
   status: string | null | undefined;
 }) => {
   if (!status) {
-    return <span aria-label="No status">-</span>;
+    return <span aria-label={tr("No status")}>-</span>;
   }
   return (
     <Badge color={statusColor(status)} size="2xsmall">
-      {status.replace(/_/g, " ")}
+      {trStatus(status)}
     </Badge>
   );
 };

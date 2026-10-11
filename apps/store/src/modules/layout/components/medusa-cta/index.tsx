@@ -1,13 +1,15 @@
 import { Text } from "@medusajs/ui";
+import { useTranslations } from "next-intl";
 
 import Medusa from "@/modules/common/icons/medusa";
 import NextJs from "@/modules/common/icons/nextjs";
 import PayloadCMS from "@/modules/common/icons/payloadcms";
 
 const MedusaCTA = () => {
+  const t = useTranslations("layout.footer");
   return (
     <Text className="flex gap-x-2 txt-compact-small-plus items-center">
-      Powered by
+      {t("poweredBy")}
       <a href="https://www.medusajs.com" target="_blank" rel="noreferrer">
         <Medusa fill="#9ca3af" className="fill-[#9ca3af]" />
       </a>

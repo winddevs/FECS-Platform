@@ -1,6 +1,7 @@
 "use server";
 
 import { sdk } from "@lib/config";
+import { AppError } from "@lib/util/medusa-error";
 import { filterProductsByPrice, sortProducts } from "@lib/util/sort-products";
 import { HttpTypes } from "@medusajs/types";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
@@ -24,7 +25,10 @@ export const listProducts = async ({
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams;
 }> => {
   if (!countryCode && !regionId) {
-    throw new Error("Country code or region ID is required");
+    throw new AppError(
+      "Country code or region ID is required",
+      "invalidRequest"
+    );
   }
 
   const limit = queryParams?.limit || 12;

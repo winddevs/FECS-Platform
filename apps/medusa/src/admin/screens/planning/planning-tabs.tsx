@@ -5,6 +5,7 @@ import { ActionDrawer } from "../../lib/erp/action-drawer";
 import { ConfirmActionButton } from "../../lib/erp/confirm-action-button";
 import { ViewSwitch } from "../../lib/erp/page-shell";
 import { ResourceTable } from "../../lib/erp/resource-table";
+import { tr } from "../../lib/i18n";
 import {
   bomFields,
   bomHeaderColumns,
@@ -30,6 +31,10 @@ const MFG = "/admin/manufacturing";
 
 const BOM_DOC: VersionedDocConfig = {
   label: "BOM",
+  backLabel: "bills of materials",
+  releasePrompt:
+    "Release this BOM? Released versions are the ones manufacturing orders can use.",
+  newLabel: "New BOM",
   list: bomsList,
   base: `${MFG}/boms`,
   docKey: "bom",
@@ -42,6 +47,10 @@ const BOM_DOC: VersionedDocConfig = {
 
 const ROUTING_DOC: VersionedDocConfig = {
   label: "routing",
+  backLabel: "routings",
+  releasePrompt:
+    "Release this routing? Released versions are the ones manufacturing orders can use.",
+  newLabel: "New routing",
   list: routingsList,
   base: `${MFG}/routings`,
   docKey: "routing",
@@ -144,7 +153,7 @@ const LoadView = () => {
     <div className="flex flex-col">
       <div className="flex flex-col gap-y-1 px-6 pt-4">
         <Label htmlFor={id} size="small" weight="plus">
-          Load for day (UTC)
+          {tr("Load for day (UTC)")}
         </Label>
         <div className="w-48">
           <Input

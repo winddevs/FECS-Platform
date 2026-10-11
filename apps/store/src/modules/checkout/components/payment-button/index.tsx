@@ -5,6 +5,7 @@ import { placeOrder } from "@lib/data/cart";
 import { HttpTypes } from "@medusajs/types";
 import { Button } from "@medusajs/ui";
 import { useElements, useStripe } from "@stripe/react-stripe-js";
+import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
 
@@ -19,6 +20,7 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   cart,
   "data-testid": dataTestId,
 }) => {
+  const t = useTranslations("checkout.review");
   const { locale } = useParams<{ locale: string }>();
   const notReady =
     !cart ||
@@ -48,7 +50,7 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
         />
       );
     default:
-      return <Button disabled>Select a payment method</Button>;
+      return <Button disabled>{t("selectPaymentMethod")}</Button>;
   }
 };
 
@@ -63,6 +65,7 @@ const StripePaymentButton = ({
   "data-testid"?: string;
   locale: string;
 }) => {
+  const t = useTranslations("checkout.review");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -151,7 +154,7 @@ const StripePaymentButton = ({
         isLoading={submitting}
         data-testid={dataTestId}
       >
-        Place order
+        {t("placeOrder")}
       </Button>
       <ErrorMessage
         error={errorMessage}
@@ -168,6 +171,7 @@ const ManualTestPaymentButton = ({
   notReady: boolean;
   locale: string;
 }) => {
+  const t = useTranslations("checkout.review");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -196,7 +200,7 @@ const ManualTestPaymentButton = ({
         size="large"
         data-testid="submit-order-button"
       >
-        Place order
+        {t("placeOrder")}
       </Button>
       <ErrorMessage
         error={errorMessage}

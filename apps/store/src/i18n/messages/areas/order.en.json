@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "confirmedTitle": "Order Confirmed",
+    "confirmedDescription": "Your purchase was successful"
+  },
+  "completed": {
+    "thankYou": "Thank you!",
+    "placed": "Your order was placed successfully.",
+    "summary": "Summary"
+  },
+  "details": {
+    "title": "Order details",
+    "backToOverview": "Back to overview",
+    "confirmationSent": "We have sent the order confirmation details to <emailTag>{email}</emailTag>.",
+    "orderDate": "Order date:",
+    "orderNumber": "Order number:",
+    "orderStatus": "Order status:",
+    "paymentStatus": "Payment status:",
+    "downloadInvoice": "Download invoice",
+    "invoiceSuccess": "Invoice generated and downloaded successfully",
+    "invoiceFailed": "Failed to generate invoice: {error}"
+  },
+  "status": {
+    "fulfillment": {
+      "not_fulfilled": "Not fulfilled",
+      "partially_fulfilled": "Partially fulfilled",
+      "fulfilled": "Fulfilled",
+      "partially_shipped": "Partially shipped",
+      "shipped": "Shipped",
+      "partially_delivered": "Partially delivered",
+      "delivered": "Delivered",
+      "canceled": "Canceled"
+    },
+    "payment": {
+      "not_paid": "Not paid",
+      "awaiting": "Awaiting payment",
+      "authorized": "Authorized",
+      "partially_authorized": "Partially authorized",
+      "captured": "Paid",
+      "partially_captured": "Partially paid",
+      "partially_refunded": "Partially refunded",
+      "refunded": "Refunded",
+      "canceled": "Canceled",
+      "requires_action": "Requires action"
+    }
+  },
+  "onboarding": {
+    "title": "Your test order was successfully created! 🎉",
+    "subtitle": "You can now complete setting up your store in the admin.",
+    "cta": "Complete setup in admin"
+  },
+  "delivery": {
+    "title": "Delivery",
+    "shippingAddress": "Shipping address",
+    "contact": "Contact",
+    "method": "Method"
+  },
+  "payment": {
+    "title": "Payment",
+    "method": "Payment method",
+    "details": "Payment details",
+    "paidAt": "{amount} paid at {date}"
+  },
+  "summary": {
+    "title": "Order summary",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "giftCard": "Gift card",
+    "shipping": "Shipping",
+    "taxes": "Taxes",
+    "total": "Total"
+  },
+  "help": {
+    "title": "Need help?",
+    "contact": "Contact",
+    "returns": "Returns & exchanges"
+  },
+  "transfer": {
+    "requestTitle": "Transfer request for order {id}",
+    "requestIntro": "You've received a request to transfer ownership of your order ({id}). If you agree to this request, you can approve the transfer by clicking the button below.",
+    "ifAccept": "If you accept, the new owner will take over all responsibilities and permissions associated with this order.",
+    "ifIgnore": "If you do not recognize this request or wish to retain ownership, no further action is required.",
+    "acceptedTitle": "Order transferred!",
+    "acceptedText": "Order {id} has been successfully transferred to the new owner.",
+    "acceptFailed": "There was an error accepting the transfer. Please try again.",
+    "declinedTitle": "Order transfer declined!",
+    "declinedText": "Transfer of order {id} has been successfully declined.",
+    "declineFailed": "There was an error declining the transfer. Please try again.",
+    "errorMessage": "Error message: {error}",
+    "acceptedInline": "Order transferred successfully!",
+    "declinedInline": "Order transfer declined successfully!",
+    "accept": "Accept transfer",
+    "decline": "Decline transfer"
+  }
+}

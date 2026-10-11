@@ -3,6 +3,7 @@ import { defineRouteConfig } from "@medusajs/admin-sdk";
 import { MaterialsIcon } from "../../lib/erp/icons";
 import { TabbedPage } from "../../lib/erp/page-shell";
 import { ReconciliationView } from "../../lib/erp/reconciliation-view";
+import { tr } from "../../lib/i18n";
 import { ScanTab } from "../../screens/materials/scan-tab";
 import { StockTab } from "../../screens/materials/stock-tab";
 import {
@@ -14,7 +15,8 @@ import {
 } from "../../screens/materials/workflow-tabs";
 
 export const config = defineRouteConfig({
-  label: "Raw Materials",
+  label: "menu.rawMaterials",
+  translationNs: "fecs",
   icon: MaterialsIcon,
 });
 
@@ -35,7 +37,7 @@ const RawMaterialsPage = () => (
         content: (
           <ReconciliationView
             endpoint="/admin/material-inventory/reconciliation"
-            title="Ledger vs balances vs reservations"
+            title={tr("Ledger vs balances vs reservations")}
           />
         ),
       },

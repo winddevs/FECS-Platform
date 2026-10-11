@@ -10,6 +10,7 @@ import { LabelButton } from "../../lib/erp/label-dialog";
 import { LookupBox } from "../../lib/erp/lookup-box";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   bundleColumns,
   currentOperationColumns,
@@ -77,9 +78,9 @@ const StationActions = ({
         />
       ) : null}
       <LabelButton
-        label="Print ticket"
+        label={tr("Print ticket")}
         path={`${MFG}/bundles/by-code/${encodeURIComponent(code)}/label`}
-        title={`Bundle ticket ${code}`}
+        title={tr("Bundle ticket {code}", { code })}
       />
     </>
   );
@@ -101,7 +102,7 @@ const StationResult = ({
         <>
           <DetailSection
             actions={<StationActions allowed={allowed} bundle={bundle} />}
-            title={`Bundle ${String(bundle.bundle_code)}`}
+            title={tr("Bundle {code}", { code: String(bundle.bundle_code) })}
           >
             <KeyValueGrid columns={bundleColumns} row={bundle} />
           </DetailSection>
@@ -142,9 +143,9 @@ export const BundleStation = ({
     <div className="flex flex-col divide-y">
       <div className="px-6 py-4">
         <LookupBox
-          label="Scan or type a bundle code"
+          label={tr("Scan or type a bundle code")}
           onLookup={setCode}
-          placeholder="e.g. BND-0001"
+          placeholder={tr("e.g. BND-0001")}
         />
       </div>
       {code ? <StationResult allowed={allowed} code={code} key={code} /> : null}

@@ -112,9 +112,10 @@ const claimRound = async (
          SELECT 1 FROM ${table} earlier
          WHERE earlier.aggregate_id = t.aggregate_id
            AND earlier.status = 'PENDING' AND earlier.deleted_at IS NULL
-           AND (earlier.created_at, earlier.id) < (t.created_at, t.id)
+           AND (earlier.created_at, earlier.payload->>'occurred_at', earlier.id)
+             < (t.created_at, t.payload->>'occurred_at', t.id)
        )
-     ORDER BY t.created_at, t.id
+     ORDER BY t.created_at, t.payload->>'occurred_at', t.id
      LIMIT ?
      FOR UPDATE OF t SKIP LOCKED`,
     [limit]

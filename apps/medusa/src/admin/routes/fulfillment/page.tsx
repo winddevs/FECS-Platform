@@ -8,7 +8,8 @@ import {
 } from "../../screens/fulfillment/fulfillment-tabs";
 
 export const config = defineRouteConfig({
-  label: "Fulfillment",
+  label: "menu.fulfillment",
+  translationNs: "fecs",
   icon: FulfillmentIcon,
 });
 

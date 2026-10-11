@@ -264,6 +264,12 @@ if (process.env.INTEGRATION_TEST === "true") {
       // pod's memory, so any replica can serve any admin request.
       ...(useRedis ? { redisUrl } : {}),
       http: httpConfig,
+      // Production mode marks the admin session cookie Secure, which browsers
+      // only keep over HTTPS. The local demo stack is plain http://localhost,
+      // so without this nobody could sign in to the admin UI.
+      ...(localStack
+        ? { cookieOptions: { secure: false, sameSite: "lax" as const } }
+        : {}),
       // Bound the connection pool per replica: replicas x max must stay below
       // Postgres max_connections (use PgBouncer in front for large fleets).
       databaseDriverOptions: {

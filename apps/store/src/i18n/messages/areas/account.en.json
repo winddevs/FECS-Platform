@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "overview": {
+      "title": "Account",
+      "description": "Overview of your account activity."
+    },
+    "addresses": {
+      "title": "Addresses",
+      "description": "View your addresses"
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "Overview of your previous orders."
+    },
+    "orderDetail": {
+      "title": "Order #{displayId}",
+      "description": "View your order"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "View and edit your FECS Fashion profile."
+    },
+    "signIn": {
+      "title": "Sign in",
+      "description": "Sign in to your FECS Fashion account."
+    }
+  },
+  "pages": {
+    "addresses": {
+      "title": "Shipping Addresses",
+      "description": "View and update your shipping addresses, you can add as many as you like. Saving your addresses will make them available during checkout."
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "View your previous orders and their status. You can also create returns or exchanges for your orders if needed."
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "View and update your profile information, including your name, email, and phone number. You can also update your billing address, or change your password."
+    }
+  },
+  "layout": {
+    "questionsTitle": "Got questions?",
+    "questionsText": "You can find frequently asked questions and answers on our customer service page.",
+    "customerService": "Customer Service"
+  },
+  "nav": {
+    "account": "Account",
+    "greeting": "Hello {name}",
+    "overview": "Overview",
+    "profile": "Profile",
+    "addresses": "Addresses",
+    "orders": "Orders",
+    "logout": "Log out"
+  },
+  "form": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "company": "Company",
+    "address": "Address",
+    "apartment": "Apartment, suite, etc.",
+    "postalCode": "Postal code",
+    "city": "City",
+    "province": "Province / State",
+    "provinceShort": "Province",
+    "phone": "Phone",
+    "email": "Email",
+    "password": "Password"
+  },
+  "login": {
+    "title": "Welcome back",
+    "subtitle": "Sign in to access an enhanced shopping experience.",
+    "emailHint": "Enter a valid email address.",
+    "submit": "Sign in",
+    "notMember": "Not a member?",
+    "join": "Join us"
+  },
+  "register": {
+    "title": "Become a FECS Fashion Member",
+    "subtitle": "Create your FECS Fashion Member profile, and get access to an enhanced shopping experience.",
+    "agree": "By creating an account, you agree to FECS Fashion's <privacy>Privacy Policy</privacy> and <terms>Terms of Use</terms>.",
+    "submit": "Join",
+    "alreadyMember": "Already a member?",
+    "signIn": "Sign in"
+  },
+  "addressBook": {
+    "newAddress": "New address",
+    "addAddress": "Add address",
+    "editAddress": "Edit address",
+    "edit": "Edit",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "accountInfo": {
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes",
+    "updated": "{label}: updated successfully",
+    "defaultError": "An error occurred, please try again"
+  },
+  "profile": {
+    "nameLabel": "Name",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "billingAddressLabel": "Billing address",
+    "passwordLabel": "Password",
+    "noBillingAddress": "No billing address",
+    "passwordHidden": "The password is not shown for security reasons",
+    "passwordNotImplemented": "Password update is not implemented",
+    "oldPassword": "Old password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password"
+  },
+  "overview": {
+    "greeting": "Hello {name}",
+    "signedInAs": "Signed in as:",
+    "profile": "Profile",
+    "completed": "Completed",
+    "addresses": "Addresses",
+    "saved": "Saved",
+    "recentOrders": "Recent orders",
+    "datePlaced": "Date placed",
+    "orderNumber": "Order number",
+    "totalAmount": "Total amount",
+    "goToOrder": "Go to order #{displayId}",
+    "noRecentOrders": "No recent orders"
+  },
+  "orders": {
+    "itemCount": "{count, plural, one {# item} other {# items}}",
+    "more": "more",
+    "seeDetails": "See details",
+    "emptyTitle": "Nothing to see here",
+    "emptyText": "You don't have any orders yet, let us change that :)",
+    "continueShopping": "Continue shopping"
+  },
+  "transfer": {
+    "title": "Order transfers",
+    "descriptionLine1": "Can't find the order you are looking for?",
+    "descriptionLine2": "Connect an order to your account.",
+    "orderIdPlaceholder": "Order ID",
+    "submit": "Request transfer",
+    "requested": "Transfer for order {orderId} requested",
+    "emailSent": "Transfer request email sent to {email}",
+    "dismiss": "Dismiss"
+  }
+}

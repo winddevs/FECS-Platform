@@ -116,8 +116,18 @@ export const social = async (ctx) => {
   section("7.3 order, tracking and production inquiries");
   reply = await ask(psidLan, `order ${ctx.mtsOrder.display_id}`);
   check(
-    reply.includes(`#${ctx.mtsOrder.display_id}`) && /VND/.test(reply),
+    reply.includes(`#${ctx.mtsOrder.display_id}`) && /₫|VND/.test(reply),
     "the customer's own order is summarised"
+  );
+  reply = await ask(psidLan, `đơn ${ctx.mtsOrder.display_id}`);
+  check(
+    reply.includes(`Đơn #${ctx.mtsOrder.display_id}`) && /₫/.test(reply),
+    `a Vietnamese message is answered in Vietnamese with a formatted amount (got: ${reply})`
+  );
+  reply = await ask(psidLan, `sản xuất ${ctx.mtsOrder.display_id}`);
+  check(
+    /Tiến độ sản xuất|không cần sản xuất/.test(reply),
+    `'sản xuất <order>' from the help text finds the order (got: ${reply})`
   );
   reply = await ask(
     psidLan,

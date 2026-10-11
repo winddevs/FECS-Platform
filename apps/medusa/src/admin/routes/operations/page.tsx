@@ -8,7 +8,8 @@ import { OpsSummary } from "../../screens/operations/ops-summary";
 import { SettingsTab } from "../../screens/operations/settings-tab";
 
 export const config = defineRouteConfig({
-  label: "Operations",
+  label: "menu.operations",
+  translationNs: "fecs",
   icon: OperationsIcon,
 });
 

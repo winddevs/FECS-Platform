@@ -1,0 +1,17 @@
+{
+  "alt": {
+    "companyLogo": "Logo công ty",
+    "calloutImage": "Hình ảnh nổi bật",
+    "cardBackground": "Hình nền của thẻ",
+    "logo": "Logo",
+    "image": "Hình ảnh {number}",
+    "secondary": "{text} (hình phụ)"
+  },
+  "code": {
+    "copy": "Sao chép",
+    "copied": "Đã sao chép!"
+  },
+  "form": {
+    "required": "bắt buộc"
+  }
+}

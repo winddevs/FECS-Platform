@@ -1,0 +1,38 @@
+const dictionary: Record<string, string> = {
+  "At operation": "Tại công đoạn",
+  "Batch id": "Mã lô",
+  Buffer: "Bộ đệm",
+  Bundle: "Bó bán thành phẩm",
+  "Bundle station": "Trạm bó bán thành phẩm",
+  "Bundle {code}": "Bó {code}",
+  Bundles: "Bó bán thành phẩm",
+  "Finished-goods location": "Vị trí thành phẩm",
+  "Good quantity": "Số lượng đạt",
+  "Input quantity": "Số lượng đầu vào",
+  "MO status": "Trạng thái lệnh SX",
+  "Manufacturing order": "Lệnh sản xuất",
+  Note: "Ghi chú",
+  "Operation sequence": "Thứ tự công đoạn",
+  Pack: "Đóng gói",
+  "Quantity to pack": "Số lượng cần đóng gói",
+  "Reject quantity": "Số lượng loại bỏ",
+  "Repaired (good) quantity": "Số lượng đã sửa (đạt)",
+  Report: "Báo sản lượng",
+  "Report operation": "Báo sản lượng công đoạn",
+  "Report the quantities finished at an operation.":
+    "Báo số lượng đã hoàn thành tại một công đoạn.",
+  "Return rework": "Trả hàng sửa lại",
+  "Rework out": "Sửa xong",
+  "Rework quantity": "Số lượng sửa lại",
+  "Scan a bundle to report operations, inspect, return rework and pack.":
+    "Quét mã bó để báo sản lượng công đoạn, kiểm tra, trả hàng sửa lại và đóng gói.",
+  "Scan or type a bundle code": "Quét hoặc nhập mã bó",
+  "Scrapped quantity": "Số lượng hủy bỏ",
+  "Shop Floor": "Xưởng sản xuất",
+  "Waiting at operation": "Đang chờ tại công đoạn",
+  When: "Thời điểm",
+  "Work center": "Trạm sản xuất",
+  "e.g. BND-0001": "VD: BND-0001",
+};
+
+export default dictionary;

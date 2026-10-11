@@ -8,6 +8,7 @@ import {
   type Intent,
 } from "../../modules/socialCommerce/lib/intent";
 import {
+  detectLocale,
   orderText,
   productionText,
   shipmentText,
@@ -75,7 +76,7 @@ export const handleInboundMessage = async (
   deps: SocialDeps,
   inbound: InboundMessage
 ): Promise<InboundOutcome> => {
-  const { service, channel, readers, locale } = deps;
+  const { service, channel, readers } = deps;
   const now = (deps.now ?? (() => new Date()))();
   const identity = await service.touchIdentity({
     channel: inbound.channel,
@@ -83,6 +84,18 @@ export const handleInboundMessage = async (
     external_user_id: inbound.external_user_id,
     at: inbound.occurred_at,
   });
+  // Reply in the language the customer writes: this message if it is clear,
+  // else what we learned before, else the shop default.
+  const written = detectLocale(inbound.text);
+  const learned = identity.locale === "en" || identity.locale === "vi";
+  const locale: Locale =
+    written ?? (learned ? (identity.locale as Locale) : deps.locale);
+  if (written && written !== identity.locale) {
+    await service.setIdentityLocale({
+      identity_id: identity.id,
+      locale: written,
+    });
+  }
   const intent = await resolveIntent(deps, inbound.text, locale);
 
   const recorded = await service.recordInbound({

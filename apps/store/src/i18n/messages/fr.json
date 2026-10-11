@@ -1,6 +1,7 @@
 {
   "metadata": {
-    "title": "Ecommerce"
+    "title": "FECS Fashion",
+    "description": "Boutique de mode en ligne"
   },
   "date-published": "Date de publication",
   "author": "Auteur",
@@ -11,7 +12,6 @@
   "post": "Message",
   "showing": "Affichage",
   "of": "de",
-  "search": "Rechercher",
   "dashboard": "Tableau de bord",
   "previous": "Précédent",
   "next": "Suivant",

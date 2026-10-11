@@ -24,6 +24,9 @@ export const generateInvoicePdfWorkflow = createWorkflow(
         "id",
         "display_id",
         "created_at",
+        // BCP 47 tag, may be null. Drives the invoice language.
+        "locale",
+        "metadata",
         "currency_code",
         "total",
         "items.*",

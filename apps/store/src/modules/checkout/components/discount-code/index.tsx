@@ -6,6 +6,7 @@ import { InformationCircleSolid } from "@medusajs/icons";
 import { HttpTypes } from "@medusajs/types";
 import { Badge, Heading, Input, Label, Text, Tooltip } from "@medusajs/ui";
 import Trash from "@modules/common/icons/trash";
+import { useLocale, useTranslations } from "next-intl";
 import React, { useActionState } from "react";
 
 import ErrorMessage from "../error-message";
@@ -18,6 +19,8 @@ type DiscountCodeProps = {
 };
 
 const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
+  const t = useTranslations("checkout.discount");
+  const locale = useLocale();
   const [isOpen, setIsOpen] = React.useState(false);
 
   const { items = [], promotions = [] } = cart;
@@ -64,7 +67,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
               className="txt-medium text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
               data-testid="add-discount-button"
             >
-              Add Promotion Code(s)
+              {t("add")}
             </button>
 
             {/* <Tooltip content="You can add multiple promotion codes">
@@ -79,6 +82,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                   className="size-full"
                   id="promotion-input"
                   name="code"
+                  aria-label={t("inputLabel")}
                   type="text"
                   autoFocus={false}
                   data-testid="discount-input"
@@ -87,7 +91,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                   variant="secondary"
                   data-testid="discount-apply-button"
                 >
-                  Apply
+                  {t("apply")}
                 </SubmitButton>
               </div>
 
@@ -102,9 +106,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
         {promotions.length > 0 && (
           <div className="w-full flex items-center">
             <div className="flex flex-col w-full">
-              <Heading className="txt-medium mb-2">
-                Promotion(s) applied:
-              </Heading>
+              <Heading className="txt-medium mb-2">{t("applied")}</Heading>
 
               {promotions.map((promotion) => {
                 return (
@@ -134,6 +136,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                                     currency_code:
                                       promotion.application_method
                                         .currency_code,
+                                    locale,
                                   })}
                             </>
                           )}
@@ -158,9 +161,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                         data-testid="remove-discount-button"
                       >
                         <Trash size={14} />
-                        <span className="sr-only">
-                          Remove discount code from order
-                        </span>
+                        <span className="sr-only">{t("remove")}</span>
                       </button>
                     )}
                   </div>

@@ -2,6 +2,7 @@ import { Button, Drawer, Text } from "@medusajs/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { tr } from "../i18n";
 import { describeError, erp } from "./api";
 import { Spinner } from "./spinner";
 import { ERP_QUERY_ROOT } from "./use-erp";
@@ -40,12 +41,12 @@ const LabelPreview = ({
   const url = useSvgUrl(data);
 
   if (isLoading) {
-    return <Spinner label="Loading label" />;
+    return <Spinner label={tr("Loading label")} />;
   }
   if (error || !url) {
     return (
       <Text className="text-ui-fg-error" role="alert" size="small">
-        {error ? describeError(error) : "The label could not be rendered."}
+        {error ? describeError(error) : tr("The label could not be rendered.")}
       </Text>
     );
   }
@@ -56,7 +57,7 @@ const LabelPreview = ({
       // No scripts run inside the label; same-origin + modals only so we can print it.
       sandbox="allow-same-origin allow-modals"
       src={url}
-      title="Label preview"
+      title={tr("Label preview")}
     />
   );
 };
@@ -85,12 +86,12 @@ export const LabelButton = ({
   return (
     <>
       <Button onClick={() => setOpen(true)} size="small" variant="secondary">
-        {label}
+        {tr(label)}
       </Button>
       <Drawer onOpenChange={setOpen} open={open}>
         <Drawer.Content className="max-w-xl">
           <Drawer.Header>
-            <Drawer.Title>{title}</Drawer.Title>
+            <Drawer.Title>{tr(title)}</Drawer.Title>
           </Drawer.Header>
           <Drawer.Body className="flex flex-1 flex-col gap-y-3 p-4">
             {open ? <LabelPreview frameRef={frameRef} path={path} /> : null}
@@ -98,11 +99,11 @@ export const LabelButton = ({
           <Drawer.Footer>
             <Drawer.Close asChild>
               <Button size="small" variant="secondary">
-                Close
+                {tr("Close")}
               </Button>
             </Drawer.Close>
             <Button onClick={print} size="small">
-              Print
+              {tr("Print")}
             </Button>
           </Drawer.Footer>
         </Drawer.Content>

@@ -7,6 +7,7 @@ import OnboardingCta from "@modules/order/components/onboarding-cta";
 import OrderDetails from "@modules/order/components/order-details";
 import PaymentDetails from "@modules/order/components/payment-details";
 import ShippingDetails from "@modules/order/components/shipping-details";
+import { getTranslations } from "next-intl/server";
 import { cookies as nextCookies } from "next/headers";
 
 type OrderCompletedTemplateProps = {
@@ -16,6 +17,7 @@ type OrderCompletedTemplateProps = {
 export default async function OrderCompletedTemplate({
   order,
 }: OrderCompletedTemplateProps) {
+  const t = await getTranslations("order.completed");
   const cookies = await nextCookies();
 
   const isOnboarding = cookies.get("_medusa_onboarding")?.value === "true";
@@ -32,12 +34,12 @@ export default async function OrderCompletedTemplate({
             level="h1"
             className="flex flex-col gap-y-3 text-ui-fg-base text-3xl mb-4"
           >
-            <span>Thank you!</span>
-            <span>Your order was placed successfully.</span>
+            <span>{t("thankYou")}</span>
+            <span>{t("placed")}</span>
           </Heading>
           <OrderDetails order={order} />
           <Heading level="h2" className="flex flex-row text-3xl-regular">
-            Summary
+            {t("summary")}
           </Heading>
           <Items order={order} />
           <CartTotals totals={order} />

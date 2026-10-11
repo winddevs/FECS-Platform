@@ -1,10 +1,23 @@
+import { intlLocale, tr } from "../i18n";
+
 const MAX_FRACTION_DIGITS = 20;
 const JSON_PREVIEW_LENGTH = 80;
 const EMPTY = "-";
 
-const numberFormat = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: MAX_FRACTION_DIGITS,
-});
+const numberFormats = new Map<string, Intl.NumberFormat>();
+
+/** One cached formatter per locale (the language can change at runtime). */
+const numberFormatFor = (locale: string): Intl.NumberFormat => {
+  const cached = numberFormats.get(locale);
+  if (cached) {
+    return cached;
+  }
+  const created = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: MAX_FRACTION_DIGITS,
+  });
+  numberFormats.set(locale, created);
+  return created;
+};
 
 /** Reads numbers the API returns as number, numeric string or {value}. */
 export const toNumber = (value: unknown): number | undefined => {
@@ -24,7 +37,9 @@ export const toNumber = (value: unknown): number | undefined => {
 /** Number grouping only: the API's value is shown, never rounded or scaled. */
 export const formatNumber = (value: unknown): string => {
   const parsed = toNumber(value);
-  return parsed === undefined ? EMPTY : numberFormat.format(parsed);
+  return parsed === undefined
+    ? EMPTY
+    : numberFormatFor(intlLocale()).format(parsed);
 };
 
 export const formatDateTime = (value: unknown): string => {
@@ -32,7 +47,9 @@ export const formatDateTime = (value: unknown): string => {
     return EMPTY;
   }
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleString(intlLocale());
 };
 
 export const formatJson = (
@@ -55,7 +72,7 @@ export const formatValue = (value: unknown): string => {
     return EMPTY;
   }
   if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
+    return value ? tr("Yes") : tr("No");
   }
   if (typeof value === "number") {
     return formatNumber(value);

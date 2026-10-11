@@ -49,9 +49,9 @@ case "${1:-}" in
     fi
     node docker/e2e/demo.mjs storefront-env
     # env -u: a DATABASE_URL exported in this shell must not win over apps/store/.env
-    (cd apps/store && yes | env -u DATABASE_URL npx --yes payload migrate)
+    (cd apps/store && printf "y\n" | env -u DATABASE_URL npx --yes payload migrate)
     echo "==> start it:  cd apps/store && env -u DATABASE_URL ./node_modules/.bin/next dev --port 8000"
-    echo "==> then open  http://localhost:8000/en/vn"
+    echo "==> then open  http://localhost:8000/vi/vn"
     ;;
   demo)
     shift

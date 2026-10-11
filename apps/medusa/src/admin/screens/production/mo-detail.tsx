@@ -10,6 +10,7 @@ import {
 import { LabelButton } from "../../lib/erp/label-dialog";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   batchColumns,
   bundleColumns,
@@ -189,34 +190,40 @@ export const MoDetail = ({
                   status={String(mo.status)}
                 />
               }
-              title={`Manufacturing order ${String(mo.mo_number)}`}
+              title={tr("Manufacturing order {number}", {
+                number: String(mo.mo_number),
+              })}
             >
               <KeyValueGrid columns={moHeaderColumns} row={mo} />
             </DetailSection>
             <DetailSection title="Material requirements">
               <MiniTable
                 columns={requirementColumns}
-                label="Material requirements"
+                label={tr("Material requirements")}
                 rows={requirements}
               />
             </DetailSection>
             <DetailSection title="Production batches">
               <MiniTable
                 columns={batchColumns}
-                label="Production batches"
+                label={tr("Production batches")}
                 rows={batches}
               />
             </DetailSection>
             <DetailSection title="Bundles">
               <MiniTable
                 columns={bundleColumns}
-                empty="No bundles yet. They are created when a batch is cut."
-                label="Bundles"
+                empty={tr(
+                  "No bundles yet. They are created when a batch is cut."
+                )}
+                label={tr("Bundles")}
                 renderRowActions={(row) => (
                   <LabelButton
-                    label="Print ticket"
+                    label={tr("Print ticket")}
                     path={`${MFG}/bundles/by-code/${encodeURIComponent(String(row.bundle_code))}/label`}
-                    title={`Bundle ticket ${String(row.bundle_code)}`}
+                    title={tr("Bundle ticket {code}", {
+                      code: String(row.bundle_code),
+                    })}
                   />
                 )}
                 rows={bundles}
@@ -230,8 +237,8 @@ export const MoDetail = ({
           {({ rolls: reserved }) => (
             <MiniTable
               columns={reservedRollColumns}
-              empty="No fabric rolls are reserved yet."
-              label="Reserved rolls"
+              empty={tr("No fabric rolls are reserved yet.")}
+              label={tr("Reserved rolls")}
               rows={reserved}
             />
           )}

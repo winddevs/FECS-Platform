@@ -9,6 +9,7 @@ import {
 } from "../../lib/erp/detail-parts";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   authorizeFields,
   inspectFields,
@@ -97,14 +98,14 @@ export const ReturnDetail = ({
           <>
             <DetailSection
               actions={<ReturnActions rma={rma} />}
-              title={`Return ${String(rma.rma_no)}`}
+              title={tr("Return {rma_no}", { rma_no: String(rma.rma_no) })}
             >
               <KeyValueGrid columns={returnHeaderColumns} row={rma} />
             </DetailSection>
             <DetailSection title="Items">
               <MiniTable
                 columns={returnItemColumns}
-                label="Return items"
+                label={tr("Return items")}
                 renderRowActions={(item) =>
                   item.disposition === "PENDING" &&
                   rma.status === "RECEIVED" ? (

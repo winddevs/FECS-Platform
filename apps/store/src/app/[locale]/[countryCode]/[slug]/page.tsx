@@ -1,5 +1,6 @@
 import config from "@payload-config";
 import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
 import { draftMode } from "next/headers";
 import {
   type RequiredDataFromCollectionSlug,
@@ -47,7 +48,8 @@ type Args = {
 
 export default async function Page({ params: paramsPromise }: Args) {
   const { isEnabled: draft } = await draftMode();
-  const { slug = "home", locale = "en" } = await paramsPromise;
+  const { slug = "home", locale = "vi" } = await paramsPromise;
+  setRequestLocale(locale);
   const url = "/" + slug;
 
   let page: RequiredDataFromCollectionSlug<"pages"> | null;
@@ -79,7 +81,7 @@ export default async function Page({ params: paramsPromise }: Args) {
 export async function generateMetadata({
   params: paramsPromise,
 }: Args): Promise<Metadata> {
-  const { slug = "home", locale = "en" } = await paramsPromise;
+  const { slug = "home", locale = "vi" } = await paramsPromise;
   const page = await queryPageBySlug({
     slug,
     locale,

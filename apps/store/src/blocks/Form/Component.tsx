@@ -6,6 +6,7 @@ import type {
 } from "@payloadcms/plugin-form-builder/types";
 import type { DefaultTypedEditorState } from "@payloadcms/richtext-lexical";
 import type { SerializedEditorState } from "@payloadcms/richtext-lexical/lexical";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useState } from "react";
@@ -58,6 +59,8 @@ export const FormBlock: React.FC<
     { message: string; status?: string } | undefined
   >();
   const router = useRouter();
+  const t = useTranslations();
+  const tErrors = useTranslations("errors");
 
   const onSubmit = useCallback(
     (data: FormFieldBlock[]) => {
@@ -98,7 +101,7 @@ export const FormBlock: React.FC<
             setIsLoading(false);
 
             setError({
-              message: res.errors?.[0]?.message || "Internal Server Error",
+              message: res.errors?.[0]?.message || tErrors("server"),
               status: res.status,
             });
 
@@ -119,14 +122,14 @@ export const FormBlock: React.FC<
           console.warn(err);
           setIsLoading(false);
           setError({
-            message: "Something went wrong.",
+            message: tErrors("generic"),
           });
         }
       };
 
       void submitForm();
     },
-    [router, formID, redirect, confirmationType]
+    [router, formID, redirect, confirmationType, tErrors]
   );
 
   return (
@@ -143,7 +146,7 @@ export const FormBlock: React.FC<
           {!isLoading && hasSubmitted && confirmationType === "message" && (
             <RichText data={confirmationMessage as DefaultTypedEditorState} />
           )}
-          {isLoading && !hasSubmitted && <p>Loading, please wait...</p>}
+          {isLoading && !hasSubmitted && <p>{t("loading")}</p>}
           {error && (
             <div>{`${error.status || "500"}: ${error.message || ""}`}</div>
           )}

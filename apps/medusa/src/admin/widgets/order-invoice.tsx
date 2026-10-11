@@ -3,6 +3,7 @@ import { AdminOrder, DetailWidgetProps } from "@medusajs/framework/types";
 import { Button, Container, Heading, Text, toast } from "@medusajs/ui";
 import { useState } from "react";
 
+import { tr } from "../lib/i18n";
 import { sdk } from "../lib/sdk";
 
 const OrderInvoiceWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
@@ -32,9 +33,11 @@ const OrderInvoiceWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       setIsDownloading(false);
-      toast.success("Invoice generated and downloaded successfully");
+      toast.success(tr("Invoice generated and downloaded successfully"));
     } catch (error) {
-      toast.error(`Failed to generate invoice: ${error}`);
+      toast.error(
+        tr("Failed to generate invoice: {error}", { error: String(error) })
+      );
       setIsDownloading(false);
     }
   };
@@ -43,9 +46,9 @@ const OrderInvoiceWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
         <div>
-          <Heading level="h2">Invoice</Heading>
+          <Heading level="h2">{tr("Invoice")}</Heading>
           <Text size="small" className="text-ui-fg-subtle">
-            Generate and download invoice for this order
+            {tr("Generate and download invoice for this order")}
           </Text>
         </div>
       </div>
@@ -57,7 +60,7 @@ const OrderInvoiceWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
           onClick={downloadInvoice}
           isLoading={isDownloading}
         >
-          Download Invoice
+          {tr("Download Invoice")}
         </Button>
       </div>
     </Container>

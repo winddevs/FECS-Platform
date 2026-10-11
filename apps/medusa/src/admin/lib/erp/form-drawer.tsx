@@ -1,6 +1,8 @@
 import { Button, Drawer } from "@medusajs/ui";
 import type { FormEvent, ReactNode } from "react";
 
+import { tr } from "../i18n";
+
 type FormDrawerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,9 +44,9 @@ export const FormDrawer = ({
           onSubmit={handleSubmit}
         >
           <Drawer.Header>
-            <Drawer.Title>{title}</Drawer.Title>
+            <Drawer.Title>{tr(title)}</Drawer.Title>
             {description ? (
-              <Drawer.Description>{description}</Drawer.Description>
+              <Drawer.Description>{tr(description)}</Drawer.Description>
             ) : null}
           </Drawer.Header>
           <Drawer.Body className="flex-1 overflow-y-auto p-4">
@@ -55,11 +57,11 @@ export const FormDrawer = ({
           <Drawer.Footer>
             <Drawer.Close asChild>
               <Button disabled={isPending} size="small" variant="secondary">
-                Cancel
+                {tr("Cancel")}
               </Button>
             </Drawer.Close>
             <Button isLoading={isPending} size="small" type="submit">
-              {submitLabel}
+              {tr(submitLabel)}
             </Button>
           </Drawer.Footer>
         </form>

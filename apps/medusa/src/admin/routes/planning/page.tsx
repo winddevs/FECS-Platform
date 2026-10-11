@@ -11,7 +11,8 @@ import {
 } from "../../screens/planning/planning-tabs";
 
 export const config = defineRouteConfig({
-  label: "Planning",
+  label: "menu.planning",
+  translationNs: "fecs",
   icon: PlanningIcon,
 });
 

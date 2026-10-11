@@ -11,10 +11,12 @@ import {
   Toaster,
 } from "@medusajs/ui";
 import { SubmitButton } from "@modules/checkout/components/submit-button";
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { useEffect, useState } from "react";
 
 export default function TransferRequestForm() {
+  const t = useTranslations("account.transfer");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [state, formAction] = useActionState(createTransferRequest, {
@@ -34,11 +36,11 @@ export default function TransferRequestForm() {
       <div className="grid sm:grid-cols-2 items-center gap-x-8 gap-y-4 w-full">
         <div className="flex flex-col gap-y-1">
           <Heading level="h3" className="text-lg text-neutral-950">
-            Order transfers
+            {t("title")}
           </Heading>
           <Text className="text-base-regular text-neutral-500">
-            Can&apos;t find the order you are looking for?
-            <br /> Connect an order to your account.
+            {t("descriptionLine1")}
+            <br /> {t("descriptionLine2")}
           </Text>
         </div>
         <form
@@ -46,12 +48,17 @@ export default function TransferRequestForm() {
           className="flex flex-col gap-y-1 sm:items-end"
         >
           <div className="flex flex-col gap-y-2 w-full">
-            <Input className="w-full" name="order_id" placeholder="Order ID" />
+            <Input
+              className="w-full"
+              name="order_id"
+              placeholder={t("orderIdPlaceholder")}
+              aria-label={t("orderIdPlaceholder")}
+            />
             <SubmitButton
               variant="secondary"
               className="w-fit whitespace-nowrap self-end"
             >
-              Request transfer
+              {t("submit")}
             </SubmitButton>
           </div>
         </form>
@@ -67,10 +74,10 @@ export default function TransferRequestForm() {
             <CheckCircleMiniSolid className="w-4 h-4 text-emerald-500" />
             <div className="flex flex-col gap-y-1">
               <Text className="text-medim-pl text-neutral-950">
-                Transfer for order {state.order?.id} requested
+                {t("requested", { orderId: state.order?.id ?? "" })}
               </Text>
               <Text className="text-base-regular text-neutral-600">
-                Transfer request email sent to {state.order?.email}
+                {t("emailSent", { email: state.order?.email ?? "" })}
               </Text>
             </div>
           </div>
@@ -78,6 +85,7 @@ export default function TransferRequestForm() {
             variant="transparent"
             className="h-fit"
             onClick={() => setShowSuccess(false)}
+            aria-label={t("dismiss")}
           >
             <XCircleSolid className="w-4 h-4 text-neutral-500" />
           </IconButton>

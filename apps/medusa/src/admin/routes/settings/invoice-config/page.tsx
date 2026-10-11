@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { FormProvider, Controller } from "react-hook-form";
 import * as zod from "zod";
 
+import { tr } from "../../../lib/i18n";
 import { queryClient } from "../../../lib/query-client";
 import { sdk } from "../../../lib/sdk";
 
@@ -55,7 +56,7 @@ const InvoiceConfigPageContent = () => {
       }),
     onSuccess: () => {
       refetch();
-      toast.success("Invoice config updated successfully");
+      toast.success(tr("Invoice config updated successfully"));
     },
   });
 
@@ -96,7 +97,7 @@ const InvoiceConfigPageContent = () => {
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
-        <Heading level="h1">Invoice Config</Heading>
+        <Heading level="h1">{tr("Invoice Config")}</Heading>
       </div>
       <FormProvider {...form}>
         <form
@@ -111,7 +112,7 @@ const InvoiceConfigPageContent = () => {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center gap-x-1">
                     <Label size="small" weight="plus">
-                      Company Name
+                      {tr("Company Name")}
                     </Label>
                   </div>
                   <Input
@@ -131,7 +132,7 @@ const InvoiceConfigPageContent = () => {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center gap-x-1">
                     <Label size="small" weight="plus">
-                      Company Address
+                      {tr("Company Address")}
                     </Label>
                   </div>
                   <Textarea {...field} />
@@ -147,7 +148,7 @@ const InvoiceConfigPageContent = () => {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center gap-x-1">
                     <Label size="small" weight="plus">
-                      Company Phone
+                      {tr("Company Phone")}
                     </Label>
                   </div>
                   <Input {...field} />
@@ -163,7 +164,7 @@ const InvoiceConfigPageContent = () => {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center gap-x-1">
                     <Label size="small" weight="plus">
-                      Company Email
+                      {tr("Company Email")}
                     </Label>
                   </div>
                   <Input {...field} />
@@ -179,7 +180,7 @@ const InvoiceConfigPageContent = () => {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center gap-x-1">
                     <Label size="small" weight="plus">
-                      Notes
+                      {tr("Notes")}
                     </Label>
                   </div>
                   <Textarea {...field} />
@@ -195,14 +196,14 @@ const InvoiceConfigPageContent = () => {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center gap-x-1">
                     <Label size="small" weight="plus">
-                      Company Logo
+                      {tr("Company Logo")}
                     </Label>
                   </div>
                   <Input type="file" onChange={uploadLogo} className="py-1" />
                   {field.value && (
                     <img
                       src={field.value}
-                      alt="Company Logo"
+                      alt={tr("Company Logo")}
                       className="mt-2 h-24 w-24"
                     />
                   )}
@@ -211,7 +212,7 @@ const InvoiceConfigPageContent = () => {
             }}
           />
           <Button type="submit" disabled={isLoading || isPending}>
-            Save
+            {tr("Save")}
           </Button>
         </form>
       </FormProvider>

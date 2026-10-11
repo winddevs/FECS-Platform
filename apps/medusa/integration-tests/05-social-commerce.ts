@@ -282,7 +282,7 @@ export default async function test({ container }: ExecArgs) {
   assert(lastReply().includes("invalid"), "link codes are single use");
   await handleInboundMessage(deps(), msg(psidA, "order 1001"));
   assert(
-    lastReply().includes("1001") && lastReply().includes("450000"),
+    lastReply().includes("1001") && lastReply().includes("450,000"),
     "linked user sees their own order"
   );
   await handleInboundMessage(deps(), msg(psidA, "order 2002"));

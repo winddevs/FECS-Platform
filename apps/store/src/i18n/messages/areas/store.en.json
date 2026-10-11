@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "title": "Store",
+    "description": "Explore all of our products.",
+    "categoryDescription": "{name} category.",
+    "collectionDescription": "{title} collection"
+  },
+  "title": "All products",
+  "filters": {
+    "title": "Filters",
+    "close": "Close filters",
+    "clearAll": "Clear all",
+    "removeFilter": "Remove filter: {label}",
+    "categories": "Categories",
+    "collections": "Collections",
+    "productType": "Product Type",
+    "tags": "Tags"
+  },
+  "price": {
+    "title": "Price range",
+    "min": "Min",
+    "max": "Max",
+    "minLabel": "Minimum price",
+    "maxLabel": "Maximum price",
+    "clear": "Clear price",
+    "from": "From {amount}",
+    "upTo": "Up to {amount}"
+  },
+  "sort": {
+    "title": "Sort by",
+    "latest": "Latest Arrivals",
+    "priceAsc": "Price: Low -> High",
+    "priceDesc": "Price: High -> Low"
+  },
+  "pagination": {
+    "label": "Pagination",
+    "goToPage": "Go to page {page}"
+  }
+}

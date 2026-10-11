@@ -9,6 +9,7 @@ import {
 } from "../../lib/erp/detail-parts";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   goodsReceiptFields,
   poHeaderColumns,
@@ -117,12 +118,18 @@ export const PurchaseOrderDetail = ({
                   status={String(purchase_order.status)}
                 />
               }
-              title={`Purchase order ${String(purchase_order.po_number)}`}
+              title={tr("Purchase order {number}", {
+                number: String(purchase_order.po_number),
+              })}
             >
               <KeyValueGrid columns={poHeaderColumns} row={purchase_order} />
             </DetailSection>
             <DetailSection title="Lines">
-              <MiniTable columns={poLineColumns} label="Lines" rows={lines} />
+              <MiniTable
+                columns={poLineColumns}
+                label={tr("Lines")}
+                rows={lines}
+              />
             </DetailSection>
           </>
         )}
@@ -132,8 +139,8 @@ export const PurchaseOrderDetail = ({
           {({ goods_receipts }) => (
             <MiniTable
               columns={receiptColumns}
-              empty="No goods received yet."
-              label="Goods receipts"
+              empty={tr("No goods received yet.")}
+              label={tr("Goods receipts")}
               rows={goods_receipts}
             />
           )}

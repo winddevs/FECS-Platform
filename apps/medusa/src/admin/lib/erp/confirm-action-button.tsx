@@ -1,6 +1,7 @@
 import { Button, Label, Prompt, Textarea } from "@medusajs/ui";
 import { useId, useState } from "react";
 
+import { tr } from "../i18n";
 import type { WriteMethod } from "./api";
 import { useErpCommand } from "./use-erp";
 
@@ -49,7 +50,8 @@ export const ConfirmActionButton = ({
   const command = useErpCommand({
     endpoint,
     method,
-    successMessage: successMessage ?? `${label} done`,
+    successMessage: successMessage ?? "{label} done",
+    successVars: { label: tr(label) },
     onSuccess: (result) => {
       setOpen(false);
       setText("");
@@ -75,7 +77,7 @@ export const ConfirmActionButton = ({
         size="small"
         variant={danger ? "danger" : variant}
       >
-        {label}
+        {tr(label)}
       </Button>
       <Prompt
         onOpenChange={(next) => !command.isPending && setOpen(next)}
@@ -84,13 +86,13 @@ export const ConfirmActionButton = ({
       >
         <Prompt.Content>
           <Prompt.Header>
-            <Prompt.Title>{label}</Prompt.Title>
-            <Prompt.Description>{prompt}</Prompt.Description>
+            <Prompt.Title>{tr(label)}</Prompt.Title>
+            <Prompt.Description>{tr(prompt)}</Prompt.Description>
           </Prompt.Header>
           {reason ? (
             <div className="flex flex-col gap-y-1 px-6 pb-4">
               <Label htmlFor={reasonId} size="small" weight="plus">
-                {reason.label ?? "Reason"}
+                {tr(reason.label ?? "Reason")}
                 {reason.required ? " *" : ""}
               </Label>
               <Textarea
@@ -102,7 +104,9 @@ export const ConfirmActionButton = ({
             </div>
           ) : null}
           <Prompt.Footer>
-            <Prompt.Cancel disabled={command.isPending}>Cancel</Prompt.Cancel>
+            <Prompt.Cancel disabled={command.isPending}>
+              {tr("Cancel")}
+            </Prompt.Cancel>
             <Prompt.Action
               disabled={command.isPending || reasonMissing}
               onClick={(event) => {
@@ -111,7 +115,7 @@ export const ConfirmActionButton = ({
                 handleConfirm();
               }}
             >
-              {command.isPending ? "Working..." : "Confirm"}
+              {command.isPending ? tr("Working...") : tr("Confirm")}
             </Prompt.Action>
           </Prompt.Footer>
         </Prompt.Content>

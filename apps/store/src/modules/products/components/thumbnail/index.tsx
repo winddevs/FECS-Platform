@@ -1,5 +1,6 @@
 import { Container, clx } from "@medusajs/ui";
 import PlaceholderImage from "@modules/common/icons/placeholder-image";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import React from "react";
 
@@ -54,10 +55,12 @@ const ImageOrPlaceholder = ({
   size,
   isFeatured,
 }: Pick<ThumbnailProps, "size"> & { image?: string; isFeatured?: boolean }) => {
+  const t = useTranslations("products.images");
+
   return image ? (
     <Image
       src={image}
-      alt="Thumbnail"
+      alt={t("thumbnail")}
       className="absolute inset-0 object-contain object-center"
       draggable={false}
       quality={50}

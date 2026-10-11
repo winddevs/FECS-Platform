@@ -65,6 +65,27 @@ const DICTIONARY = {
 
 export type MessageKey = keyof typeof DICTIONARY;
 
+// Vietnamese letters that never occur in English text.
+const VI_DIACRITICS =
+  /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+// Vietnamese typed without diacritics (common on mobile keyboards).
+const VI_PLAIN =
+  /(?<![\p{L}\p{N}])(?:don hang|don\s*#?\d|giao hang|van don|san xuat|nhan vien|tu van|xin chao|bao gio|dang ky|huy dang ky|tat thong bao|bat thong bao|cam on|tim\s+\S|mua\s+\S|toi muon|cho minh|khi nao)(?![\p{L}\p{N}])/iu;
+const EN_WORDS =
+  /(?<![\p{L}\p{N}])(?:order|orders|track|tracking|where|when|shipment|delivery|production|search|find|buy|hello|hi|hey|help|agent|human|person|support|stop|unsubscribe|subscribe|unmute|mute|my|status|please|thanks|thank|the|and|you|your|need|want|speak|someone|about|ignore|instructions|refund|everything|what|how|could|would|with|for|return|exchange|cancel|is|are)(?![\p{L}\p{N}])/iu;
+
+/**
+ * Language of one customer message: `vi` or `en`, or null when it says nothing
+ * (a link code, a number). The caller falls back to what it learned earlier.
+ */
+export const detectLocale = (text: string): Locale | null => {
+  const value = text.normalize("NFC");
+  if (VI_DIACRITICS.test(value) || VI_PLAIN.test(value)) {
+    return "vi";
+  }
+  return EN_WORDS.test(value) ? "en" : null;
+};
+
 export const t = (key: MessageKey, locale: Locale): string =>
   DICTIONARY[key][locale];
 
@@ -109,6 +130,25 @@ export const shipmentStatusText = (status: string, locale: Locale): string =>
 export const productionStatusText = (status: string, locale: Locale): string =>
   PRODUCTION_TEXT[status]?.[locale] ?? status.toLowerCase();
 
+const formatMoney = (
+  amount: number | string,
+  currency: string,
+  locale: Locale
+): string => {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) {
+    return `${amount} ${currency.toUpperCase()}`;
+  }
+  try {
+    return new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+    }).format(value);
+  } catch {
+    return `${value} ${currency.toUpperCase()}`;
+  }
+};
+
 export const orderText = (
   order: {
     display_id: number | string;
@@ -116,10 +156,12 @@ export const orderText = (
     currency_code: string;
   },
   locale: Locale
-): string =>
-  locale === "vi"
-    ? `Đơn #${order.display_id}, tổng ${order.total} ${order.currency_code.toUpperCase()}.`
-    : `Order #${order.display_id}, total ${order.total} ${order.currency_code.toUpperCase()}.`;
+): string => {
+  const total = formatMoney(order.total, order.currency_code, locale);
+  return locale === "vi"
+    ? `Đơn #${order.display_id}, tổng ${total}.`
+    : `Order #${order.display_id}, total ${total}.`;
+};
 
 export const shipmentText = (
   s: { tracking_number: string | null; status: string },
@@ -145,3 +187,10 @@ export const refundCompletedText = (locale: Locale): string =>
   locale === "vi"
     ? "Khoản hoàn tiền cho đơn trả hàng của bạn đã hoàn tất."
     : "The refund for your return has been completed.";
+
+/** "Đơn #1234: " / "Order #1234: " in front of a notification. */
+export const orderPrefix = (
+  displayId: number | string | null | undefined,
+  locale: Locale
+): string =>
+  locale === "vi" ? `Đơn #${displayId ?? ""}: ` : `Order #${displayId ?? ""}: `;

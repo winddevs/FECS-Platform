@@ -1,13 +1,17 @@
+import { formatDate } from "@lib/util/locale-format";
 import type { Post } from "@payload-types";
+import { useLocale, useTranslations } from "next-intl";
 import React from "react";
 
 import { Media } from "@/components/Media";
 import { formatAuthors } from "@/utilities/formatAuthors";
-import { formatDateTime } from "@/utilities/formatDateTime";
 
 export const PostHero: React.FC<{
   post: Post;
 }> = ({ post }) => {
+  const t = useTranslations();
+  const tCard = useTranslations("components.card");
+  const locale = useLocale();
   const { categories, heroImage, populatedAuthors, publishedAt, title } = post;
 
   const hasAuthors =
@@ -24,7 +28,7 @@ export const PostHero: React.FC<{
               if (typeof category === "object" && category !== null) {
                 const { title: categoryTitle } = category;
 
-                const titleToUse = categoryTitle || "Untitled category";
+                const titleToUse = categoryTitle || tCard("untitledCategory");
 
                 const isLast = index === categories.length - 1;
 
@@ -47,18 +51,18 @@ export const PostHero: React.FC<{
             {hasAuthors && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm">Author</p>
+                  <p className="text-sm">{t("author")}</p>
 
-                  <p>{formatAuthors(populatedAuthors)}</p>
+                  <p>{formatAuthors(populatedAuthors, locale)}</p>
                 </div>
               </div>
             )}
             {publishedAt && (
               <div className="flex flex-col gap-1">
-                <p className="text-sm">Date Published</p>
+                <p className="text-sm">{t("date-published")}</p>
 
                 <time dateTime={publishedAt}>
-                  {formatDateTime(publishedAt)}
+                  {formatDate(publishedAt, locale)}
                 </time>
               </div>
             )}

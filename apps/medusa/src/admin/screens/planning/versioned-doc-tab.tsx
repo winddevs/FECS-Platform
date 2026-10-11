@@ -17,10 +17,17 @@ import type {
   Row,
 } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 
 /** Describes a versioned master document (BOM or routing). */
 export type VersionedDocConfig = {
   label: string;
+  /** Lower-case plural for the "Back to ..." bar (plain English; translated by the kit). */
+  backLabel: string;
+  /** Prompt asked before releasing a draft (plain English; translated by the kit). */
+  releasePrompt: string;
+  /** Toolbar button that opens the create drawer (plain English; translated by the kit). */
+  newLabel: string;
   list: ResourceConfig;
   base: string;
   /** Property of the detail response holding the header record. */
@@ -45,7 +52,7 @@ const VersionedDocDetail = ({
   const query = useErpQuery<Record<string, unknown>>(`${doc.base}/${id}`);
   return (
     <div className="flex flex-col divide-y">
-      <BackBar label={doc.list.title.toLowerCase()} onBack={onBack} />
+      <BackBar label={doc.backLabel} onBack={onBack} />
       <QueryBoundary query={query}>
         {(data) => {
           const header = data[doc.docKey] as Row;
@@ -58,19 +65,23 @@ const VersionedDocDetail = ({
                     <ConfirmActionButton
                       endpoint={`${doc.base}/${id}/release`}
                       label="Release"
-                      prompt={`Release this ${doc.label}? Released versions are the ones manufacturing orders can use.`}
+                      prompt={doc.releasePrompt}
                       variant="primary"
                     />
                   ) : null
                 }
-                title={`${doc.label} ${String(header.product_sku)} v${String(header.version)}`}
+                title={tr("{doc} {sku} v{version}", {
+                  doc: tr(doc.label),
+                  sku: String(header.product_sku),
+                  version: String(header.version),
+                })}
               >
                 <KeyValueGrid columns={doc.headerColumns} row={header} />
               </DetailSection>
               <DetailSection title={doc.childTitle}>
                 <MiniTable
                   columns={doc.childColumns}
-                  label={doc.childTitle}
+                  label={tr(doc.childTitle)}
                   rows={children}
                 />
               </DetailSection>
@@ -113,7 +124,7 @@ export const VersionedDocTab = ({ doc }: { doc: VersionedDocConfig }) => {
           description="Creates a new draft version. Release it to make it usable."
           endpoint={doc.base}
           fields={doc.createFields}
-          label={`New ${doc.label}`}
+          label={doc.newLabel}
           submitLabel="Create draft"
           variant="primary"
         />

@@ -15,6 +15,10 @@ import * as Sentry from "@sentry/node";
 
 import { protectRoleMetadata } from "../lib/authz/protect-role-metadata";
 import { requirePermission } from "../lib/authz/require-permission";
+import {
+  localizeErrorResponse,
+  localizeErrorResponses,
+} from "../lib/i18n/localize-error-response";
 import { httpMetricsMiddleware } from "../lib/observability/http-metrics";
 import { PostInvoiceConfigSchema } from "./admin/invoice-config/route";
 import { fashionMiddlewares } from "./fashion/middlewares";
@@ -131,9 +135,20 @@ export default defineMiddlewares({
       Sentry.captureException(error);
     }
     attachCorrelationId(req, res);
+    // After Sentry, so incidents keep the English message. Translates the
+    // response body (x-locale / Accept-Language: vi), not the error itself.
+    localizeErrorResponse(req, res);
     return originalErrorHandler(error, req, res, next);
   },
   routes: [
+    // Route-level error bodies (`res.status(404).json({ message })`) are
+    // translated when the request asks for Vietnamese.
+    ...["/admin/*", "/store/*", "/auth/*"].map(
+      (matcher): MiddlewareRoute => ({
+        matcher,
+        middlewares: [localizeErrorResponses],
+      })
+    ),
     // Latency histogram for every API call (SLO alerts are computed from it).
     ...["/admin/*", "/store/*", "/webhooks/*", "/auth/*"].map(
       (matcher): MiddlewareRoute => ({

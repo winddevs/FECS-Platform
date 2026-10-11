@@ -1,6 +1,7 @@
 "use client";
 import type { HoverCardsBlock as HoverCardsBlockProps } from "@payload-types";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
@@ -14,6 +15,7 @@ export const HoverCards: React.FC<HoverCardsBlockProps> = ({
   content,
   cards = [],
 }) => {
+  const t = useTranslations("blocks.alt");
   const [activeCard, setActiveCard] = useState<number | null>(null);
 
   type HoverCardLink = NonNullable<
@@ -166,7 +168,7 @@ export const HoverCards: React.FC<HoverCardsBlockProps> = ({
                           <div className="absolute inset-0 h-full w-full">
                             <Image
                               src={imageUrl || "/placeholder.svg"}
-                              alt={card.title || "Card background"}
+                              alt={card.title || t("cardBackground")}
                               fill
                               className={cn(
                                 "object-cover transition-all duration-700",

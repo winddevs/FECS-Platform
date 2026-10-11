@@ -4,13 +4,13 @@ import { getServerSideURL } from "./getURL";
 
 const defaultOpenGraph: Metadata["openGraph"] = {
   type: "website",
-  description: "Ecommerce app",
+  description: "FECS Fashion",
   images: [
     {
       url: `${getServerSideURL()}/public-logo.png`,
     },
   ],
-  siteName: "Ecommerce app",
+  siteName: "FECS Fashion",
   title: "Ecommerce",
 };
 

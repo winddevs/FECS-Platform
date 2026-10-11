@@ -1,6 +1,7 @@
 {
   "metadata": {
-    "title": "coumirce"
+    "title": "FECS Fashion",
+    "description": "متجر أزياء إلكتروني"
   },
   "date-published": "تاريخ النشر",
   "author": "المؤلف",
@@ -11,7 +12,6 @@
   "post": "مشاركة",
   "showing": "عرض",
   "of": "من",
-  "search": "بحث",
   "dashboard": "لوحة التحكم",
   "previous": "السابق",
   "next": "التالي",

@@ -46,6 +46,8 @@ export type IdentityView = IdentityKey & {
   handoff_state: "BOT" | "HUMAN";
   last_inbound_at: Date | null;
   muted_categories?: string[] | null;
+  /** Learned from the customer's messages; null until they write. */
+  locale?: string | null;
 };
 
 /**
@@ -98,7 +100,7 @@ class SocialCommerceModuleService extends MedusaService({
     ]);
     const [existing] = await ex.execute<IdentityView>(
       `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
-              handoff_state, last_inbound_at, muted_categories
+              handoff_state, last_inbound_at, muted_categories, locale
        FROM "customer_channel_identity"
        WHERE channel = ? AND account_id = ? AND external_user_id = ? AND deleted_at IS NULL FOR UPDATE`,
       [input.channel, input.account_id, input.external_user_id]
@@ -207,7 +209,7 @@ class SocialCommerceModuleService extends MedusaService({
   ): Promise<IdentityView | null> {
     const [row] = await executorOf(ctx).execute<IdentityView>(
       `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
-              handoff_state, last_inbound_at, muted_categories
+              handoff_state, last_inbound_at, muted_categories, locale
        FROM "customer_channel_identity" WHERE id = ? AND deleted_at IS NULL`,
       [identityId]
     );
@@ -299,6 +301,18 @@ class SocialCommerceModuleService extends MedusaService({
     return { identity_id: input.identity_id, consent_status: input.status };
   }
 
+  /** Remembers the language the customer writes in, for later notifications. */
+  @InjectTransactionManager()
+  async setIdentityLocale(
+    input: { identity_id: string; locale: "vi" | "en" },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    await this.updateCustomerChannelIdentities(
+      { id: input.identity_id, locale: input.locale },
+      ctx
+    );
+    return { identity_id: input.identity_id, locale: input.locale };
+  }
   /** Switches one notification category on or off for this customer. */
   @InjectTransactionManager()
   async setCategoryMuted(
@@ -515,7 +529,7 @@ class SocialCommerceModuleService extends MedusaService({
   ): Promise<IdentityView[]> {
     return await executorOf(ctx).execute<IdentityView>(
       `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
-              handoff_state, last_inbound_at, muted_categories
+              handoff_state, last_inbound_at, muted_categories, locale
        FROM "customer_channel_identity" WHERE customer_id = ? AND deleted_at IS NULL`,
       [customerId]
     );

@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "title": "Tìm kiếm"
+  },
+  "title": "Tìm kiếm",
+  "noResults": "Không tìm thấy kết quả nào.",
+  "modal": {
+    "title": "Tìm kiếm sản phẩm",
+    "placeholder": "Tìm sản phẩm...",
+    "submit": "Tìm kiếm",
+    "reset": "Xóa tìm kiếm",
+    "noImage": "Chưa có ảnh",
+    "viewProduct": "Xem sản phẩm: {title}"
+  }
+}

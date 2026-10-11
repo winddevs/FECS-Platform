@@ -12,6 +12,7 @@ import LineItemUnitPrice from "@modules/common/components/line-item-unit-price";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import Spinner from "@modules/common/icons/spinner";
 import Thumbnail from "@modules/products/components/thumbnail";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 type ItemProps = {
@@ -21,6 +22,7 @@ type ItemProps = {
 };
 
 const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
+  const t = useTranslations("cart.select");
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +82,7 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
               value={item.quantity}
               onChange={(value) => changeQuantity(parseInt(value.target.value))}
               className="w-14 h-10 p-4"
+              aria-label={t("quantity")}
               data-testid="product-select-button"
             >
               {/* TODO: Update this with the v2 way of managing inventory */}

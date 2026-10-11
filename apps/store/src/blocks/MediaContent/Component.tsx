@@ -3,6 +3,7 @@
 import type { Button } from "@ecommerce/ui/components/button";
 import type { Media } from "@payload-types";
 import type { DefaultTypedEditorState } from "@payloadcms/richtext-lexical";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
@@ -36,6 +37,7 @@ export type MediaContentBlockType = {
 };
 
 export const MediaContent: React.FC<MediaContentBlockType> = (props) => {
+  const t = useTranslations("blocks.alt");
   const {
     alignment = "contentMedia",
     mediaWidth = "stretch",
@@ -126,7 +128,9 @@ export const MediaContent: React.FC<MediaContentBlockType> = (props) => {
                     >
                       <Image
                         src={imageMedia.url}
-                        alt={imageMedia.alt || `Image ${index + 1}`}
+                        alt={
+                          imageMedia.alt || t("image", { number: index + 1 })
+                        }
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, 50vw"

@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "selectVariant": "Select variant",
+    "selectOptions": "Select Options",
+    "selectOption": "Select {title}",
+    "outOfStock": "Out of stock",
+    "addToCart": "Add to cart",
+    "close": "Close"
+  },
+  "price": {
+    "from": "From",
+    "original": "Original:"
+  },
+  "images": {
+    "thumbnail": "Thumbnail",
+    "productImage": "Product image {number}"
+  },
+  "tabs": {
+    "productInformation": "Product Information",
+    "shippingReturns": "Shipping & Returns",
+    "material": "Material",
+    "origin": "Country of origin",
+    "type": "Type",
+    "weight": "Weight",
+    "weightValue": "{weight} g",
+    "dimensions": "Dimensions",
+    "dimensionsValue": "{length}L x {width}W x {height}H",
+    "fastDeliveryTitle": "Fast delivery",
+    "fastDeliveryText": "Your package will arrive in 3-5 business days at your pick up location or in the comfort of your home.",
+    "exchangesTitle": "Simple exchanges",
+    "exchangesText": "Is the fit not quite right? No worries - we'll exchange your product for a new one.",
+    "returnsTitle": "Easy returns",
+    "returnsText": "Just return your product and we'll refund your money. No questions asked – we'll do our best to make sure your return is hassle-free."
+  },
+  "related": {
+    "title": "Related products",
+    "subtitle": "You might also want to check out these products."
+  },
+  "onboarding": {
+    "created": "Your demo product was successfully created! 🎉",
+    "continueHint": "You can now continue setting up your store in the admin.",
+    "continueButton": "Continue setup in admin"
+  }
+}

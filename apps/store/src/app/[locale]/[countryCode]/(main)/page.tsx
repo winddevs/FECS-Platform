@@ -2,13 +2,20 @@ import { FeaturedProductsFallback } from "@modules/home/components/featured-prod
 import { FeaturedProductsSection } from "@modules/home/components/featured-products/FeaturedProductsSection";
 import Hero from "@modules/home/components/hero";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-export const metadata: Metadata = {
-  title: "Medusa Next.js Starter Template",
-  description:
-    "A performant frontend ecommerce starter template with Next.js 15 and Medusa.",
-};
+export async function generateMetadata(props: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: "metadata" });
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function Home(props: {
   params: Promise<{ countryCode: string }>;

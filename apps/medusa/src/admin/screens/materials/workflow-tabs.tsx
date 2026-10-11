@@ -3,6 +3,7 @@ import { ConfirmActionButton } from "../../lib/erp/confirm-action-button";
 import { LabelButton } from "../../lib/erp/label-dialog";
 import { ResourceTable } from "../../lib/erp/resource-table";
 import type { ResourceConfig } from "../../lib/erp/resource-types";
+import { tr } from "../../lib/i18n";
 import {
   dispatchFields,
   locationFields,
@@ -43,9 +44,9 @@ export const LocationsTab = () => (
     config={locationsList}
     renderRowActions={(row) => (
       <LabelButton
-        label="Print label"
+        label={tr("Print label")}
         path={`${BASE}/labels/location/${encodeURIComponent(String(row.code))}`}
-        title={`Location label ${String(row.code)}`}
+        title={tr("Location label {code}", { code: String(row.code) })}
       />
     )}
     toolbar={

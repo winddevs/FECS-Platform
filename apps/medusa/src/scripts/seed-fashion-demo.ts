@@ -64,6 +64,7 @@ export default async function seedFashionDemo({ container }: ExecArgs) {
     input: {
       selector: { id: store.id },
       update: {
+        name: "FECS Fashion",
         supported_currencies: [{ currency_code: CURRENCY, is_default: true }],
         default_sales_channel_id: channel.id,
       },

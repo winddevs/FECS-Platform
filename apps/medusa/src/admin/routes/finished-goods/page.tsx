@@ -13,7 +13,8 @@ import {
 } from "../../screens/finished-goods/fg-tabs";
 
 export const config = defineRouteConfig({
-  label: "Finished Goods",
+  label: "menu.finishedGoods",
+  translationNs: "fecs",
   icon: FinishedGoodsIcon,
 });
 

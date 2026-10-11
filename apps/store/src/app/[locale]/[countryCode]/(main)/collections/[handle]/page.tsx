@@ -7,10 +7,11 @@ import { StoreCollection, StoreRegion } from "@medusajs/types";
 import CollectionTemplate from "@modules/collections/templates";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 type Props = {
-  params: Promise<{ handle: string; countryCode: string }>;
+  params: Promise<{ handle: string; countryCode: string; locale: string }>;
   searchParams: Promise<{
     page?: string;
     sortBy?: SortOptions;
@@ -71,9 +72,14 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     notFound();
   }
 
+  const t = await getTranslations({
+    locale: params.locale,
+    namespace: "store.metadata",
+  });
+
   const metadata = {
-    title: `${collection.title} | Medusa Store`,
-    description: `${collection.title} collection`,
+    title: `${collection.title} | FECS Fashion`,
+    description: t("collectionDescription", { title: collection.title }),
   } as Metadata;
 
   return metadata;

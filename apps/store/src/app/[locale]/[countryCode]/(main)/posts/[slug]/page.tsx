@@ -1,6 +1,7 @@
 import config from "@payload-config";
 import type { Post } from "@payload-types";
 import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
 import { draftMode } from "next/headers";
 import { getPayload } from "payload";
 import React, { cache } from "react";
@@ -36,12 +37,14 @@ export async function generateStaticParams() {
 type Args = {
   params: Promise<{
     slug?: string;
+    locale: string;
   }>;
 };
 
 export default async function Post({ params: paramsPromise }: Args) {
   const { isEnabled: draft } = await draftMode();
-  const { slug = "" } = await paramsPromise;
+  const { slug = "", locale } = await paramsPromise;
+  setRequestLocale(locale);
   const url = "/posts/" + slug;
   const post = await queryPostBySlug({ slug });
 

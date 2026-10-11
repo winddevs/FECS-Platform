@@ -1,6 +1,7 @@
 import { Label } from "@ecommerce/ui/components/label";
 import { Textarea as TextAreaComponent } from "@ecommerce/ui/components/textarea";
 import type { TextField } from "@payloadcms/plugin-form-builder/types";
+import { useTranslations } from "next-intl";
 import React from "react";
 import type {
   FieldErrorsImpl,
@@ -27,6 +28,7 @@ export const Textarea: React.FC<
   rows = 3,
   width,
 }) => {
+  const t = useTranslations("blocks.form");
   return (
     <Width width={width}>
       <Label htmlFor={name}>
@@ -34,7 +36,7 @@ export const Textarea: React.FC<
 
         {required && (
           <span className="required">
-            * <span className="sr-only">(required)</span>
+            * <span className="sr-only">{t("required")}</span>
           </span>
         )}
       </Label>

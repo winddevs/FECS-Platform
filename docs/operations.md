@@ -187,6 +187,32 @@ schema, and PII is masked before the text leaves the platform. Checkout, link,
 stop and mute are never model-selectable. Configure with `AGENT_LLM_*`
 (OpenAI-compatible endpoint).
 
+### Languages (Vietnamese first)
+
+Vietnamese (`vi`) is the default everywhere; English stays available.
+
+- Storefront: `/{locale}/{country}/...` with `vi` default (Accept-Language is
+  honoured), UI text in `apps/store/src/i18n/messages/areas/<area>.{en,vi}.json`,
+  prices as `250.000 ₫`, dates in the customer's format. Content in Payload
+  falls back to English when a Vietnamese version is missing. Payload's own admin
+  speaks Vietnamese too.
+- Medusa Admin: the first time a browser opens it, it switches to Vietnamese
+  once (widget `default-language`); after that the operator's choice in
+  Profile > Language wins. The ERP screens translate through `tr()`; add a
+  string by writing it in English in the screen and its Vietnamese in
+  `src/admin/i18n/vi/<area>.ts`. `pnpm --filter medusa i18n:check` fails CI when
+  one is missing.
+- API errors: clients that send `x-locale: vi` (the back-office does) or
+  `Accept-Language: vi` get Vietnamese messages; `code` stays stable.
+  `i18n:errors` checks every error message in the code has a translation.
+  `DEFAULT_API_LOCALE` sets the default (`en`).
+- Messenger: replies follow the language the customer writes in and it is
+  remembered per chat; notifications use that language, else
+  `SOCIAL_DEFAULT_LOCALE`.
+- Emails and invoice PDFs: `order.locale`, else `order.metadata.locale`, else
+  `EMAIL_DEFAULT_LOCALE` / `INVOICE_DEFAULT_LOCALE` (default `vi`). The invoice
+  uses Roboto so diacritics print correctly.
+
 ### Startup checks
 
 The integration module's loader runs in every process before traffic: it

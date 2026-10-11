@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "selectVariant": "Chọn phân loại",
+    "selectOptions": "Chọn tùy chọn",
+    "selectOption": "Chọn {title}",
+    "outOfStock": "Hết hàng",
+    "addToCart": "Thêm vào giỏ",
+    "close": "Đóng"
+  },
+  "price": {
+    "from": "Từ",
+    "original": "Giá gốc:"
+  },
+  "images": {
+    "thumbnail": "Ảnh đại diện",
+    "productImage": "Ảnh sản phẩm {number}"
+  },
+  "tabs": {
+    "productInformation": "Thông tin sản phẩm",
+    "shippingReturns": "Vận chuyển & Đổi trả",
+    "material": "Chất liệu",
+    "origin": "Xuất xứ",
+    "type": "Loại",
+    "weight": "Trọng lượng",
+    "weightValue": "{weight} g",
+    "dimensions": "Kích thước",
+    "dimensionsValue": "Dài {length} x Rộng {width} x Cao {height}",
+    "fastDeliveryTitle": "Giao hàng nhanh",
+    "fastDeliveryText": "Đơn hàng sẽ đến tay bạn sau 3-5 ngày làm việc, tại điểm nhận hàng hoặc ngay tại nhà.",
+    "exchangesTitle": "Đổi hàng dễ dàng",
+    "exchangesText": "Sản phẩm chưa vừa ý? Đừng lo, chúng tôi sẽ đổi cho bạn sản phẩm mới.",
+    "returnsTitle": "Trả hàng dễ dàng",
+    "returnsText": "Bạn chỉ cần gửi trả sản phẩm, chúng tôi sẽ hoàn tiền cho bạn mà không hỏi lý do. Chúng tôi luôn cố gắng để việc trả hàng diễn ra thật nhẹ nhàng."
+  },
+  "related": {
+    "title": "Sản phẩm liên quan",
+    "subtitle": "Bạn có thể cũng sẽ thích những sản phẩm này."
+  },
+  "onboarding": {
+    "created": "Sản phẩm demo của bạn đã được tạo thành công! 🎉",
+    "continueHint": "Bây giờ bạn có thể tiếp tục thiết lập cửa hàng trong trang quản trị.",
+    "continueButton": "Tiếp tục thiết lập trong trang quản trị"
+  }
+}

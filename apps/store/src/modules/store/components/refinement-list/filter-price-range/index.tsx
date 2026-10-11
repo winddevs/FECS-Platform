@@ -4,6 +4,7 @@ import { Input } from "@ecommerce/ui/components/input";
 import { cn } from "@ecommerce/ui/lib/utils";
 import { useDebounce } from "@lib/hooks/use-debounce";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 400;
@@ -19,6 +20,7 @@ const FilterPriceRange = ({
   priceTo: initialTo,
   onChange,
 }: FilterPriceRangeProps) => {
+  const t = useTranslations("store.price");
   const [from, setFrom] = useState(initialFrom ?? "");
   const [to, setTo] = useState(initialTo ?? "");
   const [isOpen, setIsOpen] = useState(true);
@@ -80,7 +82,7 @@ const FilterPriceRange = ({
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
       >
-        <span className="text-sm font-medium">Price range</span>
+        <span className="text-sm font-medium">{t("title")}</span>
         <ChevronDown
           className={cn(
             "size-4 transition-transform duration-200 text-muted-foreground",
@@ -97,34 +99,28 @@ const FilterPriceRange = ({
         <div>
           <div className="flex items-center gap-x-2">
             <div className="relative flex-1">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                $
-              </span>
               <Input
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="Min"
+                placeholder={t("min")}
                 value={from}
                 onChange={handleFromChange}
-                className="pl-6 h-9 text-sm"
-                aria-label="Minimum price"
+                className="h-9 text-sm"
+                aria-label={t("minLabel")}
               />
             </div>
             <span className="text-muted-foreground text-sm">—</span>
             <div className="relative flex-1">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                $
-              </span>
               <Input
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="Max"
+                placeholder={t("max")}
                 value={to}
                 onChange={handleToChange}
-                className="pl-6 h-9 text-sm"
-                aria-label="Maximum price"
+                className="h-9 text-sm"
+                aria-label={t("maxLabel")}
               />
             </div>
           </div>
@@ -134,7 +130,7 @@ const FilterPriceRange = ({
               onClick={handleClear}
               className="mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              Clear price
+              {t("clear")}
             </button>
           )}
         </div>

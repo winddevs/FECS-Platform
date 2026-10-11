@@ -1,13 +1,26 @@
 import merge from "lodash.merge";
 import type { Metadata } from "next";
 
+import { DEFAULT_LOCALE, localization } from "@/i18n/localization";
+import { intlTag } from "@/lib/util/locale-format";
+
 type MetadataGenerator = Omit<Metadata, "description" | "title"> & {
   title: string;
   description: string;
   image?: string;
+  /** URL locale of the page being described (default: the shop language). */
+  locale?: string;
 };
 
-const applicationName = "ecommerce";
+/** hreflang map: every supported language plus x-default (the shop language). */
+const languageAlternates = (): Record<string, string> => ({
+  ...Object.fromEntries(
+    localization.locales.map((l) => [l.code, `/${l.code}`] as const)
+  ),
+  "x-default": `/${DEFAULT_LOCALE}`,
+});
+
+const applicationName = "FECS Fashion";
 const author: Metadata["authors"] = {
   name: "Abbes Mohamed",
   url: "https://github.com/abbesm0hamed",
@@ -19,6 +32,7 @@ export const createMetadata = ({
   title,
   description,
   image,
+  locale = DEFAULT_LOCALE,
   ...properties
 }: MetadataGenerator): Metadata => {
   const parsedTitle = `${title} | ${applicationName}`;
@@ -41,7 +55,7 @@ export const createMetadata = ({
       description,
       type: "website",
       siteName: applicationName,
-      locale: "en",
+      locale: intlTag(locale).replace("-", "_"),
     },
     publisher,
     twitter: {
@@ -54,9 +68,7 @@ export const createMetadata = ({
     manifest: "/favicon/site.webmanifest",
     alternates: {
       canonical: "/",
-      languages: {
-        en: "/en",
-      },
+      languages: languageAlternates(),
     },
   };
 

@@ -9,7 +9,7 @@ Desktop; the steps marked "not verified" are called out.
 | Piece                 | Where                                 | Notes                                                      |
 | --------------------- | ------------------------------------- | ---------------------------------------------------------- |
 | Medusa API + Admin UI | http://localhost:9100 (admin: `/app`) | Production image, 1 server + 2 workers                     |
-| Storefront (Next.js)  | http://localhost:8000/en/vn           | Run from source with `next dev`; embeds Payload CMS admin  |
+| Storefront (Next.js)  | http://localhost:8000/vi/vn           | Run from source with `next dev`; embeds Payload CMS admin  |
 | Mock J&T, Meta, LLM   | http://localhost:7070/__state         | Stand-ins you control (see "Playing the outside world")    |
 | Postgres              | localhost:5544 (`fashion`/`fashion`)  | Databases `fashion` (Medusa) and `ecommerce_cms` (Payload) |
 | Redis                 | inside Docker                         | Event bus, cache, locks, workflow engine                   |
@@ -50,12 +50,21 @@ DATABASE_URL` keeps a `DATABASE_URL` exported in your shell (for example from
 running the integration tests) from overriding the storefront's own.
 
 The first storefront page takes a while to compile. Open
-http://localhost:8000/en/vn once the terminal prints `Ready`.
+http://localhost:8000/vi/vn once the terminal prints `Ready`.
+
+## Language
+
+Everything starts in Vietnamese: the storefront (`/vi/vn`, switch to English in
+the language menu), the Payload CMS admin, the Medusa Admin and the ERP screens
+(the first visit switches the admin to Vietnamese once; change it any time in
+Profile > Language), Messenger replies (they follow the language you type),
+emails and invoices.
 
 ## Accounts
 
 All demo accounts use the password `Passw0rd!local`. Sign in to
-http://localhost:9100/app with:
+http://localhost:9100/app (the local stack serves it over http, so sessions use a
+non-secure cookie) with:
 
 | User                                          | Role               | Use it for                                      |
 | --------------------------------------------- | ------------------ | ----------------------------------------------- |
@@ -100,7 +109,7 @@ Goods, Fulfillment, Returns, Social Support, Operations.
 
 ### 2. A customer buys a T-shirt
 
-1. Open http://localhost:8000/en/vn/products/basic-tee-black.
+1. Open http://localhost:8000/vi/vn/products/basic-tee-black.
 2. Pick size M or L (S has no stock) and add it to the cart.
 3. Check out with a Vietnam address, the flat J&T shipping option and the
    default payment.
@@ -167,7 +176,7 @@ the bot refuses until the account is linked.
 ### 7. A made-to-order blazer
 
 1. In the storefront buy the made-to-order blazer
-   (http://localhost:8000/en/vn/products/made-to-order-blazer-navy). The order
+   (http://localhost:8000/vi/vn/products/made-to-order-blazer-navy). The order
    is accepted although there is no stock.
 2. Open Production, then Production requests: a request waits for payment.
 3. As `finance@fashion.local`, capture the payment on the order.

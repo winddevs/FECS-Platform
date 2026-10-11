@@ -1,6 +1,7 @@
 import { Label } from "@medusajs/ui";
 import Eye from "@modules/common/icons/eye";
 import EyeOff from "@modules/common/icons/eye-off";
+import { useTranslations } from "next-intl";
 import React, { useEffect, useImperativeHandle, useState } from "react";
 
 type InputProps = Omit<
@@ -16,6 +17,7 @@ type InputProps = Omit<
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ type, name, label, touched, required, topLabel, ...props }, ref) => {
+    const t = useTranslations("common.input");
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [inputType, setInputType] = useState(type);
@@ -58,6 +60,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {type === "password" && (
             <button
               type="button"
+              aria-label={showPassword ? t("hidePassword") : t("showPassword")}
               onClick={() => setShowPassword(!showPassword)}
               className="text-ui-fg-subtle px-4 focus:outline-none transition-all duration-150 outline-none focus:text-ui-fg-base absolute right-0 top-3"
             >

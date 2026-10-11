@@ -5,7 +5,8 @@ import { TabbedPage } from "../../lib/erp/page-shell";
 import { SocialSupportTab } from "../../screens/social/social-support";
 
 export const config = defineRouteConfig({
-  label: "Social Support",
+  label: "menu.socialSupport",
+  translationNs: "fecs",
   icon: SocialIcon,
 });
 

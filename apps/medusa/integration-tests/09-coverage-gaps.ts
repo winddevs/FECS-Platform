@@ -683,8 +683,8 @@ export default async function verify({ container }: ExecArgs) {
   );
   const vi = (await inbound("tắt thông báo giao hàng", "m3")) as any;
   assert(
-    /notifications are off/i.test(vi.reply),
-    "the Vietnamese command works too"
+    /Đã tắt thông báo/.test(vi.reply),
+    "the Vietnamese command works too, and is answered in Vietnamese"
   );
   await inbound("unmute delivery", "m4");
 

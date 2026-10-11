@@ -2,6 +2,7 @@ import { Container, Heading, Tabs, Text } from "@medusajs/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
+import { tr } from "../i18n";
 import { queryClient } from "../query-client";
 
 export type TabConfig = {
@@ -31,10 +32,10 @@ export const TabbedPage = ({
   <ErpPage>
     <Container className="divide-y p-0">
       <div className="px-6 py-4">
-        <Heading level="h1">{title}</Heading>
+        <Heading level="h1">{tr(title)}</Heading>
         {description ? (
           <Text className="text-ui-fg-subtle" size="small">
-            {description}
+            {tr(description)}
           </Text>
         ) : null}
       </div>
@@ -42,7 +43,7 @@ export const TabbedPage = ({
         <Tabs.List className="flex-wrap px-6">
           {tabs.map((tab) => (
             <Tabs.Trigger key={tab.value} value={tab.value}>
-              {tab.label}
+              {tr(tab.label)}
             </Tabs.Trigger>
           ))}
         </Tabs.List>
@@ -63,7 +64,7 @@ export const ViewSwitch = ({ views }: { views: readonly TabConfig[] }) => {
   return (
     <div className="flex flex-col">
       <fieldset className="m-0 flex min-w-0 flex-wrap gap-2 border-0 px-6 pt-4">
-        <legend className="sr-only">Views</legend>
+        <legend className="sr-only">{tr("Views")}</legend>
         {views.map((view) => (
           <button
             aria-pressed={view.value === current?.value}
@@ -76,7 +77,7 @@ export const ViewSwitch = ({ views }: { views: readonly TabConfig[] }) => {
             onClick={() => setActive(view.value)}
             type="button"
           >
-            {view.label}
+            {tr(view.label)}
           </button>
         ))}
       </fieldset>

@@ -10,8 +10,11 @@ import PaymentContainer, {
   StripeCardContainer,
 } from "@modules/checkout/components/payment-container";
 import Divider from "@modules/common/components/divider";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+
+import { getPaymentProviderTitleKey } from "../../utils/payment-provider-title";
 
 const Payment = ({
   cart,
@@ -20,10 +23,18 @@ const Payment = ({
   cart: any;
   availablePaymentMethods: any[];
 }) => {
+  const t = useTranslations("checkout");
+  const tProviders = useTranslations("checkout.payment.providers");
   const activeSession = cart.payment_collection?.payment_sessions?.find(
     (paymentSession: any) => paymentSession.status === "pending"
   );
 
+  const providerTitle = (providerId: string) => {
+    const titleKey = getPaymentProviderTitleKey(providerId);
+    return titleKey
+      ? tProviders(titleKey)
+      : paymentInfoMap[providerId]?.title || providerId;
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cardBrand, setCardBrand] = useState<string | null>(null);
@@ -119,7 +130,7 @@ const Payment = ({
             }
           )}
         >
-          Payment
+          {t("payment.title")}
           {!isOpen && paymentReady && <CheckCircleSolid />}
         </Heading>
         {!isOpen && paymentReady && (
@@ -129,7 +140,7 @@ const Payment = ({
               className="text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
               data-testid="edit-payment-button"
             >
-              Edit
+              {t("edit")}
             </button>
           </Text>
         )}
@@ -169,13 +180,13 @@ const Payment = ({
           {paidByGiftcard && (
             <div className="flex flex-col w-1/3">
               <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                Payment method
+                {t("payment.method")}
               </Text>
               <Text
                 className="txt-medium text-ui-fg-subtle"
                 data-testid="payment-method-summary"
               >
-                Gift card
+                {t("payment.giftCard")}
               </Text>
             </div>
           )}
@@ -197,8 +208,8 @@ const Payment = ({
             data-testid="submit-payment-button"
           >
             {!activeSession && isStripeFunc(selectedPaymentMethod)
-              ? " Enter card details"
-              : "Continue to review"}
+              ? t("payment.enterCardDetails")
+              : t("payment.continueToReview")}
           </Button>
         </div>
 
@@ -207,19 +218,18 @@ const Payment = ({
             <div className="flex items-start gap-x-1 w-full">
               <div className="flex flex-col w-1/3">
                 <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                  Payment method
+                  {t("payment.method")}
                 </Text>
                 <Text
                   className="txt-medium text-ui-fg-subtle"
                   data-testid="payment-method-summary"
                 >
-                  {paymentInfoMap[activeSession?.provider_id]?.title ||
-                    activeSession?.provider_id}
+                  {providerTitle(activeSession?.provider_id)}
                 </Text>
               </div>
               <div className="flex flex-col w-1/3">
                 <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                  Payment details
+                  {t("payment.details")}
                 </Text>
                 <div
                   className="flex gap-2 txt-medium text-ui-fg-subtle items-center"
@@ -233,7 +243,7 @@ const Payment = ({
                   <Text>
                     {isStripeFunc(selectedPaymentMethod) && cardBrand
                       ? cardBrand
-                      : "Another step will appear"}
+                      : t("payment.anotherStep")}
                   </Text>
                 </div>
               </div>
@@ -241,13 +251,13 @@ const Payment = ({
           ) : paidByGiftcard ? (
             <div className="flex flex-col w-1/3">
               <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                Payment method
+                {t("payment.method")}
               </Text>
               <Text
                 className="txt-medium text-ui-fg-subtle"
                 data-testid="payment-method-summary"
               >
-                Gift card
+                {t("payment.giftCard")}
               </Text>
             </div>
           ) : null}

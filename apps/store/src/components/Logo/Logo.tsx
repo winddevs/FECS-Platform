@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { useTranslations } from "next-intl";
 
 interface Props {
   className?: string;
@@ -15,12 +16,13 @@ export default function Logo(props: Props) {
     className,
   } = props;
 
+  const t = useTranslations("components.logo");
   const loading = loadingFromProps || "lazy";
   const priority = priorityFromProps || "low";
 
   return (
     <img
-      alt="Ecommerce Logo"
+      alt={t("alt")}
       width={142}
       height={42}
       loading={loading}

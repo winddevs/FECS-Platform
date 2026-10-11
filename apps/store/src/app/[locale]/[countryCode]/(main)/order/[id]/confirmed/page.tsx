@@ -1,14 +1,24 @@
 import { retrieveOrder } from "@lib/data/orders";
 import OrderCompletedTemplate from "@modules/order/templates/order-completed-template";
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
-export const metadata: Metadata = {
-  title: "Order Confirmed",
-  description: "You purchase was successful",
+export const generateMetadata = async ({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> => {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "order.metadata" });
+
+  return {
+    title: t("confirmedTitle"),
+    description: t("confirmedDescription"),
+  };
 };
 
 export default async function OrderConfirmedPage(props: Props) {

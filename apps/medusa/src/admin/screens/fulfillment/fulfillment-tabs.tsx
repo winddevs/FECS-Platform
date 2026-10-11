@@ -12,6 +12,7 @@ import {
 import { ResourceTable } from "../../lib/erp/resource-table";
 import type { Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 import {
   createShipmentFields,
   exceptionsList,
@@ -55,15 +56,17 @@ const ShipmentDetail = ({ id, onBack }: { id: string; onBack: () => void }) => {
                   </>
                 )
               }
-              title={`Shipment ${String(shipment.tracking_number ?? shipment.id)}`}
+              title={tr("Shipment {ref}", {
+                ref: String(shipment.tracking_number ?? shipment.id),
+              })}
             >
               <KeyValueGrid columns={shipmentHeaderColumns} row={shipment} />
             </DetailSection>
             <DetailSection title="Tracking events">
               <MiniTable
                 columns={trackingEventColumns}
-                empty="No tracking events yet."
-                label="Tracking events"
+                empty={tr("No tracking events yet.")}
+                label={tr("Tracking events")}
                 rows={events}
               />
             </DetailSection>

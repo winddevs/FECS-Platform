@@ -1,5 +1,6 @@
 import { toast } from "@medusajs/ui";
 
+import { getLang, tr } from "../i18n";
 import { sdk } from "../sdk";
 import { newId } from "./id";
 
@@ -61,7 +62,7 @@ const toApiError = (error: unknown, correlationId: string): ErpApiError => {
   const message =
     error instanceof Error && error.message
       ? error.message
-      : "The request failed";
+      : tr("The request failed");
   return new ErpApiError(message, readStatus(error), correlationId);
 };
 
@@ -78,7 +79,11 @@ const request = async <T>(
     return await sdk.client.fetch<T>(path, {
       method: init.method,
       body: init.body as Record<string, unknown> | undefined,
-      headers: { "x-correlation-id": correlationId, ...init.headers },
+      headers: {
+        "x-correlation-id": correlationId,
+        "x-locale": getLang(),
+        ...init.headers,
+      },
     });
   } catch (error) {
     throw toApiError(error, correlationId);
@@ -168,6 +173,7 @@ export const erp = {
       headers: {
         accept: "application/json",
         "x-correlation-id": correlationId,
+        "x-locale": getLang(),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
@@ -192,23 +198,23 @@ const FORBIDDEN_HINT =
 export const describeError = (error: unknown): string => {
   if (error instanceof ErpApiError) {
     if (error.isForbidden) {
-      return `${FORBIDDEN_HINT} (${error.message})`;
+      return `${tr(FORBIDDEN_HINT)} (${error.message})`;
     }
     return error.message;
   }
-  return error instanceof Error ? error.message : "The request failed";
+  return error instanceof Error ? error.message : tr("The request failed");
 };
 
 /** Toast for a failed command or load. Never assumes the user was allowed. */
 export const reportError = (error: unknown): void => {
   const reference =
     error instanceof ErpApiError
-      ? `Reference: ${error.correlationId}`
+      ? tr("Reference: {id}", { id: error.correlationId })
       : undefined;
   toast.error(
     error instanceof ErpApiError && error.isForbidden
-      ? "Permission denied"
-      : "Request failed",
+      ? tr("Permission denied")
+      : tr("Request failed"),
     {
       description: [describeError(error), reference].filter(Boolean).join("\n"),
     }

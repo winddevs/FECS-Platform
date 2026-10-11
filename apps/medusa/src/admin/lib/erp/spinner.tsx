@@ -1,6 +1,9 @@
+import { tr } from "../i18n";
+
 /** Loading indicator (@medusajs/ui has no Spinner export in this version). */
-export const Spinner = ({ label = "Loading" }: { label?: string }) => (
-  <output aria-label={label} className="inline-flex">
+/** `label` must already be translated; the default is translated here. */
+export const Spinner = ({ label }: { label?: string }) => (
+  <output aria-label={label ?? tr("Loading")} className="inline-flex">
     <svg
       aria-hidden="true"
       className="size-5 animate-spin text-ui-fg-muted"

@@ -5,6 +5,7 @@ import { LabelButton } from "../../lib/erp/label-dialog";
 import { ViewSwitch } from "../../lib/erp/page-shell";
 import { ResourceTable } from "../../lib/erp/resource-table";
 import type { Row } from "../../lib/erp/resource-types";
+import { tr } from "../../lib/i18n";
 import { BalanceDetail } from "./balance-detail";
 import {
   issueFields,
@@ -35,9 +36,9 @@ const RollsView = () => (
     config={rollsList}
     renderRowActions={(row) => (
       <LabelButton
-        label="Print label"
+        label={tr("Print label")}
         path={`${BASE}/labels/roll/${encodeURIComponent(String(row.roll_code))}`}
-        title={`Roll label ${String(row.roll_code)}`}
+        title={tr("Roll label {code}", { code: String(row.roll_code) })}
       />
     )}
   />
@@ -84,21 +85,21 @@ const ReservationsView = () => (
 export const StockTab = () => (
   <ViewSwitch
     views={[
-      { value: "balances", label: "Balances", content: <BalancesView /> },
+      { value: "balances", label: tr("Balances"), content: <BalancesView /> },
       {
         value: "lots",
-        label: "Lots",
+        label: tr("Lots"),
         content: <ResourceTable config={lotsList} />,
       },
-      { value: "rolls", label: "Rolls", content: <RollsView /> },
+      { value: "rolls", label: tr("Rolls"), content: <RollsView /> },
       {
         value: "movements",
-        label: "Movements ledger",
+        label: tr("Movements ledger"),
         content: <ResourceTable config={movementsList} />,
       },
       {
         value: "reservations",
-        label: "Reservations",
+        label: tr("Reservations"),
         content: <ReservationsView />,
       },
     ]}

@@ -1,0 +1,37 @@
+{
+  "title": "Giỏ hàng",
+  "metadata": {
+    "title": "Giỏ hàng",
+    "description": "Xem giỏ hàng của bạn",
+    "notFoundTitle": "404",
+    "notFoundDescription": "Đã xảy ra lỗi"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "description": "Giỏ hàng bạn truy cập không tồn tại. Hãy xóa cookie rồi thử lại.",
+    "goHome": "Về trang chủ"
+  },
+  "empty": {
+    "description": "Giỏ hàng của bạn đang trống. Hãy dùng liên kết bên dưới để bắt đầu xem sản phẩm.",
+    "explore": "Khám phá sản phẩm"
+  },
+  "signIn": {
+    "title": "Bạn đã có tài khoản?",
+    "subtitle": "Đăng nhập để có trải nghiệm tốt hơn.",
+    "button": "Đăng nhập"
+  },
+  "table": {
+    "item": "Sản phẩm",
+    "quantity": "Số lượng",
+    "price": "Đơn giá",
+    "total": "Thành tiền"
+  },
+  "summary": {
+    "title": "Tóm tắt",
+    "goToCheckout": "Tiến hành thanh toán"
+  },
+  "select": {
+    "placeholder": "Chọn...",
+    "quantity": "Số lượng"
+  }
+}

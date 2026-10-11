@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "overview": {
+      "title": "Tài khoản",
+      "description": "Tổng quan hoạt động tài khoản của bạn."
+    },
+    "addresses": {
+      "title": "Địa chỉ",
+      "description": "Xem các địa chỉ của bạn"
+    },
+    "orders": {
+      "title": "Đơn hàng",
+      "description": "Tổng quan các đơn hàng trước đây của bạn."
+    },
+    "orderDetail": {
+      "title": "Đơn hàng #{displayId}",
+      "description": "Xem đơn hàng của bạn"
+    },
+    "profile": {
+      "title": "Hồ sơ",
+      "description": "Xem và chỉnh sửa hồ sơ FECS Fashion của bạn."
+    },
+    "signIn": {
+      "title": "Đăng nhập",
+      "description": "Đăng nhập vào tài khoản FECS Fashion của bạn."
+    }
+  },
+  "pages": {
+    "addresses": {
+      "title": "Địa chỉ giao hàng",
+      "description": "Xem và cập nhật địa chỉ giao hàng của bạn, bạn có thể thêm bao nhiêu địa chỉ tùy ý. Địa chỉ đã lưu sẽ có sẵn khi bạn thanh toán."
+    },
+    "orders": {
+      "title": "Đơn hàng",
+      "description": "Xem các đơn hàng trước đây và trạng thái của chúng. Bạn cũng có thể tạo yêu cầu trả hàng hoặc đổi hàng cho đơn hàng của mình khi cần."
+    },
+    "profile": {
+      "title": "Hồ sơ",
+      "description": "Xem và cập nhật thông tin hồ sơ của bạn, gồm tên, email và số điện thoại. Bạn cũng có thể cập nhật địa chỉ thanh toán hoặc đổi mật khẩu."
+    }
+  },
+  "layout": {
+    "questionsTitle": "Bạn có thắc mắc?",
+    "questionsText": "Bạn có thể tìm các câu hỏi thường gặp và câu trả lời tại trang chăm sóc khách hàng.",
+    "customerService": "Chăm sóc khách hàng"
+  },
+  "nav": {
+    "account": "Tài khoản",
+    "greeting": "Xin chào {name}",
+    "overview": "Tổng quan",
+    "profile": "Hồ sơ",
+    "addresses": "Địa chỉ",
+    "orders": "Đơn hàng của tôi",
+    "logout": "Đăng xuất"
+  },
+  "form": {
+    "firstName": "Tên",
+    "lastName": "Họ",
+    "company": "Công ty",
+    "address": "Địa chỉ",
+    "apartment": "Căn hộ, tòa nhà, v.v.",
+    "postalCode": "Mã bưu chính",
+    "city": "Quận/Huyện",
+    "province": "Tỉnh/Thành phố",
+    "provinceShort": "Tỉnh/Thành phố",
+    "phone": "Số điện thoại",
+    "email": "Email",
+    "password": "Mật khẩu"
+  },
+  "login": {
+    "title": "Chào mừng bạn quay lại",
+    "subtitle": "Đăng nhập để có trải nghiệm mua sắm tốt hơn.",
+    "emailHint": "Vui lòng nhập địa chỉ email hợp lệ.",
+    "submit": "Đăng nhập",
+    "notMember": "Bạn chưa có tài khoản?",
+    "join": "Đăng ký ngay"
+  },
+  "register": {
+    "title": "Trở thành thành viên FECS Fashion",
+    "subtitle": "Tạo hồ sơ thành viên FECS Fashion để có trải nghiệm mua sắm tốt hơn.",
+    "agree": "Khi tạo tài khoản, bạn đồng ý với <privacy>Chính sách bảo mật</privacy> và <terms>Điều khoản sử dụng</terms> của FECS Fashion.",
+    "submit": "Đăng ký",
+    "alreadyMember": "Bạn đã có tài khoản?",
+    "signIn": "Đăng nhập"
+  },
+  "addressBook": {
+    "newAddress": "Địa chỉ mới",
+    "addAddress": "Thêm địa chỉ",
+    "editAddress": "Sửa địa chỉ",
+    "edit": "Sửa",
+    "remove": "Xóa",
+    "cancel": "Hủy",
+    "save": "Lưu"
+  },
+  "accountInfo": {
+    "edit": "Sửa",
+    "cancel": "Hủy",
+    "saveChanges": "Lưu thay đổi",
+    "updated": "{label}: đã cập nhật thành công",
+    "defaultError": "Đã xảy ra lỗi, vui lòng thử lại"
+  },
+  "profile": {
+    "nameLabel": "Tên",
+    "emailLabel": "Email",
+    "phoneLabel": "Số điện thoại",
+    "billingAddressLabel": "Địa chỉ thanh toán",
+    "passwordLabel": "Mật khẩu",
+    "noBillingAddress": "Chưa có địa chỉ thanh toán",
+    "passwordHidden": "Mật khẩu không được hiển thị vì lý do bảo mật",
+    "passwordNotImplemented": "Chức năng đổi mật khẩu chưa được hỗ trợ",
+    "oldPassword": "Mật khẩu cũ",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Xác nhận mật khẩu"
+  },
+  "overview": {
+    "greeting": "Xin chào {name}",
+    "signedInAs": "Đăng nhập với:",
+    "profile": "Hồ sơ",
+    "completed": "Hoàn thành",
+    "addresses": "Địa chỉ",
+    "saved": "Đã lưu",
+    "recentOrders": "Đơn hàng gần đây",
+    "datePlaced": "Ngày đặt",
+    "orderNumber": "Mã đơn hàng",
+    "totalAmount": "Tổng tiền",
+    "goToOrder": "Xem đơn hàng #{displayId}",
+    "noRecentOrders": "Chưa có đơn hàng gần đây"
+  },
+  "orders": {
+    "itemCount": "{count, plural, other {# sản phẩm}}",
+    "more": "sản phẩm khác",
+    "seeDetails": "Xem chi tiết",
+    "emptyTitle": "Chưa có gì ở đây",
+    "emptyText": "Bạn chưa có đơn hàng nào, hãy bắt đầu mua sắm nhé :)",
+    "continueShopping": "Tiếp tục mua sắm"
+  },
+  "transfer": {
+    "title": "Chuyển đơn hàng",
+    "descriptionLine1": "Không tìm thấy đơn hàng bạn cần?",
+    "descriptionLine2": "Hãy liên kết đơn hàng với tài khoản của bạn.",
+    "orderIdPlaceholder": "Mã đơn hàng",
+    "submit": "Yêu cầu chuyển đơn",
+    "requested": "Đã yêu cầu chuyển đơn hàng {orderId}",
+    "emailSent": "Email yêu cầu chuyển đơn đã được gửi đến {email}",
+    "dismiss": "Đóng"
+  }
+}

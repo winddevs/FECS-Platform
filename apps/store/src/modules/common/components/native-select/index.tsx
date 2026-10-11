@@ -1,5 +1,6 @@
 import { ChevronUpDown } from "@medusajs/icons";
 import { clx } from "@medusajs/ui";
+import { useTranslations } from "next-intl";
 import {
   SelectHTMLAttributes,
   forwardRef,
@@ -16,10 +17,8 @@ export type NativeSelectProps = {
 } & SelectHTMLAttributes<HTMLSelectElement>;
 
 const NativeSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
-  (
-    { placeholder = "Select...", defaultValue, className, children, ...props },
-    ref
-  ) => {
+  ({ placeholder, defaultValue, className, children, ...props }, ref) => {
+    const t = useTranslations("common.nativeSelect");
     const innerRef = useRef<HTMLSelectElement>(null);
     const [isPlaceholder, setIsPlaceholder] = useState(false);
 
@@ -56,7 +55,7 @@ const NativeSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
             className="appearance-none flex-1 bg-transparent border-none px-4 py-2.5 transition-colors duration-150 outline-none "
           >
             <option disabled value="">
-              {placeholder}
+              {placeholder ?? t("placeholder")}
             </option>
             {children}
           </select>

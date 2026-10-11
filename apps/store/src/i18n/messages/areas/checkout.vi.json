@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "title": "Thanh toán"
+  },
+  "layout": {
+    "backToCart": "Quay lại giỏ hàng",
+    "back": "Quay lại"
+  },
+  "notFound": {
+    "metaTitle": "404",
+    "metaDescription": "Đã xảy ra lỗi",
+    "title": "Không tìm thấy trang",
+    "description": "Trang bạn truy cập không tồn tại.",
+    "goHome": "Về trang chủ"
+  },
+  "summary": {
+    "title": "Giỏ hàng của bạn"
+  },
+  "edit": "Chỉnh sửa",
+  "address": {
+    "title": "Địa chỉ giao hàng",
+    "billingTitle": "Địa chỉ thanh toán",
+    "contact": "Liên hệ",
+    "continue": "Tiếp tục đến giao hàng",
+    "sameAsShipping": "Địa chỉ thanh toán trùng với địa chỉ giao hàng",
+    "sameAddressSummary": "Địa chỉ thanh toán và địa chỉ giao hàng giống nhau.",
+    "savedAddressPrompt": "Xin chào {name}, bạn có muốn dùng một trong các địa chỉ đã lưu không?",
+    "chooseAddress": "Chọn một địa chỉ",
+    "emailTitle": "Vui lòng nhập địa chỉ email hợp lệ.",
+    "fields": {
+      "firstName": "Tên",
+      "lastName": "Họ",
+      "address": "Địa chỉ",
+      "company": "Công ty",
+      "postalCode": "Mã bưu chính",
+      "city": "Tỉnh/Thành phố",
+      "country": "Quốc gia",
+      "province": "Quận/Huyện",
+      "email": "Email",
+      "phone": "Số điện thoại"
+    }
+  },
+  "delivery": {
+    "title": "Giao hàng",
+    "shippingMethod": "Phương thức vận chuyển",
+    "shippingMethodHint": "Bạn muốn nhận đơn hàng bằng cách nào?",
+    "pickup": "Nhận hàng tại cửa hàng",
+    "store": "Cửa hàng",
+    "chooseStore": "Chọn cửa hàng gần bạn",
+    "continue": "Tiếp tục đến thanh toán",
+    "method": "Phương thức"
+  },
+  "payment": {
+    "title": "Thanh toán",
+    "method": "Phương thức thanh toán",
+    "details": "Chi tiết thanh toán",
+    "giftCard": "Thẻ quà tặng",
+    "enterCardDetails": "Nhập thông tin thẻ",
+    "continueToReview": "Tiếp tục xem lại đơn hàng",
+    "anotherStep": "Sẽ có thêm một bước nữa",
+    "cardPrompt": "Nhập thông tin thẻ của bạn:",
+    "testBadge": {
+      "label": "Lưu ý:",
+      "text": "Chỉ dùng để thử nghiệm."
+    },
+    "providers": {
+      "creditCard": "Thẻ tín dụng",
+      "manual": "Thanh toán thủ công"
+    }
+  },
+  "review": {
+    "title": "Xem lại đơn hàng",
+    "terms": "Khi nhấn nút Đặt hàng, bạn xác nhận đã đọc, hiểu và đồng ý với Điều khoản sử dụng, Điều khoản bán hàng và Chính sách đổi trả của chúng tôi, đồng thời đã đọc Chính sách quyền riêng tư của FECS Fashion.",
+    "placeOrder": "Đặt hàng",
+    "selectPaymentMethod": "Chọn phương thức thanh toán"
+  },
+  "discount": {
+    "add": "Thêm mã giảm giá",
+    "inputLabel": "Mã giảm giá",
+    "apply": "Áp dụng",
+    "applied": "Mã giảm giá đã áp dụng:",
+    "remove": "Xóa mã giảm giá khỏi đơn hàng"
+  }
+}

@@ -31,7 +31,8 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({
   showOnlySearch = false,
   showOnlyMegaMenu = false,
 }) => {
-  const t = useTranslations();
+  const t = useTranslations("search");
+  const tHeader = useTranslations("components.header");
   const { headerTheme, setHeaderTheme } = useHeaderTheme();
   const pathname = usePathname();
   const navItems = data?.navItems || [];
@@ -118,7 +119,7 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({
         >
           <SearchIcon className="w-4 h-4" />
           <span className="txt-compact-small hidden sm:inline">
-            {t("search")}
+            {t("title")}
           </span>
         </button>
         <SearchModal
@@ -215,7 +216,7 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({
                                   alt={
                                     group.image.alt ||
                                     group.title ||
-                                    "Group image"
+                                    tHeader("groupImage")
                                   }
                                   className="rounded-md object-cover w-full h-40"
                                 />

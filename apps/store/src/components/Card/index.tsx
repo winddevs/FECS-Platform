@@ -1,5 +1,6 @@
 "use client";
 import type { Post } from "@payload-types";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import React, { Fragment } from "react";
 
@@ -17,6 +18,7 @@ export const Card: React.FC<{
   showCategories?: boolean;
   title?: string;
 }> = (props) => {
+  const t = useTranslations("components.card");
   const { card, link } = useClickableCard({});
   const {
     className,
@@ -44,7 +46,7 @@ export const Card: React.FC<{
       ref={card.ref}
     >
       <div className="relative w-full ">
-        {!metaImage && <div className="">No image</div>}
+        {!metaImage && <div className="">{t("noImage")}</div>}
         {metaImage && typeof metaImage !== "string" && (
           <Media resource={metaImage} size="33vw" />
         )}
@@ -59,7 +61,7 @@ export const Card: React.FC<{
                     const { title: titleFromCategory } = category;
 
                     const categoryTitle =
-                      titleFromCategory || "Untitled category";
+                      titleFromCategory || t("untitledCategory");
 
                     const isLast = index === categories.length - 1;
 

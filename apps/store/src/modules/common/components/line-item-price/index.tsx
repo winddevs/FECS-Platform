@@ -2,6 +2,7 @@ import { getPercentageDiff } from "@lib/util/get-precentage-diff";
 import { convertToLocale } from "@lib/util/money";
 import { HttpTypes } from "@medusajs/types";
 import { clx } from "@medusajs/ui";
+import { useLocale, useTranslations } from "next-intl";
 
 type LineItemPriceProps = {
   item: HttpTypes.StoreCartLineItem | HttpTypes.StoreOrderLineItem;
@@ -14,6 +15,8 @@ const LineItemPrice = ({
   style = "default",
   currencyCode,
 }: LineItemPriceProps) => {
+  const t = useTranslations("common.lineItem");
+  const locale = useLocale();
   const { total, original_total } = item;
   const originalPrice = original_total;
   const currentPrice = total;
@@ -26,7 +29,7 @@ const LineItemPrice = ({
           <>
             <p>
               {style === "default" && (
-                <span className="text-ui-fg-subtle">Original: </span>
+                <span className="text-ui-fg-subtle">{t("original")} </span>
               )}
               <span
                 className="line-through text-ui-fg-muted"
@@ -35,6 +38,7 @@ const LineItemPrice = ({
                 {convertToLocale({
                   amount: originalPrice,
                   currency_code: currencyCode,
+                  locale,
                 })}
               </span>
             </p>
@@ -54,6 +58,7 @@ const LineItemPrice = ({
           {convertToLocale({
             amount: currentPrice,
             currency_code: currencyCode,
+            locale,
           })}
         </span>
       </div>

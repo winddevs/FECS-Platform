@@ -6,14 +6,26 @@ import ProfileEmail from "@modules/account/components/profile-email";
 import ProfileName from "@modules/account/components/profile-name";
 import ProfilePassword from "@modules/account/components/profile-password";
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Profile",
-  description: "View and edit your Medusa Store profile.",
+type Props = {
+  params: Promise<{ locale: string }>;
 };
 
-export default async function Profile() {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: "account" });
+
+  return {
+    title: t("meta.profile.title"),
+    description: t("meta.profile.description"),
+  };
+}
+
+export default async function Profile(props: Props) {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: "account" });
   const customer = await retrieveCustomer();
   const regions = await listRegions();
 
@@ -24,12 +36,8 @@ export default async function Profile() {
   return (
     <div className="w-full" data-testid="profile-page-wrapper">
       <div className="mb-8 flex flex-col gap-y-4">
-        <h1 className="text-2xl-semi">Profile</h1>
-        <p className="text-base-regular">
-          View and update your profile information, including your name, email,
-          and phone number. You can also update your billing address, or change
-          your password.
-        </p>
+        <h1 className="text-2xl-semi">{t("pages.profile.title")}</h1>
+        <p className="text-base-regular">{t("pages.profile.description")}</p>
       </div>
       <div className="flex flex-col gap-y-8 w-full">
         <ProfileName customer={customer} />

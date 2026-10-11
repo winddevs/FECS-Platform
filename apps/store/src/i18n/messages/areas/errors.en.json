@@ -1,0 +1,17 @@
+{
+  "title": "Something went wrong",
+  "pageNotFound": "Page not found",
+  "retry": "Try again",
+  "fieldRequired": "This field is required",
+  "generic": "Something went wrong. Please try again.",
+  "network": "We could not reach the server. Check your connection and try again.",
+  "unauthorized": "Please sign in to continue.",
+  "forbidden": "You do not have permission to do this.",
+  "notFound": "We could not find what you asked for.",
+  "validation": "Some information is not valid. Please check and try again.",
+  "server": "Our server ran into a problem. Please try again later.",
+  "regionNotFound": "We do not serve this region yet.",
+  "cartNotFound": "We could not find your cart. Please try again.",
+  "invalidItem": "We could not find this item.",
+  "invalidRequest": "The request is not valid. Please try again."
+}

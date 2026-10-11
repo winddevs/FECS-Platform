@@ -1,0 +1,17 @@
+{
+  "alt": {
+    "companyLogo": "Company logo",
+    "calloutImage": "Callout image",
+    "cardBackground": "Card background",
+    "logo": "Logo",
+    "image": "Image {number}",
+    "secondary": "{text} secondary"
+  },
+  "code": {
+    "copy": "Copy",
+    "copied": "Copied!"
+  },
+  "form": {
+    "required": "required"
+  }
+}

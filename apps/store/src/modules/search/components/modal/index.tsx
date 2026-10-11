@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -29,6 +30,7 @@ interface SearchModalProps {
 }
 
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
+  const t = useTranslations("search.modal");
   const pathname = usePathname();
   const [previousPathname, setPreviousPathname] = useState(pathname);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -96,9 +98,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       <div className="bg-white rounded-lg shadow-xl border border-ui-border-base max-w-2xl w-full mx-auto">
         {/* Header */}
         <div className="border-b border-ui-border-base p-4">
-          <h2 className="text-lg font-medium text-ui-fg-base">
-            Search Products
-          </h2>
+          <h2 className="text-lg font-medium text-ui-fg-base">{t("title")}</h2>
         </div>
 
         {/* Search Content */}
@@ -120,7 +120,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   reset:
                     "absolute right-8 top-1/2 transform -translate-y-1/2 p-1 text-ui-fg-muted hover:text-ui-fg-base",
                 }}
-                placeholder="Search for products..."
+                placeholder={t("placeholder")}
+                translations={{
+                  submitButtonTitle: t("submit"),
+                  resetButtonTitle: t("reset"),
+                }}
               />
             </div>
 
@@ -144,6 +148,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 }
 
 const Hit = ({ hit, onClose }: { hit: Hit; onClose: () => void }) => {
+  const t = useTranslations("search.modal");
   const hasValidThumbnail = hit.thumbnail && hit.thumbnail.trim() !== "";
 
   return (
@@ -159,7 +164,7 @@ const Hit = ({ hit, onClose }: { hit: Hit; onClose: () => void }) => {
           />
         ) : (
           <div className="w-[60px] h-[60px] bg-ui-bg-subtle rounded flex items-center justify-center">
-            <span className="text-ui-fg-muted text-xs">No Image</span>
+            <span className="text-ui-fg-muted text-xs">{t("noImage")}</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -174,7 +179,7 @@ const Hit = ({ hit, onClose }: { hit: Hit; onClose: () => void }) => {
       <Link
         href={`/products/${hit.handle}`}
         className="absolute inset-0"
-        aria-label={`View Product: ${hit.title}`}
+        aria-label={t("viewProduct", { title: hit.title })}
         onClick={() => onClose()}
       />
     </div>

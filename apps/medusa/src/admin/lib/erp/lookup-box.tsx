@@ -1,6 +1,8 @@
 import { Button, Input, Label } from "@medusajs/ui";
 import { useId, useState } from "react";
 
+import { tr } from "../i18n";
+
 /**
  * Single input for a barcode scanner (it types the code and presses Enter) or
  * for manual entry. Calls `onLookup` with the trimmed code.
@@ -31,13 +33,13 @@ export const LookupBox = ({
     >
       <div className="flex w-72 flex-col gap-y-1">
         <Label htmlFor={id} size="small" weight="plus">
-          {label}
+          {tr(label)}
         </Label>
         <Input
           autoComplete="off"
           id={id}
           onChange={(event) => setCode(event.target.value)}
-          placeholder={placeholder}
+          placeholder={placeholder ? tr(placeholder) : undefined}
           size="small"
           value={code}
         />
@@ -48,7 +50,7 @@ export const LookupBox = ({
         size="small"
         type="submit"
       >
-        Look up
+        {tr("Look up")}
       </Button>
     </form>
   );

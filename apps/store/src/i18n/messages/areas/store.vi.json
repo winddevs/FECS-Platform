@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "title": "Cửa hàng",
+    "description": "Khám phá toàn bộ sản phẩm của chúng tôi.",
+    "categoryDescription": "Danh mục {name}.",
+    "collectionDescription": "Bộ sưu tập {title}"
+  },
+  "title": "Tất cả sản phẩm",
+  "filters": {
+    "title": "Bộ lọc",
+    "close": "Đóng bộ lọc",
+    "clearAll": "Xóa tất cả",
+    "removeFilter": "Bỏ bộ lọc: {label}",
+    "categories": "Danh mục",
+    "collections": "Bộ sưu tập",
+    "productType": "Loại sản phẩm",
+    "tags": "Thẻ"
+  },
+  "price": {
+    "title": "Khoảng giá",
+    "min": "Thấp nhất",
+    "max": "Cao nhất",
+    "minLabel": "Giá thấp nhất",
+    "maxLabel": "Giá cao nhất",
+    "clear": "Xóa khoảng giá",
+    "from": "Từ {amount}",
+    "upTo": "Đến {amount}"
+  },
+  "sort": {
+    "title": "Sắp xếp",
+    "latest": "Mới nhất",
+    "priceAsc": "Giá: thấp đến cao",
+    "priceDesc": "Giá: cao đến thấp"
+  },
+  "pagination": {
+    "label": "Phân trang",
+    "goToPage": "Đến trang {page}"
+  }
+}

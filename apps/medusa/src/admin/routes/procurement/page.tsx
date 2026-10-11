@@ -8,7 +8,8 @@ import {
 } from "../../screens/procurement/procurement-tabs";
 
 export const config = defineRouteConfig({
-  label: "Procurement",
+  label: "menu.procurement",
+  translationNs: "fecs",
   icon: ProcurementIcon,
 });
 

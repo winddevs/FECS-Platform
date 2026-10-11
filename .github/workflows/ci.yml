@@ -33,6 +33,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Typecheck fashion platform (scoped; the full-project tsc exceeds memory)
         run: pnpm --filter medusa typecheck
+      - name: Back-office and API messages have Vietnamese translations
+        run: |
+          pnpm --filter medusa i18n:check
+          pnpm --filter medusa i18n:errors
       - name: Event catalog is up to date (no unreviewed breaking changes)
         run: pnpm --filter medusa events:check
       # NOTE: non-blocking until the repo's oxlint setup is repaired. With oxlint

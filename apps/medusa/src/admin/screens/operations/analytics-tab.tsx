@@ -7,6 +7,7 @@ import { toCsvCell } from "../../lib/erp/format";
 import { ResourceTable } from "../../lib/erp/resource-table";
 import type { ResourceConfig, Row } from "../../lib/erp/resource-types";
 import { useErpQuery } from "../../lib/erp/use-erp";
+import { tr } from "../../lib/i18n";
 
 const MAX_EXPORT_ROWS = 1000;
 const TABLE_PAGE_SIZE = 50;
@@ -63,7 +64,7 @@ const CsvButton = ({ mart }: { mart: string }) => {
         }
       );
       downloadCsv(mart, toCsv(rows));
-      toast.success(`Downloaded ${rows.length} rows`);
+      toast.success(tr("Downloaded {count} rows", { count: rows.length }));
     } catch (error) {
       reportError(error);
     } finally {
@@ -77,7 +78,7 @@ const CsvButton = ({ mart }: { mart: string }) => {
       size="small"
       variant="secondary"
     >
-      Download CSV (up to {MAX_EXPORT_ROWS} rows)
+      {tr("Download CSV (up to {max} rows)", { max: MAX_EXPORT_ROWS })}
     </Button>
   );
 };
@@ -95,12 +96,12 @@ export const AnalyticsTab = () => {
           <div className="flex flex-col">
             <div className="flex flex-col gap-y-1 px-6 pt-4">
               <Label htmlFor={selectId} size="small" weight="plus">
-                Mart
+                {tr("Mart")}
               </Label>
               <div className="w-72">
                 <Select onValueChange={setSelected} size="small" value={mart}>
                   <Select.Trigger id={selectId}>
-                    <Select.Value placeholder="Select a mart" />
+                    <Select.Value placeholder={tr("Select a mart")} />
                   </Select.Trigger>
                   <Select.Content>
                     {names.map((name) => (

@@ -31,6 +31,8 @@ export const CustomerChannelIdentity = model
     link_locked_until: model.dateTime().nullable(),
     /** Notification categories the customer switched off (FR-NOT-002). */
     muted_categories: model.json().nullable(),
+    /** Language the customer writes in (`vi` | `en`), learned from messages. */
+    locale: model.text().nullable(),
   })
   .indexes([
     {

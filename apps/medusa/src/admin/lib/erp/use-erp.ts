@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { type Vars, tr } from "../i18n";
 import { type QueryParams, type WriteMethod, erp, reportError } from "./api";
 
 /** Every ERP data query lives under this root so a command can refresh all. */
@@ -36,7 +37,10 @@ export const useErpQuery = <T>(
 type CommandOptions<TResult> = {
   endpoint: string;
   method?: WriteMethod;
+  /** English text, translated when the toast is shown. */
   successMessage?: string;
+  /** Placeholder values for `successMessage` (already translated). */
+  successVars?: Vars;
   onSuccess?: (result: TResult) => void;
 };
 
@@ -59,7 +63,7 @@ export const useErpCommand = <TResult = unknown>(
         : erp.post<TResult>(options.endpoint, body);
     },
     onSuccess: async (result) => {
-      toast.success(options.successMessage ?? "Done");
+      toast.success(tr(options.successMessage ?? "Done", options.successVars));
       options.onSuccess?.(result);
       await queryClient.invalidateQueries({ queryKey: [ERP_QUERY_ROOT] });
     },

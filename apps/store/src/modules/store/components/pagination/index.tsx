@@ -1,6 +1,7 @@
 "use client";
 
 import { clx } from "@medusajs/ui";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export function Pagination({
@@ -12,6 +13,7 @@ export function Pagination({
   totalPages: number;
   "data-testid"?: string;
 }) {
+  const t = useTranslations("store.pagination");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -39,6 +41,8 @@ export function Pagination({
         "text-ui-fg-base hover:text-ui-fg-subtle": isCurrent,
       })}
       disabled={isCurrent}
+      aria-label={t("goToPage", { page: p })}
+      aria-current={isCurrent ? "page" : undefined}
       onClick={() => handlePageChange(p)}
     >
       {label}
@@ -107,10 +111,10 @@ export function Pagination({
 
   // Render the component
   return (
-    <div className="flex justify-center w-full mt-12">
+    <nav className="flex justify-center w-full mt-12" aria-label={t("label")}>
       <div className="flex gap-3 items-end" data-testid={dataTestid}>
         {renderPageButtons()}
       </div>
-    </div>
+    </nav>
   );
 }

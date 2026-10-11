@@ -59,6 +59,11 @@ const CATEGORY_WORDS: Record<string, NotificationCategory> = {
 const RESUME_BOT_COMMAND =
   /^(?:bot|back to bot|chat with bot|quay lai bot|quay lại bot|chat voi bot|chat với bot)[\s.!]*$/u;
 
+// The help text tells customers to send exactly "nhân viên" / "agent". Only as
+// the whole message: "nhân viên giao hàng đến chưa" asks about delivery staff.
+const HANDOFF_COMMAND =
+  /^(?:nhân viên|nhan vien|tư vấn viên|tu van vien|người thật|nguoi that|agent|human|support|staff)[\s.!?]*$/u;
+
 const HANDOFF = word(
   [
     "(?:talk|speak|chat) (?:to|with) (?:a |an |the )?(?:human|person|agent|staff|someone)",
@@ -77,7 +82,7 @@ const PRODUCTION_WORD = word(
 );
 // An order reference needs a keyword ("đơn 1234", "order #1234") or a "#".
 const ORDER_REF = new RegExp(
-  "(?:(?<![\\p{L}\\p{N}])(?:order|đơn hàng|đơn|don hang|don|vận đơn|van don|shipment|tracking|track|delivery|giao hàng|giao hang)\\s*(?:số|so)?\\s*#?\\s*|#)(\\d{1,10})(?!\\d)",
+  "(?:(?<![\\p{L}\\p{N}])(?:order|đơn hàng|đơn|don hang|don|vận đơn|van don|shipment|tracking|track|delivery|giao hàng|giao hang|production|sản xuất|san xuat|tiến độ|tien do)\\s*(?:số|so)?\\s*#?\\s*|#)(\\d{1,10})(?!\\d)",
   "u"
 );
 
@@ -99,7 +104,9 @@ export const parseIntent = (rawText: string): Intent => {
   const unmute = UNMUTE_COMMAND.exec(lower);
   if (unmute) return { name: "UNMUTE", category: CATEGORY_WORDS[unmute[1]] };
   if (RESUME_BOT_COMMAND.test(lower)) return { name: "RESUME_BOT" };
-  if (HANDOFF.test(lower)) return { name: "HANDOFF" };
+  if (HANDOFF_COMMAND.test(lower) || HANDOFF.test(lower)) {
+    return { name: "HANDOFF" };
+  }
   const buy = BUY.exec(text);
   if (buy) return { name: "CHECKOUT", sku: buy[1], qty: Number(buy[2] ?? 1) };
   const search = SEARCH.exec(text);

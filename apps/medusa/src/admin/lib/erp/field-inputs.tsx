@@ -8,6 +8,7 @@ import {
   Textarea,
 } from "@medusajs/ui";
 
+import { tr } from "../i18n";
 import {
   type FieldConfig,
   type FormErrors,
@@ -53,11 +54,11 @@ const SelectInput = ({ field, value, id, onChange }: FieldInputProps) => (
     value={asText(value) === "" ? undefined : asText(value)}
   >
     <Select.Trigger id={id}>
-      <Select.Value placeholder={field.placeholder ?? "Select"} />
+      <Select.Value placeholder={tr(field.placeholder ?? "Select")} />
     </Select.Trigger>
     <Select.Content>
       {field.required ? null : (
-        <Select.Item value={NONE_OPTION}>None</Select.Item>
+        <Select.Item value={NONE_OPTION}>{tr("None")}</Select.Item>
       )}
       {(field.options ?? []).map((option) => (
         <Select.Item key={optionValue(option)} value={optionValue(option)}>
@@ -79,7 +80,7 @@ const LookupInput = ({ field, value, id, onChange }: FieldInputProps) => {
         id={id}
         list={listId}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={field.placeholder ?? "Type a code or paste an id"}
+        placeholder={tr(field.placeholder ?? "Type a code or paste an id")}
         size="small"
         value={asText(value)}
       />
@@ -117,7 +118,7 @@ const LinesInput = ({ field, value, id, onChange }: FieldInputProps) => {
         >
           <legend className="px-1">
             <Text leading="compact" size="small" weight="plus">
-              {field.label} {index + 1}
+              {tr(field.label)} {index + 1}
             </Text>
           </legend>
           <FormFields
@@ -133,7 +134,10 @@ const LinesInput = ({ field, value, id, onChange }: FieldInputProps) => {
               type="button"
               variant="transparent"
             >
-              Remove {field.label.toLowerCase()} {index + 1}
+              {tr("Remove {label} {index}", {
+                label: tr(field.label).toLowerCase(),
+                index: index + 1,
+              })}
             </Button>
           </div>
         </fieldset>
@@ -145,7 +149,7 @@ const LinesInput = ({ field, value, id, onChange }: FieldInputProps) => {
           type="button"
           variant="secondary"
         >
-          Add {field.label.toLowerCase()}
+          {tr("Add {label}", { label: tr(field.label).toLowerCase() })}
         </Button>
       </div>
     </div>
@@ -161,7 +165,7 @@ const GroupInput = ({ field, value, id, onChange }: FieldInputProps) => {
     <fieldset className="flex flex-col gap-y-3 rounded-md border border-ui-border-base p-3">
       <legend className="px-1">
         <Text leading="compact" size="small" weight="plus">
-          {field.label}
+          {tr(field.label)}
         </Text>
       </legend>
       <FormFields
@@ -182,7 +186,7 @@ const CheckboxInput = ({ field, value, id, onChange }: FieldInputProps) => (
       onCheckedChange={(checked) => onChange(checked === true)}
     />
     <Label htmlFor={id} size="small" weight="plus">
-      {field.label}
+      {tr(field.label)}
     </Label>
   </div>
 );
@@ -206,7 +210,7 @@ const ControlFor = (props: FieldInputProps) => {
         <Textarea
           id={id}
           onChange={(event) => onChange(event.target.value)}
-          placeholder={field.placeholder}
+          placeholder={field.placeholder ? tr(field.placeholder) : undefined}
           rows={field.type === "json" ? 5 : 3}
           value={asText(value)}
         />
@@ -216,7 +220,7 @@ const ControlFor = (props: FieldInputProps) => {
         <Input
           id={id}
           onChange={(event) => onChange(event.target.value)}
-          placeholder={field.placeholder}
+          placeholder={field.placeholder ? tr(field.placeholder) : undefined}
           size="small"
           step={field.type === "number" ? "any" : undefined}
           type={inputType(field)}
@@ -233,14 +237,14 @@ const FieldInput = (props: FieldInputProps) => {
     <div className="flex flex-col gap-y-1">
       {hasOwnLabel ? null : (
         <Label htmlFor={id} size="small" weight="plus">
-          {field.label}
+          {tr(field.label)}
           {field.required ? " *" : ""}
         </Label>
       )}
       <ControlFor {...props} />
       {field.help ? (
         <Text className="text-ui-fg-subtle" leading="compact" size="small">
-          {field.help}
+          {tr(field.help)}
         </Text>
       ) : null}
       {error ? (

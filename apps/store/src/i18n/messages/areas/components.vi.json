@@ -1,0 +1,49 @@
+{
+  "pageRange": {
+    "noResults": "Không tìm thấy kết quả phù hợp.",
+    "showing": "Hiển thị {range} trên {total} {label}",
+    "posts": "{count, plural, other {bài viết}}",
+    "items": "{count, plural, other {mục}}"
+  },
+  "pagination": {
+    "label": "Phân trang",
+    "goToPrevious": "Đến trang trước",
+    "goToNext": "Đến trang sau"
+  },
+  "card": {
+    "noImage": "Chưa có hình ảnh",
+    "untitledCategory": "Danh mục chưa đặt tên"
+  },
+  "logo": {
+    "alt": "Logo cửa hàng"
+  },
+  "localeSwitcher": {
+    "label": "Ngôn ngữ"
+  },
+  "theme": {
+    "label": "Chọn giao diện",
+    "placeholder": "Giao diện",
+    "auto": "Tự động",
+    "light": "Sáng",
+    "dark": "Tối"
+  },
+  "header": {
+    "categories": "Danh mục",
+    "account": "Tài khoản",
+    "cart": "Giỏ hàng ({count})",
+    "groupImage": "Hình ảnh nhóm"
+  },
+  "footer": {
+    "logoAlt": "Logo chân trang"
+  },
+  "searchForm": {
+    "submit": "Gửi"
+  },
+  "hero": {
+    "contactUs": "Liên hệ chúng tôi"
+  },
+  "posts": {
+    "blogTitle": "Blog",
+    "pageTitle": "Bài viết - Trang {page}"
+  }
+}

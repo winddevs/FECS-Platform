@@ -154,8 +154,8 @@ export interface Config {
     | ("false" | "none" | "null")
     | false
     | null
-    | ("ar" | "en" | "fr")
-    | ("ar" | "en" | "fr")[];
+    | ("vi" | "en" | "fr" | "ar")
+    | ("vi" | "en" | "fr" | "ar")[];
   globals: {
     header: Header;
     footer: Footer;
@@ -164,7 +164,7 @@ export interface Config {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
   };
-  locale: "ar" | "en" | "fr";
+  locale: "vi" | "en" | "fr" | "ar";
   widgets: {
     collections: CollectionsWidget;
   };

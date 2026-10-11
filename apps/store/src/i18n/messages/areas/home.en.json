@@ -1,0 +1,9 @@
+{
+  "hero": {
+    "title": "Ecommerce Starter Template",
+    "subtitle": "with payloadcms and medusa"
+  },
+  "featured": {
+    "viewAll": "View all"
+  }
+}

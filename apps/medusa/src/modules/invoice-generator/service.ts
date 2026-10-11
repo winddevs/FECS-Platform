@@ -1,7 +1,11 @@
+import { dirname, join, resolve, sep } from "node:path";
+
 import { MedusaService } from "@medusajs/framework/utils";
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const pdfmake = require("pdfmake") as {
   addFonts(fonts: Record<string, Record<string, string>>): void;
+  setLocalAccessPolicy(policy: (path: string) => boolean): void;
+  setUrlAccessPolicy(policy: (url: string) => boolean): void;
   createPdf(docDefinition: Record<string, unknown>): {
     getBuffer(): Promise<Buffer>;
   };
@@ -9,6 +13,7 @@ const pdfmake = require("pdfmake") as {
 
 import {
   InferTypeOf,
+  OrderAddressDTO,
   OrderDTO,
   OrderLineItemDTO,
 } from "@medusajs/framework/types";
@@ -17,16 +22,219 @@ import axios from "axios";
 import { Invoice } from "./models/invoice";
 import { InvoiceConfig } from "./models/invoice-config";
 
-const fonts = {
-  Helvetica: {
-    normal: "Helvetica",
-    bold: "Helvetica-Bold",
-    italics: "Helvetica-Oblique",
-    bolditalics: "Helvetica-BoldOblique",
+// ---------------------------------------------------------------------------
+// Fonts
+//
+// Helvetica (a PDF standard font) has no Vietnamese diacritics, so the invoice
+// uses Roboto, which ships inside the `pdfmake` package (`fonts/Roboto`) and
+// covers the full Vietnamese range. `pdfmake` is a dependency of apps/medusa,
+// so the fonts are present in node_modules at runtime (also in the Docker
+// image, which deploys apps/medusa's production dependencies).
+//
+// Helvetica stays registered: invoices cached before this change store
+// `defaultStyle.font: "Helvetica"` in `pdfContent` and must still render.
+// ---------------------------------------------------------------------------
+
+const INVOICE_FONT = "Roboto";
+
+const PDFMAKE_ROOT = dirname(require.resolve("pdfmake/package.json"));
+
+const resolveRobotoFonts = (): Record<string, string> => {
+  const fontsDirectory = join(PDFMAKE_ROOT, "fonts", "Roboto");
+  return {
+    normal: join(fontsDirectory, "Roboto-Regular.ttf"),
+    bold: join(fontsDirectory, "Roboto-Medium.ttf"),
+    italics: join(fontsDirectory, "Roboto-Italic.ttf"),
+    bolditalics: join(fontsDirectory, "Roboto-MediumItalic.ttf"),
+  };
+};
+
+const LEGACY_HELVETICA_FONTS = {
+  normal: "Helvetica",
+  bold: "Helvetica-Bold",
+  italics: "Helvetica-Oblique",
+  bolditalics: "Helvetica-BoldOblique",
+};
+const STANDARD_FONT_NAMES = new Set(Object.values(LEGACY_HELVETICA_FONTS));
+
+// The document only ever needs pdfmake's own font files (or the built-in
+// standard font names); logos are inlined as data URIs (see
+// imageUrlToBase64). Deny everything else.
+pdfmake.setLocalAccessPolicy(
+  (path) =>
+    STANDARD_FONT_NAMES.has(path) ||
+    resolve(path).startsWith(`${PDFMAKE_ROOT}${sep}`)
+);
+pdfmake.setUrlAccessPolicy(() => false);
+
+pdfmake.addFonts({
+  [INVOICE_FONT]: resolveRobotoFonts(),
+  Helvetica: LEGACY_HELVETICA_FONTS,
+});
+
+// ---------------------------------------------------------------------------
+// Localisation
+//
+// Locale resolution: `order.locale` (Medusa core field, BCP 47, may be null)
+// -> `order.metadata.locale` -> env `INVOICE_DEFAULT_LOCALE` (default "vi").
+// "vi-VN" normalises to "vi"; anything other than vi/en is skipped.
+// ---------------------------------------------------------------------------
+
+type InvoiceLocale = "vi" | "en";
+
+const INVOICE_LOCALES: readonly InvoiceLocale[] = ["vi", "en"];
+const FALLBACK_INVOICE_LOCALE: InvoiceLocale = "vi";
+const LOCALE_SEPARATOR = /[-_]/;
+
+const INTL_TAGS: Record<InvoiceLocale, string> = {
+  vi: "vi-VN",
+  en: "en-US",
+};
+
+// Vietnamese invoices show dates in Vietnam time so a server running in UTC
+// does not move late-evening orders to the previous day.
+const DATE_TIME_ZONES: Record<InvoiceLocale, string | undefined> = {
+  vi: "Asia/Ho_Chi_Minh",
+  en: undefined,
+};
+
+type InvoiceLabels = {
+  invoice: string;
+  companyDetails: string;
+  invoiceId: string;
+  invoiceDate: string;
+  orderId: string;
+  orderDate: string;
+  billTo: string;
+  shipTo: string;
+  noBillingAddress: string;
+  noShippingAddress: string;
+  item: string;
+  quantity: string;
+  unitPrice: string;
+  total: string;
+  grandTotal: string;
+  subtotal: string;
+  tax: string;
+  shipping: string;
+  discount: string;
+  notes: string;
+  thankYou: string;
+  unknownItem: string;
+  defaultCompanyName: string;
+};
+
+const INVOICE_LABELS: Record<InvoiceLocale, InvoiceLabels> = {
+  vi: {
+    invoice: "HÓA ĐƠN",
+    companyDetails: "THÔNG TIN CÔNG TY",
+    invoiceId: "Số hóa đơn:",
+    invoiceDate: "Ngày lập:",
+    orderId: "Mã đơn hàng:",
+    orderDate: "Ngày đặt hàng:",
+    billTo: "ĐỊA CHỈ THANH TOÁN",
+    shipTo: "ĐỊA CHỈ GIAO HÀNG",
+    noBillingAddress: "Chưa có địa chỉ thanh toán",
+    noShippingAddress: "Chưa có địa chỉ giao hàng",
+    item: "Sản phẩm",
+    quantity: "Số lượng",
+    unitPrice: "Đơn giá",
+    total: "Thành tiền",
+    grandTotal: "Tổng cộng:",
+    subtotal: "Tạm tính:",
+    tax: "Thuế:",
+    shipping: "Phí vận chuyển:",
+    discount: "Giảm giá:",
+    notes: "Ghi chú",
+    thankYou: "Cảm ơn bạn đã mua sắm cùng chúng tôi!",
+    unknownItem: "Sản phẩm không xác định",
+    defaultCompanyName: "Tên công ty",
+  },
+  en: {
+    invoice: "INVOICE",
+    companyDetails: "COMPANY DETAILS",
+    invoiceId: "Invoice ID:",
+    invoiceDate: "Invoice Date:",
+    orderId: "Order ID:",
+    orderDate: "Order Date:",
+    billTo: "BILL TO",
+    shipTo: "SHIP TO",
+    noBillingAddress: "No billing address provided",
+    noShippingAddress: "No shipping address provided",
+    item: "Item",
+    quantity: "Quantity",
+    unitPrice: "Unit Price",
+    total: "Total",
+    grandTotal: "Total:",
+    subtotal: "Subtotal:",
+    tax: "Tax:",
+    shipping: "Shipping:",
+    discount: "Discount:",
+    notes: "Notes",
+    thankYou: "Thank you for your business!",
+    unknownItem: "Unknown Item",
+    defaultCompanyName: "Your Company Name",
   },
 };
 
-pdfmake.addFonts(fonts);
+const normalizeInvoiceLocale = (value: unknown): InvoiceLocale | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const [language] = value.trim().toLowerCase().split(LOCALE_SEPARATOR);
+  return INVOICE_LOCALES.find((locale) => locale === language) ?? null;
+};
+
+const resolveInvoiceLocale = (order: OrderDTO): InvoiceLocale =>
+  normalizeInvoiceLocale(order.locale) ??
+  normalizeInvoiceLocale(order.metadata?.locale) ??
+  normalizeInvoiceLocale(process.env.INVOICE_DEFAULT_LOCALE) ??
+  FALLBACK_INVOICE_LOCALE;
+
+const formatMoney = (
+  amount: number,
+  currency: string,
+  locale: InvoiceLocale
+): string =>
+  // Medusa v2 amounts are major units (250000 VND, 19.99 USD): no scaling.
+  // vi-VN + VND renders as "250.000 ₫".
+  new Intl.NumberFormat(INTL_TAGS[locale], {
+    style: "currency",
+    currency,
+  }).format(amount);
+
+const formatDate = (
+  value: string | number | Date,
+  locale: InvoiceLocale
+): string =>
+  new Date(value).toLocaleDateString(INTL_TAGS[locale], {
+    timeZone: DATE_TIME_ZONES[locale],
+  });
+
+/**
+ * Multi-line postal address. Vietnamese names are written family name first
+ * (`last_name first_name`, e.g. "Nguyễn Thị Hương").
+ */
+const formatAddress = (
+  address: OrderAddressDTO,
+  locale: InvoiceLocale
+): string => {
+  const nameParts =
+    locale === "vi"
+      ? [address.last_name, address.first_name]
+      : [address.first_name, address.last_name];
+  const lines = [
+    nameParts.filter(Boolean).join(" "),
+    address.address_1,
+    address.address_2,
+    [address.city, address.province, address.postal_code]
+      .filter(Boolean)
+      .join(", "),
+    address.country_code,
+    address.phone,
+  ];
+  return lines.filter(Boolean).join("\n");
+};
 
 // ---------------------------------------------------------------------------
 
@@ -34,6 +242,14 @@ type GeneratePdfParams = {
   order: OrderDTO;
   items: OrderLineItemDTO[];
 };
+
+type TableLayoutNode = { table: { body: unknown[] } };
+
+const tableHorizontalLineWidth = (i: number, node: TableLayoutNode): number =>
+  i === 0 || i === node.table.body.length ? 0.8 : 0.3;
+
+const tableHorizontalLineColor = (i: number, node: TableLayoutNode): string =>
+  i === 0 || i === node.table.body.length ? "#cbd5e0" : "#e2e8f0";
 
 class InvoiceGeneratorService extends MedusaService({
   InvoiceConfig,
@@ -46,7 +262,9 @@ class InvoiceGeneratorService extends MedusaService({
   ): Promise<Buffer> {
     const invoice = await this.retrieveInvoice(params.invoice_id);
 
-    // Generate new content
+    // The generated document is cached on the invoice, including its `locale`
+    // (see createInvoiceContent). Cached content is reused as it is, so an
+    // invoice first generated in English stays English.
     const pdfContent = Object.keys(invoice.pdfContent).length
       ? invoice.pdfContent
       : await this.createInvoiceContent(params, invoice);
@@ -56,13 +274,19 @@ class InvoiceGeneratorService extends MedusaService({
       pdfContent,
     });
 
-    return pdfmake.createPdf(pdfContent as any).getBuffer();
+    return pdfmake.createPdf(pdfContent as Record<string, unknown>).getBuffer();
   }
 
   private async createInvoiceContent(
     params: GeneratePdfParams,
     invoice: InferTypeOf<typeof Invoice>
-  ): Promise<Record<string, any>> {
+  ): Promise<Record<string, unknown>> {
+    const locale = resolveInvoiceLocale(params.order);
+    const labels = INVOICE_LABELS[locale];
+    const currency = params.order.currency_code;
+    const money = (amount: number): string =>
+      formatMoney(amount, currency, locale);
+
     // Get invoice configuration
     const invoiceConfigs = await this.listInvoiceConfigs();
     const config = invoiceConfigs[0] || {};
@@ -70,38 +294,28 @@ class InvoiceGeneratorService extends MedusaService({
     // Create table for order items
     const itemsTable = [
       [
-        { text: "Item", style: "tableHeader" },
-        { text: "Quantity", style: "tableHeader" },
-        { text: "Unit Price", style: "tableHeader" },
-        { text: "Total", style: "tableHeader" },
+        { text: labels.item, style: "tableHeader" },
+        { text: labels.quantity, style: "tableHeader" },
+        { text: labels.unitPrice, style: "tableHeader" },
+        { text: labels.total, style: "tableHeader" },
       ],
-      ...(await Promise.all(
-        params.items.map(async (item) => [
-          { text: item.title || "Unknown Item", style: "tableRow" },
-          { text: item.quantity.toString(), style: "tableRow" },
-          {
-            text: await this.formatAmount(
-              item.unit_price,
-              params.order.currency_code
-            ),
-            style: "tableRow",
-          },
-          {
-            text: await this.formatAmount(
-              Number(item.total),
-              params.order.currency_code
-            ),
-            style: "tableRow",
-          },
-        ])
-      )),
+      ...params.items.map((item) => [
+        { text: item.title || labels.unknownItem, style: "tableRow" },
+        { text: item.quantity.toString(), style: "tableRow" },
+        { text: money(Number(item.unit_price)), style: "tableRow" },
+        { text: money(Number(item.total)), style: "tableRow" },
+      ]),
     ];
 
     const invoiceId = `INV-${invoice.display_id.toString().padStart(6, "0")}`;
-    const invoiceDate = new Date(invoice.created_at).toLocaleDateString();
+    const invoiceDate = formatDate(invoice.created_at, locale);
+    const orderDate = formatDate(params.order.created_at, locale);
 
     // return the PDF content structure
     return {
+      // Stored with the document so the language of a cached invoice is known.
+      locale,
+      info: { title: `${labels.invoice} ${invoiceId}` },
       pageSize: "A4",
       pageMargins: [40, 60, 40, 60],
       header: {
@@ -123,7 +337,7 @@ class InvoiceGeneratorService extends MedusaService({
                   ]
                 : []),
               {
-                text: config.company_name || "Your Company Name",
+                text: config.company_name || labels.defaultCompanyName,
                 style: "companyName",
                 margin: [0, 0, 0, 0],
               },
@@ -134,7 +348,7 @@ class InvoiceGeneratorService extends MedusaService({
             width: "auto",
             stack: [
               {
-                text: "INVOICE",
+                text: labels.invoice,
                 style: "invoiceTitle",
                 alignment: "right",
                 margin: [0, 0, 0, 0],
@@ -152,7 +366,7 @@ class InvoiceGeneratorService extends MedusaService({
               width: "*",
               stack: [
                 {
-                  text: "COMPANY DETAILS",
+                  text: labels.companyDetails,
                   style: "sectionHeader",
                   margin: [0, 0, 0, 8],
                 },
@@ -180,28 +394,23 @@ class InvoiceGeneratorService extends MedusaService({
                 widths: [80, 120],
                 body: [
                   [
-                    { text: "Invoice ID:", style: "label" },
+                    { text: labels.invoiceId, style: "label" },
                     { text: invoiceId, style: "value" },
                   ],
                   [
-                    { text: "Invoice Date:", style: "label" },
+                    { text: labels.invoiceDate, style: "label" },
                     { text: invoiceDate, style: "value" },
                   ],
                   [
-                    { text: "Order ID:", style: "label" },
+                    { text: labels.orderId, style: "label" },
                     {
                       text: params.order.display_id.toString().padStart(6, "0"),
                       style: "value",
                     },
                   ],
                   [
-                    { text: "Order Date:", style: "label" },
-                    {
-                      text: new Date(
-                        params.order.created_at
-                      ).toLocaleDateString(),
-                      style: "value",
-                    },
+                    { text: labels.orderDate, style: "label" },
+                    { text: orderDate, style: "value" },
                   ],
                 ],
               },
@@ -220,17 +429,14 @@ class InvoiceGeneratorService extends MedusaService({
               width: "*",
               stack: [
                 {
-                  text: "BILL TO",
+                  text: labels.billTo,
                   style: "sectionHeader",
                   margin: [0, 0, 0, 8],
                 },
                 {
                   text: params.order.billing_address
-                    ? `${params.order.billing_address.first_name || ""} ${params.order.billing_address.last_name || ""}
-                    ${params.order.billing_address.address_1 || ""}${params.order.billing_address.address_2 ? `\n${params.order.billing_address.address_2}` : ""}
-                    ${params.order.billing_address.city || ""}, ${params.order.billing_address.province || ""} ${params.order.billing_address.postal_code || ""}
-                    ${params.order.billing_address.country_code || ""}${params.order.billing_address.phone ? `\n${params.order.billing_address.phone}` : ""}`
-                    : "No billing address provided",
+                    ? formatAddress(params.order.billing_address, locale)
+                    : labels.noBillingAddress,
                   style: "addressText",
                 },
               ],
@@ -239,17 +445,14 @@ class InvoiceGeneratorService extends MedusaService({
               width: "*",
               stack: [
                 {
-                  text: "SHIP TO",
+                  text: labels.shipTo,
                   style: "sectionHeader",
                   margin: [0, 0, 0, 8],
                 },
                 {
                   text: params.order.shipping_address
-                    ? `${params.order.shipping_address.first_name || ""} ${params.order.shipping_address.last_name || ""}
-                    ${params.order.shipping_address.address_1 || ""} ${params.order.shipping_address.address_2 ? `\n${params.order.shipping_address.address_2}` : ""}
-                    ${params.order.shipping_address.city || ""}, ${params.order.shipping_address.province || ""} ${params.order.shipping_address.postal_code || ""}
-                    ${params.order.shipping_address.country_code || ""}${params.order.shipping_address.phone ? `\n${params.order.shipping_address.phone}` : ""}`
-                    : "No shipping address provided",
+                    ? formatAddress(params.order.shipping_address, locale)
+                    : labels.noShippingAddress,
                   style: "addressText",
                 },
               ],
@@ -267,35 +470,16 @@ class InvoiceGeneratorService extends MedusaService({
             body: itemsTable,
           },
           layout: {
-            fillColor: function (rowIndex: number) {
-              return rowIndex === 0 ? "#f8f9fa" : null;
-            },
-            hLineWidth: function (i: number, node: any) {
-              return i === 0 || i === node.table.body.length ? 0.8 : 0.3;
-            },
-            vLineWidth: function (_i: number, _node: any) {
-              return 0.3;
-            },
-            hLineColor: function (i: number, node: any) {
-              return i === 0 || i === node.table.body.length
-                ? "#cbd5e0"
-                : "#e2e8f0";
-            },
-            vLineColor: function () {
-              return "#e2e8f0";
-            },
-            paddingLeft: function () {
-              return 8;
-            },
-            paddingRight: function () {
-              return 8;
-            },
-            paddingTop: function () {
-              return 6;
-            },
-            paddingBottom: function () {
-              return 6;
-            },
+            fillColor: (rowIndex: number) =>
+              rowIndex === 0 ? "#f8f9fa" : null,
+            hLineWidth: tableHorizontalLineWidth,
+            vLineWidth: () => 0.3,
+            hLineColor: tableHorizontalLineColor,
+            vLineColor: () => "#e2e8f0",
+            paddingLeft: () => 8,
+            paddingRight: () => 8,
+            paddingTop: () => 6,
+            paddingBottom: () => 6,
           },
         },
         {
@@ -311,87 +495,55 @@ class InvoiceGeneratorService extends MedusaService({
                 widths: ["auto", "auto"],
                 body: [
                   [
-                    { text: "Subtotal:", style: "totalLabel" },
+                    { text: labels.subtotal, style: "totalLabel" },
                     {
-                      text: await this.formatAmount(
-                        Number(params.order.subtotal),
-                        params.order.currency_code
+                      text: money(Number(params.order.subtotal)),
+                      style: "totalValue",
+                    },
+                  ],
+                  [
+                    { text: labels.tax, style: "totalLabel" },
+                    {
+                      text: money(Number(params.order.tax_total)),
+                      style: "totalValue",
+                    },
+                  ],
+                  [
+                    { text: labels.shipping, style: "totalLabel" },
+                    {
+                      text: money(
+                        Number(params.order.shipping_methods?.[0]?.total || 0)
                       ),
                       style: "totalValue",
                     },
                   ],
                   [
-                    { text: "Tax:", style: "totalLabel" },
+                    { text: labels.discount, style: "totalLabel" },
                     {
-                      text: await this.formatAmount(
-                        Number(params.order.tax_total),
-                        params.order.currency_code
-                      ),
+                      text: money(Number(params.order.discount_total)),
                       style: "totalValue",
                     },
                   ],
                   [
-                    { text: "Shipping:", style: "totalLabel" },
+                    { text: labels.grandTotal, style: "totalLabel" },
                     {
-                      text: await this.formatAmount(
-                        Number(params.order.shipping_methods?.[0]?.total || 0),
-                        params.order.currency_code
-                      ),
-                      style: "totalValue",
-                    },
-                  ],
-                  [
-                    { text: "Discount:", style: "totalLabel" },
-                    {
-                      text: await this.formatAmount(
-                        Number(params.order.discount_total),
-                        params.order.currency_code
-                      ),
-                      style: "totalValue",
-                    },
-                  ],
-                  [
-                    { text: "Total:", style: "totalLabel" },
-                    {
-                      text: await this.formatAmount(
-                        Number(params.order.total),
-                        params.order.currency_code
-                      ),
+                      text: money(Number(params.order.total)),
                       style: "totalValue",
                     },
                   ],
                 ],
               },
               layout: {
-                fillColor: function (rowIndex: number) {
-                  return rowIndex === 3 ? "#f8f9fa" : null;
-                },
-                hLineWidth: function (i: number, node: any) {
-                  return i === 0 || i === node.table.body.length ? 0.8 : 0.3;
-                },
-                vLineWidth: function () {
-                  return 0.3;
-                },
-                hLineColor: function (i: number, node: any) {
-                  return i === 0 || i === node.table.body.length
-                    ? "#cbd5e0"
-                    : "#e2e8f0";
-                },
-                vLineColor: function () {
-                  return "#e2e8f0";
-                },
-                paddingLeft: function () {
-                  return 8;
-                },
-                paddingRight: function () {
-                  return 8;
-                },
-                paddingTop: function () {
-                  return 6;
-                },
-                paddingBottom: function () {
-                  return 6;
-                },
+                fillColor: (rowIndex: number) =>
+                  rowIndex === 4 ? "#f8f9fa" : null,
+                hLineWidth: tableHorizontalLineWidth,
+                vLineWidth: () => 0.3,
+                hLineColor: tableHorizontalLineColor,
+                vLineColor: () => "#e2e8f0",
+                paddingLeft: () => 8,
+                paddingRight: () => 8,
+                paddingTop: () => 6,
+                paddingBottom: () => 6,
               },
             },
           ],
@@ -403,7 +555,7 @@ class InvoiceGeneratorService extends MedusaService({
         ...(config.notes
           ? [
               {
-                text: "Notes",
+                text: labels.notes,
                 style: "sectionHeader",
                 margin: [0, 20, 0, 10],
               },
@@ -415,7 +567,7 @@ class InvoiceGeneratorService extends MedusaService({
             ]
           : []),
         {
-          text: "Thank you for your business!",
+          text: labels.thankYou,
           style: "thankYouText",
           alignment: "center",
           margin: [0, 30, 0, 0],
@@ -497,19 +649,9 @@ class InvoiceGeneratorService extends MedusaService({
         },
       },
       defaultStyle: {
-        font: "Helvetica",
+        font: INVOICE_FONT,
       },
     };
-  }
-
-  private async formatAmount(
-    amount: number,
-    currency: string
-  ): Promise<string> {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
   }
 
   private async imageUrlToBase64(url: string): Promise<string> {

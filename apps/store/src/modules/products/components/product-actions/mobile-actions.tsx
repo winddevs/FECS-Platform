@@ -6,6 +6,7 @@ import { HttpTypes } from "@medusajs/types";
 import { Button, clx } from "@medusajs/ui";
 import ChevronDown from "@modules/common/icons/chevron-down";
 import X from "@modules/common/icons/x";
+import { useLocale, useTranslations } from "next-intl";
 import React, { Fragment, useMemo } from "react";
 
 import OptionSelect from "./option-select";
@@ -33,11 +34,14 @@ const MobileActions: React.FC<MobileActionsProps> = ({
   show,
   optionsDisabled,
 }) => {
+  const t = useTranslations("products.actions");
+  const locale = useLocale();
   const { state, open, close } = useToggleState();
 
   const price = getProductPrice({
     product: product,
     variantId: variant?.id,
+    locale,
   });
 
   const selectedPrice = useMemo(() => {
@@ -113,7 +117,7 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                     <span>
                       {variant
                         ? Object.values(options).join(" / ")
-                        : "Select Options"}
+                        : t("selectOptions")}
                     </span>
                     <ChevronDown />
                   </div>
@@ -127,10 +131,10 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                 data-testid="mobile-cart-button"
               >
                 {!variant
-                  ? "Select variant"
+                  ? t("selectVariant")
                   : !inStock
-                    ? "Out of stock"
-                    : "Add to cart"}
+                    ? t("outOfStock")
+                    : t("addToCart")}
               </Button>
             </div>
           </div>
@@ -167,7 +171,9 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                 >
                   <div className="w-full flex justify-end pr-6">
                     <button
+                      type="button"
                       onClick={close}
+                      aria-label={t("close")}
                       className="bg-white w-12 h-12 rounded-full text-ui-fg-base flex justify-center items-center"
                       data-testid="close-modal-button"
                     >

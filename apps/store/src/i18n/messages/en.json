@@ -1,6 +1,7 @@
 {
   "metadata": {
-    "title": "Ecommerce"
+    "title": "FECS Fashion",
+    "description": "Online fashion store: ready-to-wear T-shirts and made-to-order pieces."
   },
   "date-published": "Date Published",
   "author": "Author",
@@ -11,7 +12,6 @@
   "post": "Post",
   "showing": "Showing",
   "of": "of",
-  "search": "Search",
   "dashboard": "Dashboard",
   "previous": "Previous",
   "next": "Next",

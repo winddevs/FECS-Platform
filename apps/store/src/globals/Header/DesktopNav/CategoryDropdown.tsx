@@ -4,6 +4,7 @@ import { Popover, PopoverPanel, Transition } from "@headlessui/react";
 import { ChevronDownMini } from "@medusajs/icons";
 import { HttpTypes } from "@medusajs/types";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
+import { useTranslations } from "next-intl";
 
 const CategoryTreeItem = ({
   category,
@@ -54,6 +55,7 @@ const CategoryDropdown = ({
 }: {
   categories: HttpTypes.StoreProductCategory[];
 }) => {
+  const t = useTranslations("components.header");
   const topLevelCategories = categories.filter(
     (category) => !category.parent_category
   );
@@ -67,7 +69,7 @@ const CategoryDropdown = ({
       {({ open, close }) => (
         <>
           <Popover.Button className="relative h-full flex items-center gap-x-1 txt-xsmall-plus text-muted-foreground hover:text-foreground focus:outline-none">
-            Categories
+            {t("categories")}
             <ChevronDownMini className="w-3 h-3" />
           </Popover.Button>
 

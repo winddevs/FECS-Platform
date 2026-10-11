@@ -4,10 +4,10 @@ import type { Button } from "@ecommerce/ui/components/button";
 import type { Media } from "@payload-types";
 import type { DefaultTypedEditorState } from "@payloadcms/richtext-lexical";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import { PayloadImage } from "@/components/PayloadImage";
 import RichText from "@/components/RichText";
 
 export type LogoGridBlockType = {
@@ -86,7 +86,7 @@ export const LogoGrid: React.FC<LogoGridBlockType> = (props) => {
                   className="flex items-center justify-center p-4"
                 >
                   <div className="relative h-16 w-full">
-                    <Image
+                    <PayloadImage
                       src={logoMedia.url}
                       alt={logoMedia.alt || t("logo")}
                       fill

@@ -1,7 +1,43 @@
-import type { CollectionConfig } from "payload";
+import type { CollectionAfterReadHook, CollectionConfig } from "payload";
+
+const VERSION_RADIX = 36;
+
+const withVersion = (url: unknown, version: string): unknown => {
+  if (typeof url !== "string" || url === "" || url.includes("?v=")) {
+    return url;
+  }
+  return `${url}${url.includes("?") ? "&" : "?"}v=${version}`;
+};
+
+/**
+ * Adds ?v=<last change> to every file URL.
+ *
+ * Payload overwrites the same file name when an image is re-saved (focal point,
+ * crop). CDNs keep images for a year, so a changing version in the URL is what
+ * makes them fetch the new copy.
+ */
+const addFileVersion: CollectionAfterReadHook = ({ doc }) => {
+  const changedAt = Date.parse(String(doc?.updatedAt ?? ""));
+  if (!doc || Number.isNaN(changedAt)) {
+    return doc;
+  }
+  const version = changedAt.toString(VERSION_RADIX);
+
+  doc.url = withVersion(doc.url, version);
+  doc.thumbnailURL = withVersion(doc.thumbnailURL, version);
+  for (const size of Object.values(doc.sizes ?? {}) as { url?: unknown }[]) {
+    if (size && typeof size === "object") {
+      size.url = withVersion(size.url, version);
+    }
+  }
+  return doc;
+};
 
 export const Media: CollectionConfig = {
   slug: "media",
+  hooks: {
+    afterRead: [addFileVersion],
+  },
   upload: {
     disableLocalStorage: true,
     imageSizes: [

@@ -73,6 +73,51 @@ services:
       "
     restart: "no"
 
+  # Resizes and converts images from MinIO on request (WebP). In production
+  # Cloudflare sits in front of it, see docs/deploy-nginx.md.
+  # Storefront: NEXT_PUBLIC_IMGPROXY_URL=http://localhost:8081
+  imgproxy:
+    image: ghcr.io/imgproxy/imgproxy:v4.0.17
+    container_name: ecommerce-imgproxy
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      # Source: MinIO over the S3 API, one bucket and one prefix only.
+      IMGPROXY_USE_S3: "true"
+      IMGPROXY_S3_ENDPOINT: http://minio:9000
+      IMGPROXY_S3_REGION: us-east-1
+      IMGPROXY_S3_ALLOWED_BUCKETS: ecommerce-media
+      # URLs carry only the object key (cms/media/photo.png); imgproxy adds the bucket.
+      IMGPROXY_BASE_URL: s3://ecommerce-media/
+      IMGPROXY_ALLOWED_SOURCES: s3://ecommerce-media/cms/media/
+      # Local only: use a read-only MinIO key in production.
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      # File names may contain "?", so do not read a query string from them.
+      IMGPROXY_SOURCE_URL_QUERY_SEPARATOR: ""
+      # Only the named presets are accepted, no free-form sizes.
+      IMGPROXY_ONLY_PRESETS: "true"
+      IMGPROXY_PRESETS_PATH: /config/presets.txt
+      # Output: WebP, EXIF removed, caching headers for a year (files never change).
+      IMGPROXY_FORMAT_QUALITY: webp=78,avif=60
+      IMGPROXY_TTL: "31536000"
+      IMGPROXY_USE_ETAG: "true"
+      # Limits: huge sources and request pile-ups are refused, not queued forever.
+      IMGPROXY_MAX_SRC_RESOLUTION: "50"
+      IMGPROXY_MAX_SRC_FILE_SIZE: "52428800"
+      IMGPROXY_REQUESTS_QUEUE_SIZE: "200"
+    volumes:
+      - ./imgproxy/presets.txt:/config/presets.txt:ro
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: ecommerce-pgadmin

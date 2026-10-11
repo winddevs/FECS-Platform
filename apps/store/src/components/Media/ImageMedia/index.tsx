@@ -1,9 +1,9 @@
 "use client";
 
 import type { StaticImageData } from "next/image";
-import NextImage from "next/image";
 import React from "react";
 
+import { PayloadImage } from "@/components/PayloadImage";
 import { cssVariables } from "@/cssVariables";
 import { placeholderBlur } from "@/utilities/constants";
 import { getClientSideURL } from "@/utilities/getURL";
@@ -42,9 +42,9 @@ export const ImageMedia: React.FC<MediaProps> = (props) => {
     height = fullHeight!;
     alt = altFromResource || "";
 
-    const cacheTag = resource.updatedAt;
-
-    src = `${getClientSideURL()}${url}?${cacheTag}`;
+    // Media URLs are absolute (MinIO / CDN) and already carry ?v=<version>.
+    // A relative one (old data, /public files) still needs the site origin.
+    src = url?.startsWith("/") ? `${getClientSideURL()}${url}` : (url ?? "");
   }
 
   const loading = loadingFromProps || (!priority ? "lazy" : undefined);
@@ -58,7 +58,7 @@ export const ImageMedia: React.FC<MediaProps> = (props) => {
 
   return (
     <picture>
-      <NextImage
+      <PayloadImage
         alt={alt || ""}
         className={cn(imgClassName)}
         fill={fill}

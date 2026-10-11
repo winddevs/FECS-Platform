@@ -1,9 +1,9 @@
 "use client";
 import type { CalloutBlock as COBlockProps, Media } from "@payload-types";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import type React from "react";
 
+import { PayloadImage } from "@/components/PayloadImage";
 import RichText from "@/components/RichText";
 
 // Define types based on your Payload CMS configuration
@@ -23,7 +23,7 @@ export const Callout: React.FC<COBlockProps> = ({
       {/* Logo */}
       {logoMedia && (
         <div className="mb-6">
-          <Image
+          <PayloadImage
             src={logoMedia?.url!}
             alt={logoMedia.alt || t("companyLogo")}
             width={logoMedia.width || 150}
@@ -61,7 +61,7 @@ export const Callout: React.FC<COBlockProps> = ({
                 key={item.id || `img-${index}`}
                 className="relative aspect-square overflow-hidden rounded-md"
               >
-                <Image
+                <PayloadImage
                   src={imgMedia?.url!}
                   alt={imgMedia.alt || t("calloutImage")}
                   fill

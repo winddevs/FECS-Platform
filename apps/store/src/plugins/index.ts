@@ -110,8 +110,10 @@ export const plugins: Plugin[] = [
       media: {
         disablePayloadAccessControl: true,
         prefix,
+        // The file name goes into a URL path, so spaces and non-Latin letters
+        // (e.g. "áo thun.png") must be encoded.
         generateFileURL: ({ filename }: { filename: string }) => {
-          return `${process.env.S3_FILE_URL}/${prefix}/${filename}`;
+          return `${process.env.S3_FILE_URL}/${prefix}/${encodeURIComponent(filename)}`;
         },
       },
     },

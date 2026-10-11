@@ -2,11 +2,11 @@
 import type { HoverCardsBlock as HoverCardsBlockProps } from "@payload-types";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
 import { useState } from "react";
 
+import { PayloadImage } from "@/components/PayloadImage";
 import RichText from "@/components/RichText";
 import { cn } from "@/utilities/ui";
 
@@ -166,7 +166,7 @@ export const HoverCards: React.FC<HoverCardsBlockProps> = ({
                             )}
                           />
                           <div className="absolute inset-0 h-full w-full">
-                            <Image
+                            <PayloadImage
                               src={imageUrl || "/placeholder.svg"}
                               alt={card.title || t("cardBackground")}
                               fill

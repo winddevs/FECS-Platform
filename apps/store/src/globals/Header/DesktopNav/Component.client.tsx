@@ -4,7 +4,6 @@ import { FlickeringGrid } from "@ecommerce/ui/components/flickeringPatterns/flic
 import type { Header } from "@payload-types";
 import { SearchIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type React from "react";
@@ -12,6 +11,7 @@ import { useState, useRef, useEffect } from "react";
 
 import { CMSLink } from "@/components/Link";
 import Logo from "@/components/Logo/Logo";
+import { PayloadImage } from "@/components/PayloadImage";
 import LocaleSwitcher from "@/components/ui/locale-switcher";
 import SearchModal from "@/modules/search/components/modal";
 import { useHeaderTheme } from "@/providers/HeaderTheme";
@@ -210,7 +210,7 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({
                                 </h3>
                               )}
                               {group.image?.url && (
-                                <Image
+                                <PayloadImage
                                   loading="lazy"
                                   width={300}
                                   height={200}

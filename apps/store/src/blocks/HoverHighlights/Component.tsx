@@ -3,9 +3,10 @@
 import type { Button } from "@ecommerce/ui/components/button";
 import type { HoverHighlightsBlock as HoverHighlightsBlockProps } from "@payload-types";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
+
+import { PayloadImage } from "@/components/PayloadImage";
 
 export const HoverHighlights: React.FC<HoverHighlightsBlockProps> = (props) => {
   const t = useTranslations("blocks.alt");
@@ -80,7 +81,7 @@ export const HoverHighlights: React.FC<HoverHighlightsBlockProps> = (props) => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
                         {topMediaUrl && (
                           <div className="relative h-full">
-                            <Image
+                            <PayloadImage
                               src={topMediaUrl}
                               alt={highlight.text}
                               fill
@@ -91,7 +92,7 @@ export const HoverHighlights: React.FC<HoverHighlightsBlockProps> = (props) => {
                         )}
                         {bottomMediaUrl && (
                           <div className="relative h-full">
-                            <Image
+                            <PayloadImage
                               src={bottomMediaUrl}
                               alt={t("secondary", { text: highlight.text })}
                               fill

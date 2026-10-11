@@ -12,7 +12,9 @@ const getImageURL = (image?: Media | Config["db"]["defaultIDType"] | null) => {
   if (image && typeof image === "object" && "url" in image) {
     const ogUrl = image.sizes?.og?.url;
 
-    url = ogUrl ? serverUrl + ogUrl : serverUrl + image.url;
+    const chosen = ogUrl ?? image.url ?? "";
+    // Media URLs are absolute (MinIO / CDN); only a relative path needs the site origin.
+    url = chosen.startsWith("/") ? serverUrl + chosen : chosen || url;
   }
 
   return url;

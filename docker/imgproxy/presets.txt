@@ -1,0 +1,23 @@
+# imgproxy presets for the storefront (IMGPROXY_ONLY_PRESETS=true).
+#
+# imgproxy accepts ONLY these names, so nobody can ask for an odd size. Each one
+# scales the image down to a width (never up), keeping its shape.
+#
+# These widths are the ones next/image asks for (its default imageSizes and
+# deviceSizes). Keep them in sync with IMGPROXY_WIDTHS in
+# apps/store/src/utilities/imgproxyLoader.ts.
+w32=resize:fit:32:0:0
+w48=resize:fit:48:0:0
+w64=resize:fit:64:0:0
+w96=resize:fit:96:0:0
+w128=resize:fit:128:0:0
+w256=resize:fit:256:0:0
+w384=resize:fit:384:0:0
+w640=resize:fit:640:0:0
+w750=resize:fit:750:0:0
+w828=resize:fit:828:0:0
+w1080=resize:fit:1080:0:0
+w1200=resize:fit:1200:0:0
+w1920=resize:fit:1920:0:0
+w2048=resize:fit:2048:0:0
+w3840=resize:fit:3840:0:0

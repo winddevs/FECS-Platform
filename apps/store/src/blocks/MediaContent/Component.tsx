@@ -4,10 +4,10 @@ import type { Button } from "@ecommerce/ui/components/button";
 import type { Media } from "@payload-types";
 import type { DefaultTypedEditorState } from "@payloadcms/richtext-lexical";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import { PayloadImage } from "@/components/PayloadImage";
 import RichText from "@/components/RichText";
 
 export type MediaContentBlockType = {
@@ -126,7 +126,7 @@ export const MediaContent: React.FC<MediaContentBlockType> = (props) => {
                       key={imageItem.id || index}
                       className="relative aspect-[4/3] rounded-lg overflow-hidden"
                     >
-                      <Image
+                      <PayloadImage
                         src={imageMedia.url}
                         alt={
                           imageMedia.alt || t("image", { number: index + 1 })

@@ -1,10 +1,10 @@
 import type { Footer } from "@payload-types";
 import { getTranslations } from "next-intl/server";
-import NextImage from "next/image";
 import type { TypedLocale } from "payload";
 import React from "react";
 
 import { CMSLink } from "@/components/Link";
+import { PayloadImage } from "@/components/PayloadImage";
 import { ThemeSelector } from "@/providers/Theme/ThemeSelector";
 import { getCachedGlobal } from "@/utilities/getGlobals";
 
@@ -20,7 +20,7 @@ export async function Footer({ locale }: { locale: TypedLocale }) {
         <div className="flex flex-col content-container">
           {footerLogo && (
             <div className="h-20 sm:h-32 md:h-38 lg:h-48 xl:h-56 relative overflow-hidden">
-              <NextImage
+              <PayloadImage
                 src={footerLogo.url}
                 alt={footerLogo.alt || t("logoAlt")}
                 width={footerLogo.width || 200}

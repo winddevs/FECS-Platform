@@ -16,6 +16,7 @@ import {
   CreateMaterialSchema,
   CreatePurchaseOrderSchema,
   CloseTransferSchema,
+  CountryProfileSchema,
   CreateSupplierSchema,
   CycleCountSchema,
   DecideCycleCountSchema,
@@ -29,6 +30,7 @@ import {
   ReserveMaterialSchema,
   ReturnMaterialSchema,
   ScrapMaterialSchema,
+  SettingValueSchema,
   TransferStockSchema,
   UpdateLocationSchema,
   UpdateMaterialSchema,
@@ -292,6 +294,23 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
     "inventory:reconcile"
   ),
 
+  // ---- configuration ----------------------------------------------------------
+  guarded("/admin/settings", "GET", "ops:read"),
+  {
+    matcher: "/admin/settings/:key",
+    methods: ["PUT"],
+    middlewares: [
+      requirePermission("config:manage"),
+      validateAndTransformBody(SettingValueSchema as never),
+    ],
+  },
+  {
+    matcher: "/admin/settings/:key",
+    methods: ["DELETE"],
+    middlewares: [requirePermission("config:manage")],
+  },
+  guarded("/admin/country-profiles", "GET", "master:read"),
+  body("/admin/country-profiles", "config:manage", CountryProfileSchema),
   // ---- procurement ---------------------------------------------------------
   list("/admin/procurement/purchase-orders", "procurement:read", {
     supplier_id: str,

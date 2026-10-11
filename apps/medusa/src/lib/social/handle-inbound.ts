@@ -3,7 +3,10 @@ import {
   type InboundMessage,
   type MessageChannel,
 } from "../../integrations/channel/channel";
-import { parseIntent } from "../../modules/socialCommerce/lib/intent";
+import {
+  parseIntent,
+  type Intent,
+} from "../../modules/socialCommerce/lib/intent";
 import {
   orderText,
   productionText,
@@ -14,6 +17,7 @@ import {
 import { evaluateOutbound } from "../../modules/socialCommerce/lib/policy";
 import type SocialCommerceModuleService from "../../modules/socialCommerce/service";
 import type { IdentityView } from "../../modules/socialCommerce/service";
+import { resolveIntentWithAgent, type AgentModel } from "./agent";
 import { flushDeferredNotifications } from "./notify";
 import type { SocialReaders } from "./tools";
 
@@ -23,6 +27,8 @@ export type SocialDeps = {
   readers: SocialReaders;
   locale: Locale;
   flags: { readTools: boolean; stateChange: boolean };
+  /** Optional language model that picks a read-only action for free text. */
+  agent?: AgentModel | null;
   now?: () => Date;
 };
 
@@ -32,6 +38,28 @@ export type InboundOutcome =
   | { status: "SUPPRESSED"; reason: string; intent: string };
 
 const MAX_SEARCH_HITS = 3;
+const MIN_AGENT_TEXT = 4;
+
+/**
+ * Rules first: commands, order numbers and consent words are matched exactly
+ * and never reach a model. Only text the rules call HELP is offered to the
+ * language model (when enabled), which can pick a read-only action.
+ */
+const resolveIntent = async (
+  deps: SocialDeps,
+  text: string,
+  locale: Locale
+): Promise<Intent> => {
+  const byRules = parseIntent(text);
+  if (
+    byRules.name !== "HELP" ||
+    !deps.agent ||
+    text.trim().length < MIN_AGENT_TEXT
+  ) {
+    return byRules;
+  }
+  return await resolveIntentWithAgent(deps.agent, { text, locale });
+};
 /** Per identity; far above human typing speed, below what a script sends. */
 const MAX_INBOUND_PER_MINUTE = 30;
 const SECONDS_PER_MINUTE = 60;
@@ -111,6 +139,16 @@ export const handleInboundMessage = async (
       });
       current = { ...identity, consent_status: "OPTED_IN" };
       reply = t("start", locale);
+      break;
+    case "MUTE":
+    case "UNMUTE":
+      await service.setCategoryMuted({
+        identity_id: identity.id,
+        category: intent.category,
+        muted: intent.name === "MUTE",
+      });
+      reply = t(intent.name === "MUTE" ? "muted" : "unmuted", locale);
+      bypassPolicy = true; // confirm the preference itself
       break;
     case "RESUME_BOT":
       await service.setHandoff({

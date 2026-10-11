@@ -9,6 +9,17 @@ export const FinishedGoodsOutboxEvent = defineOutboxEventModel(FG_OUTBOX_TABLE);
 export const FinishedGoodsIdempotencyRecord =
   defineIdempotencyRecordModel(FG_IDEMPOTENCY_TABLE);
 
+/** Where finished goods can be (requirement section 25). */
+export const FG_LOCATION_KINDS = [
+  "FACTORY",
+  "FULFILLMENT",
+  "IN_TRANSIT",
+  "RETURN_QC",
+  "QUARANTINE",
+  "SHOWROOM",
+] as const;
+export type FgLocationKind = (typeof FG_LOCATION_KINDS)[number];
+
 /**
  * Physical finished-goods locations. Only locations with `is_commerce = true`
  * feed the sellable projection; they map to a Medusa stock location.
@@ -19,6 +30,8 @@ export const FgLocation = model
     code: model.text(),
     name: model.text(),
     warehouse_code: model.text(),
+    country_code: model.text().nullable(),
+    kind: model.enum([...FG_LOCATION_KINDS]).default("FULFILLMENT"),
     is_commerce: model.boolean().default(true),
     medusa_stock_location_id: model.text().nullable(),
     is_active: model.boolean().default(true),
@@ -47,7 +60,11 @@ export const FgBatch = model
     id: model.id({ prefix: "fgb" }).primaryKey(),
     batch_no: model.text(),
     sku: model.text(),
-    source: model.enum(["PRODUCTION", "RETURN"]).default("PRODUCTION"),
+    source: model
+      .enum(["PRODUCTION", "RETURN", "TRANSFER"])
+      .default("PRODUCTION"),
+    /** Set on a batch created by a transfer: the batch the pieces came from. */
+    parent_batch_id: model.text().nullable(),
     location_id: model.text(),
     qty: model.number(),
     /** Not yet shipped; consumed FIFO on shipment so orders trace to batches. */
@@ -112,6 +129,8 @@ export const FG_MOVEMENT_TYPES = [
   "RELEASE_HOLD",
   "ALLOCATE",
   "DEALLOCATE",
+  "TRANSFER_OUT",
+  "TRANSFER_IN",
 ] as const;
 
 /** Append-only physical FG ledger (FR-FG-003). */
@@ -205,4 +224,43 @@ export const FgShipmentLine = model
     },
     { name: "IDX_fg_shipment_line_order", on: ["order_id"] },
     { name: "IDX_fg_shipment_line_batch", on: ["batch_id"] },
+  ]);
+
+export const FG_TRANSFER_STATUSES = [
+  "IN_TRANSIT",
+  "RECEIVED",
+  "CANCELLED",
+] as const;
+
+/**
+ * Stock moving between FG locations (section 25: "transfer rules must
+ * preserve total stock"). Dispatch moves the pieces to an IN_TRANSIT
+ * location; receipt moves them on; both are ledger movements, so the total
+ * over all locations never changes.
+ */
+export const FgTransfer = model
+  .define("fg_transfer", {
+    id: model.id({ prefix: "fgx" }).primaryKey(),
+    transfer_no: model.text(),
+    status: model.enum([...FG_TRANSFER_STATUSES]).default("IN_TRANSIT"),
+    sku: model.text(),
+    qty: model.number(),
+    from_location_id: model.text(),
+    transit_location_id: model.text(),
+    to_location_id: model.text(),
+    dispatched_by: model.text(),
+    dispatched_at: model.dateTime(),
+    closed_by: model.text().nullable(),
+    closed_at: model.dateTime().nullable(),
+    notes: model.text().nullable(),
+  })
+  .indexes([
+    {
+      name: "IDX_fg_transfer_no_unique",
+      on: ["transfer_no"],
+      unique: true,
+      where: "deleted_at IS NULL",
+    },
+    { name: "IDX_fg_transfer_status", on: ["status"] },
+    { name: "IDX_fg_transfer_sku", on: ["sku"] },
   ]);

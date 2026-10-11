@@ -2,7 +2,10 @@ import {
   ChannelError,
   type MessageChannel,
 } from "../../integrations/channel/channel";
-import { evaluateOutbound } from "../../modules/socialCommerce/lib/policy";
+import {
+  evaluateOutbound,
+  type NotificationCategory,
+} from "../../modules/socialCommerce/lib/policy";
 import type SocialCommerceModuleService from "../../modules/socialCommerce/service";
 import type { IdentityView } from "../../modules/socialCommerce/service";
 
@@ -12,6 +15,8 @@ export type NotifyInput = {
   dedupe_key: string;
   event_type: string;
   text: string;
+  /** Lets the customer switch this kind of message off. */
+  category?: NotificationCategory;
 };
 
 export type NotifyResult = {
@@ -28,6 +33,8 @@ const MAX_FLUSH_PER_CALL = 3;
 type NotifyDeps = {
   service: SocialCommerceModuleService;
   channel: MessageChannel;
+  /** Rate limit per customer and hour; defaults to the policy constant. */
+  maxPerHour?: number;
   now?: () => Date;
 };
 
@@ -61,6 +68,8 @@ export const notifyCustomer = async (
     const outcome = await sendOrDefer(deps, identity, {
       dedupe_key: input.dedupe_key,
       text: input.text,
+      category: input.category,
+      maxPerHour: deps.maxPerHour,
       now,
     });
     if (outcome.sent) {
@@ -75,12 +84,20 @@ export const notifyCustomer = async (
 const sendOrDefer = async (
   deps: NotifyDeps,
   identity: IdentityView,
-  message: { dedupe_key: string; text: string; now: Date }
+  message: {
+    dedupe_key: string;
+    text: string;
+    now: Date;
+    category?: NotificationCategory;
+    maxPerHour?: number;
+  }
 ): Promise<{ sent: true } | { sent: false; reason: string }> => {
   const decision = evaluateOutbound({
     identity,
     kind: "NOTIFICATION",
     now: message.now,
+    category: message.category,
+    maxPerHour: message.maxPerHour,
     notificationsLastHour: await deps.service.notificationsInLastHour(
       identity.id
     ),

@@ -2,6 +2,7 @@ import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { getMessageChannel } from "../integrations/channel/registry";
+import { readSetting } from "../lib/config/settings";
 import { isEnabled } from "../lib/feature-flags";
 import { socialLocale } from "../lib/inbox/handlers/meta";
 import { notifyCustomer } from "../lib/social/notify";
@@ -45,11 +46,13 @@ export default async function notifyOrderConfirmed({
         SOCIAL_COMMERCE_MODULE
       ),
       channel: getMessageChannel(),
+      maxPerHour: await readSetting(container, "social.notifications_per_hour"),
     },
     {
       customer_id: order.customer_id,
       dedupe_key: `order:${order.id}:CONFIRMED`,
       event_type: "order.placed",
+      category: "ORDER",
       text: `${prefix}${orderConfirmedText(locale)}`,
     }
   );

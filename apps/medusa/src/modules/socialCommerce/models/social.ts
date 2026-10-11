@@ -29,6 +29,8 @@ export const CustomerChannelIdentity = model
     last_inbound_at: model.dateTime().nullable(),
     failed_link_attempts: model.number().default(0),
     link_locked_until: model.dateTime().nullable(),
+    /** Notification categories the customer switched off (FR-NOT-002). */
+    muted_categories: model.json().nullable(),
   })
   .indexes([
     {

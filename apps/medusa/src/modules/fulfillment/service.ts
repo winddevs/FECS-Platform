@@ -27,10 +27,15 @@ import {
   FULFILLMENT_OUTBOX_TABLE,
   FulfillmentIdempotencyRecord,
   FulfillmentOutboxEvent,
+  ShipmentException,
   TrackingEvent,
+  type ExceptionResolution,
+  type ExceptionType,
 } from "./models/shipment";
 
 const PRODUCER = "fulfillment";
+/** Replacement shipments are named after the original: F-123, F-123-R1, ... */
+const REPLACEMENT_SUFFIX = /-R\d+$/;
 /** A PENDING row older than this means the creating process died mid-call. */
 const STALE_PENDING_SECONDS = 60;
 
@@ -40,6 +45,8 @@ export type ClaimShipmentInput = Actor & {
   carrier_code: string;
   medusa_fulfillment_id?: string | null;
   return_id?: string | null;
+  /** The RMA a replacement parcel is sent for (exchange). */
+  exchange_return_id?: string | null;
   order_id: string;
   merchant_reference: string;
   request: Record<string, unknown>;
@@ -53,6 +60,7 @@ export type ShipmentView = {
   order_id: string;
   medusa_fulfillment_id: string | null;
   return_id: string | null;
+  exchange_return_id: string | null;
   merchant_reference: string;
   create_state: CreateState;
   status: ShipmentStatus;
@@ -82,13 +90,14 @@ type ShipmentRow = ShipmentView & {
 };
 
 const SHIPMENT_COLUMNS =
-  "id, carrier_code, order_id, medusa_fulfillment_id, return_id, merchant_reference, create_state, status, tracking_number, attempts, request, updated_at, last_event_at";
+  "id, carrier_code, order_id, medusa_fulfillment_id, return_id, exchange_return_id, merchant_reference, create_state, status, tracking_number, attempts, request, updated_at, last_event_at";
 
 class FulfillmentModuleService extends MedusaService({
   CarrierShipment,
   TrackingEvent,
   FulfillmentOutboxEvent,
   FulfillmentIdempotencyRecord,
+  ShipmentException,
 }) {
   protected baseRepository_: DAL.RepositoryService;
 
@@ -127,6 +136,7 @@ class FulfillmentModuleService extends MedusaService({
       order_id: row.order_id,
       medusa_fulfillment_id: row.medusa_fulfillment_id,
       return_id: row.return_id,
+      exchange_return_id: row.exchange_return_id ?? null,
       merchant_reference: row.merchant_reference,
       create_state: row.create_state,
       status: row.status,
@@ -152,24 +162,27 @@ class FulfillmentModuleService extends MedusaService({
     shipment: ShipmentView;
     request: Record<string, unknown>;
   }> {
-    const source = input.medusa_fulfillment_id ?? input.return_id;
-    if (!source || (input.medusa_fulfillment_id && input.return_id)) {
+    const sources = [
+      ["medusa_fulfillment_id", input.medusa_fulfillment_id],
+      ["return_id", input.return_id],
+      ["exchange_return_id", input.exchange_return_id],
+    ].filter(([, value]) => Boolean(value)) as Array<[string, string]>;
+    if (sources.length !== 1) {
       throw domainError(
         MedusaError.Types.INVALID_DATA,
         ErrorCodes.INVALID_STATE,
-        "Provide exactly one of medusa_fulfillment_id or return_id"
+        "Provide exactly one of medusa_fulfillment_id, return_id or exchange_return_id"
       );
     }
+    const [column, source] = sources[0];
     const ex = executorOf(ctx);
     await ex.execute(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
       `shipment:${input.carrier_code}|${source}`,
     ]);
-    const column = input.medusa_fulfillment_id
-      ? "medusa_fulfillment_id"
-      : "return_id";
     const [existing] = await ex.execute<ShipmentRow>(
       `SELECT ${SHIPMENT_COLUMNS} FROM "carrier_shipment"
-       WHERE carrier_code = ? AND ${column} = ? AND deleted_at IS NULL FOR UPDATE`,
+       WHERE carrier_code = ? AND ${column} = ? AND deleted_at IS NULL
+         AND superseded_at IS NULL FOR UPDATE`,
       [input.carrier_code, source]
     );
 
@@ -179,6 +192,7 @@ class FulfillmentModuleService extends MedusaService({
           carrier_code: input.carrier_code,
           medusa_fulfillment_id: input.medusa_fulfillment_id ?? null,
           return_id: input.return_id ?? null,
+          exchange_return_id: input.exchange_return_id ?? null,
           order_id: input.order_id,
           merchant_reference: input.merchant_reference,
           create_state: "PENDING",
@@ -197,6 +211,7 @@ class FulfillmentModuleService extends MedusaService({
           order_id: input.order_id,
           medusa_fulfillment_id: input.medusa_fulfillment_id ?? null,
           return_id: input.return_id ?? null,
+          exchange_return_id: input.exchange_return_id ?? null,
           merchant_reference: input.merchant_reference,
           create_state: "PENDING",
           status: "CREATED",
@@ -498,7 +513,231 @@ class FulfillmentModuleService extends MedusaService({
         occurred_at: at.toISOString(),
       }
     );
+    await this.syncExceptions(ctx, row, next, at, actor);
     return { applied: true as const, from: row.status, status: next };
+  }
+
+  /**
+   * Opens a support exception when a parcel could not be delivered
+   * (FR-FUL-008) and closes it again when the parcel does arrive.
+   */
+  private async syncExceptions(
+    ctx: Context,
+    row: ShipmentRow,
+    next: ShipmentStatus,
+    at: Date,
+    actor: Actor
+  ): Promise<void> {
+    const opens: Partial<Record<ShipmentStatus, ExceptionType>> = {
+      DELIVERY_FAILED: "DELIVERY_FAILED",
+      RETURNING: "RETURNED_TO_SENDER",
+      RETURNED: "RETURNED_TO_SENDER",
+      EXCEPTION: "CARRIER_EXCEPTION",
+    };
+    const type = opens[next];
+    const ex = executorOf(ctx);
+    if (type) {
+      const [open] = await ex.execute<{ id: string }>(
+        `SELECT id FROM "shipment_exception"
+         WHERE shipment_id = ? AND type = ? AND status = 'OPEN' AND deleted_at IS NULL`,
+        [row.id, type]
+      );
+      if (open) {
+        return;
+      }
+      const created = await this.createShipmentExceptions(
+        {
+          shipment_id: row.id,
+          order_id: row.order_id,
+          type,
+          detail: {
+            status: next,
+            occurred_at: at.toISOString(),
+            tracking_number: row.tracking_number,
+            return_id: row.return_id,
+            exchange_return_id: row.exchange_return_id ?? null,
+          },
+        },
+        ctx
+      );
+      await this.emit(
+        ctx,
+        "fulfillment.shipment_exception_opened.v1",
+        row.id,
+        actor,
+        {
+          exception_id: created.id,
+          shipment_id: row.id,
+          order_id: row.order_id,
+          type,
+        }
+      );
+      return;
+    }
+    if (next === "DELIVERED" || next === "OUT_FOR_DELIVERY") {
+      // A delivery attempt that succeeded after all clears the earlier problem.
+      await ex.execute(
+        `UPDATE "shipment_exception"
+         SET status = 'RESOLVED', resolution = 'REDELIVER',
+             resolution_note = 'carrier delivered the parcel', resolved_by = 'system',
+             resolved_at = now(), updated_at = now()
+         WHERE shipment_id = ? AND status = 'OPEN' AND deleted_at IS NULL
+           AND type IN ('DELIVERY_FAILED', 'CARRIER_EXCEPTION')`,
+        [row.id]
+      );
+    }
+  }
+
+  /** A person decides what happens with a parcel that did not arrive. */
+  @InjectTransactionManager()
+  async resolveShipmentException(
+    input: Actor & {
+      exception_id: string;
+      resolution: ExceptionResolution;
+      note: string;
+    },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    const [row] = await executorOf(ctx).execute<{
+      id: string;
+      status: string;
+      shipment_id: string;
+      order_id: string;
+      type: string;
+    }>(
+      `SELECT id, status, shipment_id, order_id, type FROM "shipment_exception"
+       WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [input.exception_id]
+    );
+    if (!row) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Exception not found"
+      );
+    }
+    if (row.status !== "OPEN") {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        "Exception is already resolved"
+      );
+    }
+    if (!input.note.trim()) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "A resolution needs a note"
+      );
+    }
+    await this.updateShipmentExceptions(
+      {
+        id: row.id,
+        status: "RESOLVED",
+        resolution: input.resolution,
+        resolution_note: input.note,
+        resolved_by: input.actor_id,
+        resolved_at: new Date(),
+      },
+      ctx
+    );
+    await flushOf(ctx);
+    await this.emit(
+      ctx,
+      "fulfillment.shipment_exception_resolved.v1",
+      row.shipment_id,
+      input,
+      {
+        exception_id: row.id,
+        shipment_id: row.shipment_id,
+        order_id: row.order_id,
+        type: row.type,
+        resolution: input.resolution,
+      }
+    );
+    return { id: row.id, status: "RESOLVED", resolution: input.resolution };
+  }
+
+  /**
+   * Makes room for a replacement shipment (FR-FUL-003: one shipment per
+   * fulfillment unless explicitly replaced). Only a parcel that is no longer
+   * live may be replaced; a live one has to be cancelled first so two
+   * parcels can never travel for the same goods.
+   */
+  @InjectTransactionManager()
+  async supersedeShipment(
+    input: Actor & { shipment_id: string; reason: string },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    const [row] = await executorOf(ctx).execute<ShipmentRow>(
+      `SELECT ${SHIPMENT_COLUMNS} FROM "carrier_shipment"
+       WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [input.shipment_id]
+    );
+    if (!row) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Shipment not found"
+      );
+    }
+    const settled =
+      row.status === "CANCELLED" ||
+      row.status === "RETURNED" ||
+      row.create_state === "FAILED_FINAL";
+    if (!settled) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `A ${row.status} shipment may still be on its way: cancel it, or wait until it is returned, before replacing it`
+      );
+    }
+    if (!input.reason.trim()) {
+      throw domainError(
+        MedusaError.Types.INVALID_DATA,
+        ErrorCodes.INVALID_STATE,
+        "Replacing a shipment needs a reason"
+      );
+    }
+    const [already] = await executorOf(ctx).execute<{
+      superseded_at: Date | null;
+    }>(`SELECT superseded_at FROM "carrier_shipment" WHERE id = ?`, [row.id]);
+    if (already?.superseded_at) {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        "Shipment was already replaced"
+      );
+    }
+    await this.updateCarrierShipments(
+      { id: row.id, superseded_at: new Date() },
+      ctx
+    );
+    const [{ n }] = await executorOf(ctx).execute<{ n: string }>(
+      `SELECT count(*) AS n FROM "carrier_shipment"
+       WHERE order_id = ? AND merchant_reference LIKE ? AND deleted_at IS NULL`,
+      [
+        row.order_id,
+        `${row.merchant_reference.replace(REPLACEMENT_SUFFIX, "")}-R%`,
+      ]
+    );
+    return {
+      shipment: this.view(row),
+      request: row.request,
+      next_merchant_reference: `${row.merchant_reference.replace(REPLACEMENT_SUFFIX, "")}-R${Number(n) + 1}`,
+    };
+  }
+
+  /** Records which shipment took over (set after the replacement exists). */
+  @InjectTransactionManager()
+  async linkReplacement(
+    input: { shipment_id: string; replaced_by_id: string },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    await this.updateCarrierShipments(
+      { id: input.shipment_id, superseded_by_id: input.replaced_by_id },
+      ctx
+    );
   }
 
   /**
@@ -644,15 +883,16 @@ class FulfillmentModuleService extends MedusaService({
       order_id: string;
       medusa_fulfillment_id: string | null;
       return_id: string | null;
+      exchange_return_id: string | null;
       merchant_reference: string;
       create_state: string;
       request: Record<string, unknown>;
     }>(
-      `SELECT id, carrier_code, order_id, medusa_fulfillment_id, return_id, merchant_reference,
-              create_state, request
+      `SELECT id, carrier_code, order_id, medusa_fulfillment_id, return_id, exchange_return_id,
+              merchant_reference, create_state, request
        FROM "carrier_shipment"
        WHERE create_state IN ('PENDING', 'UNKNOWN', 'FAILED_RETRYABLE') AND deleted_at IS NULL
-         AND status <> 'CANCELLED'
+         AND superseded_at IS NULL AND status <> 'CANCELLED'
          AND updated_at < now() - (? || ' seconds')::interval
        ORDER BY updated_at LIMIT ?`,
       [String(input.older_than_seconds), input.limit]
@@ -670,12 +910,14 @@ class FulfillmentModuleService extends MedusaService({
       create_state: string;
       medusa_fulfillment_id: string | null;
       return_id: string | null;
+      exchange_return_id: string | null;
       last_event_at: Date | null;
       delivered_at: Date | null;
     }>(
       `SELECT id, carrier_code, tracking_number, status, create_state, medusa_fulfillment_id,
-              return_id, last_event_at, delivered_at
-       FROM "carrier_shipment" WHERE order_id = ? AND deleted_at IS NULL ORDER BY created_at`,
+              return_id, exchange_return_id, last_event_at, delivered_at
+       FROM "carrier_shipment"
+       WHERE order_id = ? AND deleted_at IS NULL AND superseded_at IS NULL ORDER BY created_at`,
       [orderId]
     );
   }

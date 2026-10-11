@@ -20,6 +20,7 @@ export BASE_URL="http://localhost:${PORT}"
 export JT_FULFILLMENT_ENABLED=true JT_TRACKING_CALLBACK_ENABLED=true
 export JT_API_BASE_URL=http://127.0.0.1:59999 JT_API_ACCOUNT=test JT_PRIVATE_KEY=test JT_WEBHOOK_SECRET=jt-secret
 export META_MESSENGER_ENABLED=true META_APP_SECRET=meta-secret META_VERIFY_TOKEN=verify-me
+export METRICS_TOKEN=http-test-metrics-token-0123456789
 export AGENT_READ_TOOLS_ENABLED=true MANUFACTURING_ENABLED=true
 
 echo "==> migrate + seed"

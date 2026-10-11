@@ -5,6 +5,7 @@ import {
   type StepFunction,
 } from "@medusajs/framework/workflows-sdk";
 
+import { readSetting } from "../../lib/config/settings";
 import { domainError, ErrorCodes } from "../../lib/errors";
 import { fromUnits, toUnits } from "../../lib/quantity";
 import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
@@ -515,7 +516,14 @@ export const completeCutStep = wrap(
       scrapped: 0,
     };
     const { fabric_material_id: _fabric, ...rest } = i;
-    return await mfg(c).completeCutBatch({ ...rest, settlement });
+    const tolerance_pct =
+      i.tolerance_pct ??
+      (await readSetting(c, "manufacturing.fabric_tolerance_pct"));
+    return await mfg(c).completeCutBatch({
+      ...rest,
+      tolerance_pct,
+      settlement,
+    });
   }
 );
 
@@ -572,7 +580,7 @@ export const runMrpStep = wrap(
     return await mfg(c).runMrp({
       ...i,
       demand_warehouse:
-        i.demand_warehouse ?? process.env.MRP_DEMAND_WAREHOUSE ?? null,
+        i.demand_warehouse ?? (await readSetting(c, "mrp.demand_warehouse")),
       available,
       available_by_warehouse: byWarehouse,
       incoming,

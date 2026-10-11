@@ -41,6 +41,7 @@ export default async function retryCarrierShipments(
           order_id: row.order_id,
           medusa_fulfillment_id: row.medusa_fulfillment_id,
           return_id: row.return_id,
+          exchange_return_id: row.exchange_return_id,
           request: row.request as unknown as CreateShipmentRequest,
         }
       );

@@ -8,6 +8,12 @@ import {
 
 import { safeTable, type SqlExecutor } from "../../lib/sql";
 import { AuditLog } from "./models/audit-log";
+import {
+  CountryProfile,
+  OpsGauge,
+  PlatformSetting,
+  type SettingScope,
+} from "./models/config";
 import { InboxEvent } from "./models/inbox-event";
 
 export type ReceiveInboxInput = {
@@ -36,6 +42,9 @@ const MAX_INBOX_ATTEMPTS = 8;
 class IntegrationModuleService extends MedusaService({
   InboxEvent,
   AuditLog,
+  PlatformSetting,
+  CountryProfile,
+  OpsGauge,
 }) {
   protected baseRepository_: DAL.RepositoryService;
 
@@ -192,6 +201,124 @@ class IntegrationModuleService extends MedusaService({
       [status, attempts, error.slice(0, 1000), String(delaySeconds), id]
     );
     return { status };
+  }
+
+  /** Most specific stored value: warehouse, then country, then global. */
+  async storedSetting(
+    key: string,
+    scopes: Array<{ scope_type: SettingScope; scope_id: string }> = []
+  ): Promise<unknown | undefined> {
+    const order = [
+      ...scopes.filter((scope) => scope.scope_type === "WAREHOUSE"),
+      ...scopes.filter((scope) => scope.scope_type === "COUNTRY"),
+      { scope_type: "GLOBAL" as const, scope_id: "" },
+    ];
+    for (const scope of order) {
+      const [row] = await this.listPlatformSettings({
+        key,
+        scope_type: scope.scope_type,
+        scope_id: scope.scope_id,
+      });
+      if (row) {
+        return row.value;
+      }
+    }
+    return undefined;
+  }
+
+  async saveSetting(input: {
+    key: string;
+    scope_type: SettingScope;
+    scope_id: string;
+    value: unknown;
+    updated_by: string;
+  }) {
+    const [existing] = await this.listPlatformSettings({
+      key: input.key,
+      scope_type: input.scope_type,
+      scope_id: input.scope_id,
+    });
+    const value = input.value as Record<string, unknown>;
+    if (existing) {
+      return await this.updatePlatformSettings({
+        id: existing.id,
+        value,
+        updated_by: input.updated_by,
+      });
+    }
+    return await this.createPlatformSettings({ ...input, value });
+  }
+
+  async removeSetting(input: {
+    key: string;
+    scope_type: SettingScope;
+    scope_id: string;
+  }) {
+    const [existing] = await this.listPlatformSettings(input);
+    if (existing) {
+      await this.deletePlatformSettings(existing.id);
+    }
+    return { removed: Boolean(existing) };
+  }
+
+  /** Active profile of a country, or null when the country is not configured. */
+  async profileFor(countryCode: string | null | undefined) {
+    if (!countryCode) {
+      return null;
+    }
+    const [row] = await this.listCountryProfiles({
+      country_code: countryCode.toUpperCase(),
+      is_active: true,
+    });
+    return row ?? null;
+  }
+
+  async saveCountryProfile(input: {
+    country_code: string;
+    name: string;
+    currency_code: string;
+    tax_region?: string | null;
+    carrier_code?: string | null;
+    payment_providers?: string[] | null;
+    warehouse_codes?: string[] | null;
+    return_window_days?: number | null;
+    social_channels?: string[] | null;
+    legal_entity?: Record<string, unknown> | null;
+    is_active?: boolean;
+    updated_by: string;
+  }) {
+    const data = {
+      ...input,
+      country_code: input.country_code.toUpperCase(),
+      currency_code: input.currency_code.toLowerCase(),
+      payment_providers: input.payment_providers as unknown as Record<
+        string,
+        unknown
+      > | null,
+      warehouse_codes: input.warehouse_codes as unknown as Record<
+        string,
+        unknown
+      > | null,
+      social_channels: input.social_channels as unknown as Record<
+        string,
+        unknown
+      > | null,
+    };
+    const [existing] = await this.listCountryProfiles({
+      country_code: data.country_code,
+    });
+    return existing
+      ? await this.updateCountryProfiles({ id: existing.id, ...data })
+      : await this.createCountryProfiles(data);
+  }
+
+  async setGauge(name: string, value: number) {
+    const [existing] = await this.listOpsGauges({ name });
+    if (existing) {
+      await this.updateOpsGauges({ id: existing.id, value });
+    } else {
+      await this.createOpsGauges({ name, value });
+    }
   }
 
   async recordAudit(input: RecordAuditInput) {

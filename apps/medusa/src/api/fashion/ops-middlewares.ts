@@ -31,6 +31,8 @@ import {
   FgRepublishSchema,
   FgSafetyStockSchema,
   FgShipSchema,
+  FgTransferCloseSchema,
+  FgTransferDispatchSchema,
   HandoffSchema,
   SendAgentMessageSchema,
   InspectBundleSchema,
@@ -39,6 +41,8 @@ import {
   PackBundleSchema,
   MrpRunSchema,
   PlanningParamSchema,
+  ReplaceShipmentSchema,
+  ResolveShipmentExceptionSchema,
   SkuPlanningParamSchema,
   ReasonSchema,
   RefundReturnSchema,
@@ -223,7 +227,7 @@ export const opsMiddlewares: MiddlewareRoute[] = [
   ),
 
   // ---- finished goods -------------------------------------------------------------
-  list(`${FGP}/locations`, "fg:read", { warehouse_code: str }),
+  list(`${FGP}/locations`, "fg:read", { warehouse_code: str, kind: str }),
   body(`${FGP}/locations`, "master:write", CreateFgLocationSchema),
   list(`${FGP}/balances`, "fg:read", { sku: str, location_id: str }),
   list(`${FGP}/batches`, "fg:read", { sku: str, mo_id: str, source: str }),
@@ -243,6 +247,10 @@ export const opsMiddlewares: MiddlewareRoute[] = [
   body(`${FGP}/safety-stock`, "fg:adjust", FgSafetyStockSchema),
   body(`${FGP}/allocations`, "fg:adjust", FgAllocateSchema),
   body(`${FGP}/shipments`, "fg:receive", FgShipSchema),
+  list(`${FGP}/transfers`, "fg:read", { sku: str, status: str }),
+  body(`${FGP}/transfers/dispatch`, "fg:receive", FgTransferDispatchSchema),
+  body(`${FGP}/transfers/:id/receive`, "fg:receive", FgTransferCloseSchema),
+  body(`${FGP}/transfers/:id/cancel`, "fg:receive", FgTransferCloseSchema),
   body(`${FGP}/projection/republish`, "fg:sync", FgRepublishSchema),
   read(`${FGP}/reconciliation`, "fg:read"),
 
@@ -254,6 +262,22 @@ export const opsMiddlewares: MiddlewareRoute[] = [
     create_state: str,
   }),
   read("/admin/fulfillment/shipments/:id", "fulfillment:read"),
+  list("/admin/fulfillment/exceptions", "fulfillment:read", {
+    order_id: str,
+    shipment_id: str,
+    type: str,
+    status: str,
+  }),
+  body(
+    "/admin/fulfillment/exceptions/:id/resolve",
+    "fulfillment:manage",
+    ResolveShipmentExceptionSchema
+  ),
+  body(
+    "/admin/fulfillment/shipments/:id/replace",
+    "fulfillment:manage",
+    ReplaceShipmentSchema
+  ),
   body(
     "/admin/fulfillment/shipments",
     "fulfillment:manage",
@@ -283,6 +307,11 @@ export const opsMiddlewares: MiddlewareRoute[] = [
   ),
   body("/admin/returns/:id/refund", "returns:refund", RefundReturnSchema),
   body("/admin/returns/:id/close", "returns:authorize", EmptySchema),
+  body(
+    "/admin/returns/:id/ship-replacement",
+    "fulfillment:manage",
+    EmptySchema
+  ),
 
   // ---- social / ops ------------------------------------------------------------------
   list("/admin/social/identities", "social:read", {

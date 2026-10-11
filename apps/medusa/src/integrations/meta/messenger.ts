@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { observeProviderCall } from "../../lib/observability/provider-calls";
 import {
   ChannelError,
   type InboundMessage,
@@ -117,7 +118,15 @@ export class MetaMessengerChannel implements MessageChannel {
     return out;
   }
 
-  async send(message: OutboundMessage): Promise<{ message_id: string | null }> {
+  send(message: OutboundMessage): Promise<{ message_id: string | null }> {
+    return observeProviderCall("meta", "POST /me/messages", () =>
+      this.rawSend(message)
+    );
+  }
+
+  private async rawSend(
+    message: OutboundMessage
+  ): Promise<{ message_id: string | null }> {
     const token = this.config.pageTokens[message.account_id];
     if (!token) {
       throw new ChannelError(

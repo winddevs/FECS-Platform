@@ -455,6 +455,17 @@ export const CreateFgLocationSchema = z.object({
   code: text(50),
   name: text(),
   warehouse_code: text(50),
+  country_code: z.string().trim().length(2).toUpperCase().nullish(),
+  kind: z
+    .enum([
+      "FACTORY",
+      "FULFILLMENT",
+      "IN_TRANSIT",
+      "RETURN_QC",
+      "QUARANTINE",
+      "SHOWROOM",
+    ])
+    .optional(),
   is_commerce: z.boolean().optional(),
   medusa_stock_location_id: optionalText(100),
 });
@@ -570,3 +581,56 @@ export type SendAgentMessageBody = z.infer<typeof SendAgentMessageSchema>;
 
 export const HandoffSchema = z.object({ state: z.enum(["BOT", "HUMAN"]) });
 export type HandoffBody = z.infer<typeof HandoffSchema>;
+
+// ---- fulfillment exceptions and replacement ----------------------------------
+
+export const ResolveShipmentExceptionSchema = z.object({
+  resolution: z.enum(["REDELIVER", "REFUND", "RESTOCK", "CLOSE"]),
+  note: text(500),
+});
+export type ResolveShipmentExceptionBody = z.infer<
+  typeof ResolveShipmentExceptionSchema
+>;
+
+export const ReplaceShipmentSchema = z.object({
+  reason: text(500),
+});
+export type ReplaceShipmentBody = z.infer<typeof ReplaceShipmentSchema>;
+
+// ---- configuration (FR-ADM-004) and country profiles (section 26) ------------
+
+export const SettingValueSchema = z.object({
+  value: z.unknown(),
+  scope_type: z.enum(["GLOBAL", "COUNTRY", "WAREHOUSE"]).default("GLOBAL"),
+  scope_id: z.string().trim().max(50).default(""),
+});
+export type SettingValueBody = z.infer<typeof SettingValueSchema>;
+
+const codeList = z.array(z.string().trim().min(1).max(50)).max(50);
+export const CountryProfileSchema = z.object({
+  country_code: z.string().trim().length(2).toUpperCase(),
+  name: text(100),
+  currency_code: z.string().trim().length(3).toLowerCase(),
+  tax_region: optionalText(50),
+  carrier_code: optionalText(50),
+  payment_providers: codeList.nullish(),
+  warehouse_codes: codeList.nullish(),
+  return_window_days: z.number().int().min(1).max(365).nullish(),
+  social_channels: codeList.nullish(),
+  legal_entity: z.record(z.string(), z.unknown()).nullish(),
+  is_active: z.boolean().optional(),
+});
+export type CountryProfileBody = z.infer<typeof CountryProfileSchema>;
+
+export const FgTransferDispatchSchema = z.object({
+  sku: text(100),
+  qty: posInt,
+  from_location_id: idText,
+  to_location_id: idText,
+  transit_location_id: optionalText(100),
+  notes: optionalText(500),
+});
+export type FgTransferDispatchBody = z.infer<typeof FgTransferDispatchSchema>;
+
+export const FgTransferCloseSchema = z.object({ reason: optionalText(500) });
+export type FgTransferCloseBody = z.infer<typeof FgTransferCloseSchema>;

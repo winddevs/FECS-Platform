@@ -45,6 +45,7 @@ export type IdentityView = IdentityKey & {
   consent_status: "UNKNOWN" | "OPTED_IN" | "OPTED_OUT";
   handoff_state: "BOT" | "HUMAN";
   last_inbound_at: Date | null;
+  muted_categories?: string[] | null;
 };
 
 /**
@@ -97,7 +98,7 @@ class SocialCommerceModuleService extends MedusaService({
     ]);
     const [existing] = await ex.execute<IdentityView>(
       `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
-              handoff_state, last_inbound_at
+              handoff_state, last_inbound_at, muted_categories
        FROM "customer_channel_identity"
        WHERE channel = ? AND account_id = ? AND external_user_id = ? AND deleted_at IS NULL FOR UPDATE`,
       [input.channel, input.account_id, input.external_user_id]
@@ -206,7 +207,7 @@ class SocialCommerceModuleService extends MedusaService({
   ): Promise<IdentityView | null> {
     const [row] = await executorOf(ctx).execute<IdentityView>(
       `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
-              handoff_state, last_inbound_at
+              handoff_state, last_inbound_at, muted_categories
        FROM "customer_channel_identity" WHERE id = ? AND deleted_at IS NULL`,
       [identityId]
     );
@@ -296,6 +297,35 @@ class SocialCommerceModuleService extends MedusaService({
       ctx
     );
     return { identity_id: input.identity_id, consent_status: input.status };
+  }
+
+  /** Switches one notification category on or off for this customer. */
+  @InjectTransactionManager()
+  async setCategoryMuted(
+    input: { identity_id: string; category: string; muted: boolean },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    const [row] = await executorOf(ctx).execute<{
+      muted_categories: string[] | null;
+    }>(
+      `SELECT muted_categories FROM "customer_channel_identity"
+       WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [input.identity_id]
+    );
+    const current = new Set(row?.muted_categories ?? []);
+    if (input.muted) {
+      current.add(input.category);
+    } else {
+      current.delete(input.category);
+    }
+    await this.updateCustomerChannelIdentities(
+      {
+        id: input.identity_id,
+        muted_categories: [...current] as unknown as Record<string, unknown>,
+      },
+      ctx
+    );
+    return { identity_id: input.identity_id, muted_categories: [...current] };
   }
 
   // -------------------------------------------------------------------
@@ -485,7 +515,7 @@ class SocialCommerceModuleService extends MedusaService({
   ): Promise<IdentityView[]> {
     return await executorOf(ctx).execute<IdentityView>(
       `SELECT id, channel, account_id, external_user_id, customer_id, consent_status,
-              handoff_state, last_inbound_at
+              handoff_state, last_inbound_at, muted_categories
        FROM "customer_channel_identity" WHERE customer_id = ? AND deleted_at IS NULL`,
       [customerId]
     );

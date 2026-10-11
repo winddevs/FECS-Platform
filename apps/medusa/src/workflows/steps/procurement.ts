@@ -1,5 +1,6 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk";
 
+import { readSetting } from "../../lib/config/settings";
 import { MATERIAL_INVENTORY_MODULE } from "../../modules/materialInventory";
 import type MaterialInventoryModuleService from "../../modules/materialInventory/service";
 import type { ReceiveMaterialInput } from "../../modules/materialInventory/types";
@@ -20,10 +21,22 @@ const inventory = (c: Resolver) =>
 
 export const createPurchaseOrderStep = createStep(
   "procurement-create-purchase-order",
-  async (input: CreatePurchaseOrderInput, { container }) =>
-    new StepResponse(
-      await procurement(container).createPurchaseOrderWithLines(input)
-    )
+  async (input: CreatePurchaseOrderInput, { container }) => {
+    // Lines that do not set their own tolerance get the configured default.
+    const fallback = await readSetting(
+      container,
+      "procurement.default_over_receipt_pct"
+    );
+    return new StepResponse(
+      await procurement(container).createPurchaseOrderWithLines({
+        ...input,
+        lines: input.lines.map((line) => ({
+          ...line,
+          over_receipt_pct: line.over_receipt_pct ?? fallback,
+        })),
+      })
+    );
+  }
 );
 
 export const transitionPurchaseOrderStep = createStep(

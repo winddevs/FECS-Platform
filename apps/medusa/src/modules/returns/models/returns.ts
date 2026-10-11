@@ -48,6 +48,9 @@ export const ReturnAuthorization = model
     authorized_by: model.text().nullable(),
     return_shipment_id: model.text().nullable(),
     exchange_sku: model.text().nullable(),
+    /** Replacement parcel sent to the customer once the return arrived. */
+    replacement_shipment_id: model.text().nullable(),
+    replacement_shipped_at: model.dateTime().nullable(),
     refund_status: model
       .enum(["NONE", "REQUESTED", "COMPLETED", "FAILED"])
       .default("NONE"),

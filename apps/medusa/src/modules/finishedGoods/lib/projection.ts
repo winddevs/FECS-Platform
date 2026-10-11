@@ -23,9 +23,11 @@ export const freeOf = (q: FgQuantities): number =>
 
 /**
  * Version guard used by every projection consumer: apply only strictly newer
- * versions (FR-FG-006).
+ * versions (FR-FG-006). A repair (`resync`) may also re-apply the version that
+ * was already applied, which rewrites Medusa's quantity from our ledger.
  */
 export const shouldApplyVersion = (
   incoming: number,
-  lastApplied: number
-): boolean => incoming > lastApplied;
+  lastApplied: number,
+  resync = false
+): boolean => (resync ? incoming >= lastApplied : incoming > lastApplied);

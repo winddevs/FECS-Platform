@@ -1,4 +1,7 @@
-import type { ShipmentStatus } from "../../modules/fulfillment/lib/shipment-state";
+import {
+  SHIPMENT_STATUSES,
+  type ShipmentStatus,
+} from "../../modules/fulfillment/lib/shipment-state";
 
 /**
  * Maps J&T scan/status text to the platform's canonical states (FR-FUL-005).
@@ -41,7 +44,49 @@ const RULES: Array<{ pattern: RegExp; status: ShipmentStatus }> = [
   },
   { pattern: /cancel/i, status: "CANCELLED" },
 ];
-export const mapJtStatus = (carrierStatus: string): ShipmentStatus | null => {
+const isCanonical = (value: unknown): value is ShipmentStatus =>
+  typeof value === "string" &&
+  (SHIPMENT_STATUSES as readonly string[]).includes(value);
+
+let cachedRaw: string | undefined;
+let cachedMap = new Map<string, ShipmentStatus>();
+
+/**
+ * Exact codes from the carrier contract, set per account without a deploy:
+ *   JT_STATUS_MAP_JSON='{"PICKUP_SCAN":"PICKED_UP","SIGNED":"DELIVERED"}'
+ * They win over the keyword rules below, which remain the fallback for text
+ * that the contract does not list. Invalid entries are ignored.
+ */
+const configuredMap = (env: NodeJS.ProcessEnv): Map<string, ShipmentStatus> => {
+  const raw = env.JT_STATUS_MAP_JSON;
+  if (raw === cachedRaw) {
+    return cachedMap;
+  }
+  cachedRaw = raw;
+  cachedMap = new Map();
+  if (!raw) {
+    return cachedMap;
+  }
+  try {
+    for (const [code, status] of Object.entries(JSON.parse(raw))) {
+      if (isCanonical(status)) {
+        cachedMap.set(code.trim().toLowerCase(), status);
+      }
+    }
+  } catch {
+    // A malformed value falls back to the keyword rules.
+  }
+  return cachedMap;
+};
+
+export const mapJtStatus = (
+  carrierStatus: string,
+  env: NodeJS.ProcessEnv = process.env
+): ShipmentStatus | null => {
+  const exact = configuredMap(env).get(carrierStatus.trim().toLowerCase());
+  if (exact) {
+    return exact;
+  }
   for (const rule of RULES) {
     if (rule.pattern.test(carrierStatus)) {
       return rule.status;

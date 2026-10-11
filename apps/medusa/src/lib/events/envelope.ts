@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { currentCausation } from "../observability/causation";
+
 /**
  * Canonical event envelope (TDD section 37).
  * Consumers deduplicate by `event_id`.
@@ -38,7 +40,7 @@ export const buildEnvelope = <TData extends Record<string, unknown>>(
   aggregate_id: input.aggregateId,
   occurred_at: new Date().toISOString(),
   correlation_id: input.correlationId ?? `cor_${randomUUID()}`,
-  causation_id: input.causationId ?? null,
+  causation_id: input.causationId ?? currentCausation(),
   producer: input.producer,
   data: input.data,
 });

@@ -18,6 +18,8 @@ export const MaterialLocation = model
     code: model.text(),
     name: model.text(),
     warehouse_code: model.text(),
+    /** Country this warehouse serves (section 26); null = not country-bound. */
+    country_code: model.text().nullable(),
     kind: model.enum([...LOCATION_KINDS]).default("RAW_MATERIAL"),
     is_active: model.boolean().default(true),
   })

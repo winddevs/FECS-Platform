@@ -34,12 +34,21 @@ export const routeShape = (path: string): string =>
     .join("/")
     .replace(/^/, "/");
 
+/** 401/403 per route shape: a spike means credential stuffing or a broken client. */
+const authFailures = new Map<string, number>();
+
 export const observe = (
   method: string,
   path: string,
   status: number,
   ms: number
 ): void => {
+  if (status === 401 || status === 403) {
+    const failureKey = `${routeShape(path)}|${status}`;
+    if (authFailures.has(failureKey) || authFailures.size < MAX_SERIES) {
+      authFailures.set(failureKey, (authFailures.get(failureKey) ?? 0) + 1);
+    }
+  }
   let key = `${method}|${routeShape(path)}|${Math.floor(status / 100)}xx`;
   if (!series.has(key) && series.size >= MAX_SERIES) {
     key = `${method}|other|${Math.floor(status / 100)}xx`;
@@ -93,7 +102,17 @@ export const renderHttpMetrics = (): string[] => {
       `fashion_http_request_duration_ms_count{${labels}} ${entry.count}`
     );
   }
+  out.push("# TYPE fashion_http_auth_failures_total counter");
+  for (const [key, count] of authFailures) {
+    const [route, status] = key.split("|");
+    out.push(
+      `fashion_http_auth_failures_total{route="${route}",status="${status}"} ${count}`
+    );
+  }
   return out;
 };
 
-export const resetHttpMetrics = (): void => series.clear();
+export const resetHttpMetrics = (): void => {
+  series.clear();
+  authFailures.clear();
+};

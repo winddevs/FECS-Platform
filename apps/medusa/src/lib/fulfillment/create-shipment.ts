@@ -13,6 +13,7 @@ export type CreateCarrierShipmentInput = {
   order_id: string;
   medusa_fulfillment_id?: string | null;
   return_id?: string | null;
+  exchange_return_id?: string | null;
   request: CreateShipmentRequest;
 };
 
@@ -44,6 +45,7 @@ export const createCarrierShipment = async (
     carrier_code: provider.code,
     medusa_fulfillment_id: input.medusa_fulfillment_id,
     return_id: input.return_id,
+    exchange_return_id: input.exchange_return_id,
     order_id: input.order_id,
     merchant_reference: input.request.merchant_reference,
     request: input.request as unknown as Record<string, unknown>,

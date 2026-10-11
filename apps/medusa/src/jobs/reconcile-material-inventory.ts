@@ -1,6 +1,8 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
+import { INTEGRATION_MODULE } from "../modules/integration";
+import type IntegrationModuleService from "../modules/integration/service";
 import { MATERIAL_INVENTORY_MODULE } from "../modules/materialInventory";
 import type MaterialInventoryModuleService from "../modules/materialInventory/service";
 
@@ -18,6 +20,10 @@ export default async function reconcileMaterialInventory(
   );
 
   const { ok, issues } = await inventory.reconcile();
+  // Published for the metrics endpoint, so a mismatch alerts instead of only logging.
+  await container
+    .resolve<IntegrationModuleService>(INTEGRATION_MODULE)
+    .setGauge("reconcile.material_inventory.issues", issues.length);
   if (ok) {
     return;
   }

@@ -8,6 +8,7 @@ import { listHandler } from "../../../fashion/list-handler";
 
 export const GET = listHandler("fg_location", "locations", [
   "warehouse_code",
+  "kind",
 ] as const);
 
 export async function POST(

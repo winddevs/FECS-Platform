@@ -4,6 +4,7 @@ import { registerCarrierProvider } from "../src/integrations/carrier/registry";
 import { SandboxCarrierProvider } from "../src/integrations/carrier/sandbox";
 import { registerMessageChannel } from "../src/integrations/channel/registry";
 import { SandboxChannel } from "../src/integrations/channel/sandbox";
+import { mapJtStatus } from "../src/integrations/jt/status-map";
 import { renderLabelSvg, code128Modules } from "../src/lib/labels/code128";
 import { handleInboundMessage } from "../src/lib/social/handle-inbound";
 import { describeCustomerNotification } from "../src/lib/social/notification-events";
@@ -621,6 +622,91 @@ export default async function verify({ container }: ExecArgs) {
       "en"
     ) === null,
     "return parcels do not trigger delivery messages"
+  );
+
+  console.log("# FR-NOT-002: the customer can switch a category off");
+  const inbound = (text: string, id: string) =>
+    handleInboundMessage(deps, {
+      channel: "MESSENGER",
+      account_id: page,
+      external_user_id: psid,
+      message_id: `mid_pref_${id}_${run}`,
+      text,
+      occurred_at: new Date(),
+    });
+  const shipmentEvent = (to: string, shipmentId: string) =>
+    envelope("fulfillment.shipment_status_changed.v1", {
+      shipment_id: shipmentId,
+      order_id: orderId,
+      to,
+      tracking_number: "TRK1",
+      return_id: null,
+    });
+  const muteReply = (await inbound("mute shipping", "m1")) as any;
+  assert(
+    /notifications are off/i.test(muteReply.reply),
+    "'mute shipping' is confirmed"
+  );
+  const notifications = () =>
+    channel.sent.filter((m) => m.text.startsWith("Order #")).length;
+  const mutedBefore = notifications();
+  await notifyCustomerEvents({
+    event: {
+      name: "fulfillment.shipment_status_changed.v1",
+      data: shipmentEvent("OUT_FOR_DELIVERY", `shp_pref_${run}`),
+    },
+    container: fakeScope,
+  } as any);
+  assert(notifications() === mutedBefore, "a muted category is not sent");
+  await notifyCustomerEvents({
+    event: {
+      name: "returns.refund_completed.v1",
+      data: envelope("returns.refund_completed.v1", {
+        return_id: `ret2_${run}`,
+        order_id: orderId,
+      }),
+    },
+    container: fakeScope,
+  } as any);
+  assert(notifications() === mutedBefore + 1, "other categories still arrive");
+  await inbound("unmute shipping", "m2");
+  await notifyCustomerEvents({
+    event: {
+      name: "fulfillment.shipment_status_changed.v1",
+      data: shipmentEvent("DELIVERED", `shp_pref2_${run}`),
+    },
+    container: fakeScope,
+  } as any);
+  assert(
+    notifications() === mutedBefore + 2,
+    "after 'unmute shipping' shipment updates arrive again"
+  );
+  const vi = (await inbound("tắt thông báo giao hàng", "m3")) as any;
+  assert(
+    /notifications are off/i.test(vi.reply),
+    "the Vietnamese command works too"
+  );
+  await inbound("unmute delivery", "m4");
+
+  console.log(
+    "# FR-FUL-002/005: status codes from the carrier contract win over keywords"
+  );
+  const contract = {
+    JT_STATUS_MAP_JSON: '{"S-20":"PICKED_UP","S-90":"DELIVERED","bad":"NOPE"}',
+  };
+  assert(
+    mapJtStatus("S-20", contract as any) === "PICKED_UP" &&
+      mapJtStatus(" s-90 ", contract as any) === "DELIVERED",
+    "configured codes are matched exactly, ignoring case and spaces"
+  );
+  assert(
+    mapJtStatus("bad", contract as any) === null &&
+      mapJtStatus("Out for delivery", contract as any) === "OUT_FOR_DELIVERY",
+    "an invalid entry is ignored and unlisted text still uses the keyword rules"
+  );
+  assert(
+    mapJtStatus("S-20", { JT_STATUS_MAP_JSON: "{not json" } as any) === null,
+    "a malformed value falls back to the keyword rules"
   );
 
   console.log("# FR-ADM-003: shipment actions are audited");

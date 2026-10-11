@@ -1,11 +1,11 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
+import { readSetting } from "../lib/config/settings";
 import { isEnabled } from "../lib/feature-flags";
 import {
   PAYMENT_RETRY_SECONDS,
   isPaymentConfirmed,
-  paymentGate,
   processProductionRequest,
 } from "../lib/mto/process-request";
 import { MANUFACTURING_MODULE } from "../modules/manufacturing";
@@ -27,7 +27,7 @@ export default async function processProductionRequests(
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
   const mfg =
     container.resolve<ManufacturingModuleService>(MANUFACTURING_MODULE);
-  const gate = paymentGate();
+  const gate = await readSetting(container, "mto.payment_gate");
 
   const due = await mfg.claimDueProductionRequests(BATCH_SIZE);
   for (const request of due) {

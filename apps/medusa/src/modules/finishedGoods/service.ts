@@ -33,6 +33,7 @@ import {
   FgLocation,
   FgMovement,
   FgShipmentLine,
+  FgTransfer,
   FinishedGoodsIdempotencyRecord,
   FinishedGoodsOutboxEvent,
   type FG_MOVEMENT_TYPES,
@@ -95,6 +96,8 @@ export type ProjectionEvent = {
   medusa_stock_location_id: string | null;
   available_qty: number;
   source_version: number;
+  /** Set by republish: re-apply the current version to repair Medusa's copy. */
+  resync?: boolean;
 };
 
 class FinishedGoodsModuleService extends MedusaService({
@@ -104,6 +107,7 @@ class FinishedGoodsModuleService extends MedusaService({
   FgMovement,
   FgAllocation,
   FgShipmentLine,
+  FgTransfer,
   CommerceSyncState,
   FinishedGoodsOutboxEvent,
   FinishedGoodsIdempotencyRecord,
@@ -694,6 +698,261 @@ class FinishedGoodsModuleService extends MedusaService({
     });
   }
 
+  // -------------------------------------------------------------------
+  // Transfers between locations (requirement section 25)
+  // -------------------------------------------------------------------
+
+  /**
+   * Moves `qty` pieces of a SKU from one location to another as ledger
+   * movements (TRANSFER_OUT then TRANSFER_IN) and moves the FIFO batches with
+   * them, so traceability to the MO survives the transfer. Both balances are
+   * locked in a fixed order, so two opposite transfers cannot deadlock.
+   */
+  private async moveStock(
+    ctx: Context,
+    move: {
+      sku: string;
+      qty: number;
+      from_location_id: string;
+      to_location_id: string;
+      reference_id: string;
+      actor: { actor_id: string; correlation_id?: string | null };
+    }
+  ): Promise<void> {
+    const ex = executorOf(ctx);
+    const order = [move.from_location_id, move.to_location_id].sort();
+    const locked = new Map<string, BalanceRow>();
+    for (const locationId of order) {
+      locked.set(
+        locationId,
+        await this.lockedBalance(ctx, move.sku, locationId)
+      );
+    }
+    const reference = {
+      reference_type: "TRANSFER",
+      reference_id: move.reference_id,
+    };
+    await this.mutate(
+      ctx,
+      locked.get(move.from_location_id) as BalanceRow,
+      { on_hand: -move.qty },
+      { type: "TRANSFER_OUT", qty: move.qty, actor: move.actor, ...reference }
+    );
+    await this.mutate(
+      ctx,
+      locked.get(move.to_location_id) as BalanceRow,
+      { on_hand: move.qty },
+      { type: "TRANSFER_IN", qty: move.qty, actor: move.actor, ...reference }
+    );
+
+    // Batches follow the stock: oldest first, split when only part moves.
+    const batches = await ex.execute<{
+      id: string;
+      batch_no: string;
+      remaining_qty: number;
+      produced_at: Date;
+      mo_id: string | null;
+      production_batch_id: string | null;
+      traceability: Record<string, unknown> | null;
+    }>(
+      `SELECT id, batch_no, remaining_qty, produced_at, mo_id, production_batch_id, traceability
+       FROM "fg_batch"
+       WHERE sku = ? AND location_id = ? AND remaining_qty > 0 AND deleted_at IS NULL
+       ORDER BY produced_at, id FOR UPDATE`,
+      [move.sku, move.from_location_id]
+    );
+    let remaining = move.qty;
+    for (const batch of batches) {
+      if (remaining <= 0) {
+        break;
+      }
+      const take = Math.min(Number(batch.remaining_qty), remaining);
+      await this.updateFgBatches(
+        { id: batch.id, remaining_qty: Number(batch.remaining_qty) - take },
+        ctx
+      );
+      await this.createFgBatches(
+        {
+          batch_no: `${batch.batch_no}-T${shortId("fgt")}`,
+          sku: move.sku,
+          source: "TRANSFER",
+          parent_batch_id: batch.id,
+          location_id: move.to_location_id,
+          qty: take,
+          remaining_qty: take,
+          mo_id: batch.mo_id,
+          production_batch_id: batch.production_batch_id,
+          // The packing record stays with the original batch (it is unique).
+          packing_record_id: null,
+          produced_at: batch.produced_at,
+          traceability: batch.traceability,
+        },
+        ctx
+      );
+      remaining -= take;
+    }
+  }
+
+  @InjectTransactionManager()
+  async dispatchFgTransfer(
+    input: Command & {
+      sku: string;
+      qty: number;
+      from_location_id: string;
+      to_location_id: string;
+      transit_location_id?: string | null;
+      notes?: string | null;
+    },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    return await this.idem(ctx, "fg-transfer-dispatch", input, async () => {
+      const qty = positiveInt(input.qty, "qty");
+      const from = await this.location(ctx, input.from_location_id);
+      const to = await this.location(ctx, input.to_location_id);
+      if (from.id === to.id) {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          "Source and destination location are the same"
+        );
+      }
+      let transit;
+      if (input.transit_location_id) {
+        transit = await this.location(ctx, input.transit_location_id);
+      } else {
+        const candidates = await this.listFgLocations(
+          { kind: "IN_TRANSIT", is_active: true },
+          {},
+          ctx
+        );
+        if (candidates.length !== 1) {
+          throw domainError(
+            MedusaError.Types.INVALID_DATA,
+            ErrorCodes.INVALID_STATE,
+            candidates.length === 0
+              ? "No active IN_TRANSIT finished-goods location exists"
+              : "Several IN_TRANSIT locations exist; pass transit_location_id"
+          );
+        }
+        transit = candidates[0];
+      }
+      if (transit.kind !== "IN_TRANSIT" || transit.is_commerce) {
+        throw domainError(
+          MedusaError.Types.INVALID_DATA,
+          ErrorCodes.INVALID_STATE,
+          `Location ${transit.code} cannot be used as transit (must be a non-sellable IN_TRANSIT location)`
+        );
+      }
+      const transferNo = `FGX-${shortId("fgx")}`;
+      await this.moveStock(ctx, {
+        sku: input.sku,
+        qty,
+        from_location_id: from.id,
+        to_location_id: transit.id,
+        reference_id: transferNo,
+        actor: input,
+      });
+      const transfer = await this.createFgTransfers(
+        {
+          transfer_no: transferNo,
+          sku: input.sku,
+          qty,
+          from_location_id: from.id,
+          transit_location_id: transit.id,
+          to_location_id: to.id,
+          dispatched_by: input.actor_id,
+          dispatched_at: new Date(),
+          notes: input.notes ?? null,
+        },
+        ctx
+      );
+      return {
+        transfer_id: transfer.id,
+        transfer_no: transferNo,
+        status: "IN_TRANSIT" as const,
+      };
+    });
+  }
+
+  private async closeFgTransfer(
+    ctx: Context,
+    input: Command & { transfer_id: string; reason?: string | null },
+    outcome: "RECEIVED" | "CANCELLED"
+  ) {
+    const [transfer] = await executorOf(ctx).execute<{
+      id: string;
+      transfer_no: string;
+      status: string;
+      sku: string;
+      qty: number;
+      from_location_id: string;
+      transit_location_id: string;
+      to_location_id: string;
+    }>(
+      `SELECT id, transfer_no, status, sku, qty, from_location_id, transit_location_id, to_location_id
+       FROM "fg_transfer" WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [input.transfer_id]
+    );
+    if (!transfer) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Transfer not found"
+      );
+    }
+    if (transfer.status !== "IN_TRANSIT") {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        `Transfer ${transfer.transfer_no} is already ${transfer.status}`
+      );
+    }
+    const target =
+      outcome === "RECEIVED"
+        ? transfer.to_location_id
+        : transfer.from_location_id;
+    await this.location(ctx, target);
+    await this.moveStock(ctx, {
+      sku: transfer.sku,
+      qty: Number(transfer.qty),
+      from_location_id: transfer.transit_location_id,
+      to_location_id: target,
+      reference_id: transfer.transfer_no,
+      actor: input,
+    });
+    await this.updateFgTransfers(
+      {
+        id: transfer.id,
+        status: outcome,
+        closed_by: input.actor_id,
+        closed_at: new Date(),
+        notes: input.reason ?? undefined,
+      },
+      ctx
+    );
+    return { transfer_id: transfer.id, status: outcome };
+  }
+
+  @InjectTransactionManager()
+  async receiveFgTransfer(
+    input: Command & { transfer_id: string; reason?: string | null },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    return await this.idem(ctx, "fg-transfer-receive", input, () =>
+      this.closeFgTransfer(ctx, input, "RECEIVED")
+    );
+  }
+
+  @InjectTransactionManager()
+  async cancelFgTransfer(
+    input: Command & { transfer_id: string; reason?: string | null },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    return await this.idem(ctx, "fg-transfer-cancel", input, () =>
+      this.closeFgTransfer(ctx, input, "CANCELLED")
+    );
+  }
+
   /**
    * Links a shipment to the FG batches it came from: the order's own allocated
    * batch first (MTO), then oldest-first (FIFO) for the rest.
@@ -813,6 +1072,7 @@ class FinishedGoodsModuleService extends MedusaService({
           medusa_stock_location_id: row.medusa_stock_location_id,
           available_qty: sellableOf(row),
           source_version: Number(row.version),
+          resync: true,
         }
       );
     }
@@ -852,7 +1112,8 @@ class FinishedGoodsModuleService extends MedusaService({
     if (
       !shouldApplyVersion(
         event.source_version,
-        Number(state.last_applied_version)
+        Number(state.last_applied_version),
+        event.resync === true
       )
     ) {
       return { applied: false, reason: "STALE_VERSION" };

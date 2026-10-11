@@ -15,6 +15,7 @@ export const FEATURE_FLAGS = [
   "JT_RECONCILIATION_ENABLED",
   "AGENT_READ_TOOLS_ENABLED",
   "AGENT_STATE_CHANGE_ENABLED",
+  "AGENT_LLM_ENABLED",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];

@@ -562,6 +562,44 @@ class ReturnsModuleService extends MedusaService({
     return { id: rma.id, refund_status: input.ok ? "COMPLETED" : "FAILED" };
   }
 
+  /** Records that the replacement parcel of an exchange left (once only). */
+  @InjectTransactionManager()
+  async markReplacementShipped(
+    input: Actor & { return_id: string; shipment_id: string },
+    @MedusaContext() ctx: Context = {}
+  ) {
+    const rma = await this.lockRma(ctx, input.return_id);
+    const [current] = await this.listReturnAuthorizations(
+      { id: rma.id },
+      {},
+      ctx
+    );
+    if (current?.replacement_shipped_at) {
+      return {
+        id: rma.id,
+        replacement_shipment_id: current.replacement_shipment_id,
+        replay: true as const,
+      };
+    }
+    await this.updateReturnAuthorizations(
+      {
+        id: rma.id,
+        replacement_shipment_id: input.shipment_id,
+        replacement_shipped_at: new Date(),
+      },
+      ctx
+    );
+    await flushOf(ctx);
+    await this.emit(ctx, "returns.replacement_shipped.v1", rma, input, {
+      shipment_id: input.shipment_id,
+    });
+    return {
+      id: rma.id,
+      replacement_shipment_id: input.shipment_id,
+      replay: false as const,
+    };
+  }
+
   @InjectTransactionManager()
   async closeReturn(
     input: Actor & { return_id: string },

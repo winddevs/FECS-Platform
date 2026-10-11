@@ -16,6 +16,7 @@ import {
   rejectReturnStep,
   requestReturnStep,
   reserveExchangeStep,
+  shipExchangeReplacementStep,
 } from "./steps/returns";
 
 export const requestReturnWorkflow = createWorkflow(
@@ -140,5 +141,23 @@ export const closeReturnWorkflow = createWorkflow(
   "returns-close-workflow",
   function (input: Parameters<typeof closeReturnStep>[0]) {
     return new WorkflowResponse(closeReturnStep(input));
+  }
+);
+
+/** Sends the replacement of an exchange once the returned goods are back. */
+export const shipExchangeReplacementWorkflow = createWorkflow(
+  "returns-ship-exchange-replacement-workflow",
+  function (input: Parameters<typeof shipExchangeReplacementStep>[0]) {
+    const result = shipExchangeReplacementStep(input);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: "returns.exchange.ship_replacement",
+      resource_type: "return_authorization",
+      resource_id: input.return_id,
+      after: { shipment_id: result.shipment_id },
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
   }
 );

@@ -120,3 +120,79 @@ spec:
           annotations:
             summary: More than 1% of API calls fail with 5xx
             runbook: docs/runbooks/provider-outage.md
+    - name: security
+      rules:
+        - alert: AuthFailureSpike
+          expr: sum(increase(fashion_http_auth_failures_total[5m])) > 50
+          for: 5m
+          labels: { severity: ticket }
+          annotations:
+            summary: Many 401/403 responses in 5 minutes (credential stuffing, or a client with a bad token)
+            runbook: docs/runbooks/provider-outage.md
+    - name: provider-health
+      rules:
+        - alert: ProviderErrorRateHigh
+          expr: |
+            sum by (provider) (rate(fashion_provider_call_duration_ms_count{outcome!="ok"}[10m]))
+              / sum by (provider) (rate(fashion_provider_call_duration_ms_count[10m])) > 0.2
+          for: 10m
+          labels: { severity: page }
+          annotations:
+            summary: "More than 20% of calls to {{ $labels.provider }} fail"
+            runbook: docs/runbooks/provider-outage.md
+        - alert: ProviderSlow
+          expr: |
+            histogram_quantile(0.95, sum by (le, provider) (rate(fashion_provider_call_duration_ms_bucket{outcome="ok"}[10m]))) > 5000
+          for: 10m
+          labels: { severity: ticket }
+          annotations:
+            summary: "{{ $labels.provider }} answers slowly (p95 above 5 s)"
+            runbook: docs/runbooks/provider-outage.md
+    - name: reconciliation
+      rules:
+        - alert: StockReconciliationMismatch
+          expr: sum by (check) (fashion_reconciliation_issues) > 0
+          for: 15m
+          labels: { severity: page }
+          annotations:
+            summary: "Reconciliation check {{ $labels.check }} reports issues (ledger, balance, reservation or roll state disagree)"
+            runbook: docs/runbooks/stock-mismatch.md
+        - alert: RawMaterialLeakedIntoCommerce
+          expr: fashion_reconciliation_issues{check="raw_material_leaks"} > 0
+          for: 5m
+          labels: { severity: page }
+          annotations:
+            summary: A raw material exists as Medusa inventory (BR-002)
+            runbook: docs/runbooks/stock-mismatch.md
+        - alert: InventoryProjectionLag
+          expr: fashion_fg_projection_oldest_pending_seconds > 60
+          for: 5m
+          labels: { severity: ticket }
+          annotations:
+            summary: Sellable stock has not reached Medusa for over a minute (SLO p95 < 5 s)
+            runbook: docs/runbooks/stock-mismatch.md
+    - name: operations
+      rules:
+        - alert: ShipmentExceptionsPiling
+          expr: sum(fashion_shipment_exceptions_open) > 10
+          for: 4h
+          labels: { severity: ticket }
+          annotations:
+            summary: Failed deliveries and returned parcels wait for support
+            runbook: docs/runbooks/provider-outage.md
+        - alert: TransferStuckInTransit
+          expr: fashion_transfers_oldest_in_transit_seconds > 7 * 24 * 3600
+          for: 1h
+          labels: { severity: ticket }
+          annotations:
+            summary: A material transfer has been in transit for over a week
+            runbook: docs/runbooks/stock-mismatch.md
+        - alert: QcRejectRateHigh
+          expr: |
+            fashion_qc_inspected_pieces_24h{result="reject"}
+              / clamp_min(sum(fashion_qc_inspected_pieces_24h), 1) > 0.15
+          for: 1h
+          labels: { severity: ticket }
+          annotations:
+            summary: More than 15% of inspected pieces were rejected in the last day
+            runbook: docs/runbooks/reconciliation-failure.md

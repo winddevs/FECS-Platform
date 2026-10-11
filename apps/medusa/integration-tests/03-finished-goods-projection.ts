@@ -393,8 +393,63 @@ export default async function verify({ container }: ExecArgs) {
     input: { ...actor, sku },
   });
   assert(re.result.events === 1, "projection can be rebuilt from FG state");
+
+  // Medusa's copy drifts (someone edits stock by hand). A normal event of the
+  // same version is a duplicate and is dropped, a republish repairs it.
+  await inventory.updateInventoryLevels([
+    {
+      inventory_item_id: item.id,
+      location_id: stockLoc.id,
+      stocked_quantity: sellableNow + 11,
+    },
+  ]);
+  const notRepaired = await syncSellableToMedusaWorkflow(container).run({
+    input: ev,
+  });
+  assert(
+    notRepaired.result.applied === false,
+    "a plain same-version event does not repair drift"
+  );
+  const repaired = await syncSellableToMedusaWorkflow(container).run({
+    input: { ...ev, resync: true },
+  });
+  const levels3 = await inventory.listInventoryLevels({
+    inventory_item_id: item.id,
+    location_id: stockLoc.id,
+  });
+  assert(
+    repaired.result.applied === true &&
+      Number(levels3[0].stocked_quantity) === sellableNow,
+    "a resync (republish) rewrites Medusa's quantity from the FG ledger"
+  );
+  const staleResync = await syncSellableToMedusaWorkflow(container).run({
+    input: { ...ev, source_version: cur.version - 1, resync: true },
+  });
+  assert(
+    staleResync.result.applied === false,
+    "a resync never goes back to an older version"
+  );
   void factory;
-  const drained = await fg.publishOutbox(500, async () => {});
+  const published: any[] = [];
+  let drained = { published: 0, failed: 0 };
+  for (;;) {
+    const batch = await fg.publishOutbox(500, async (row: any) => {
+      published.push(row);
+    });
+    drained = {
+      published: drained.published + batch.published,
+      failed: drained.failed + batch.failed,
+    };
+    if (batch.published === 0) break;
+  }
+  assert(
+    published.some(
+      (row) =>
+        row.event_type === "finished-goods.sellable_changed.v1" &&
+        row.payload?.data?.resync === true
+    ),
+    "the republished event is flagged as a resync"
+  );
   assert(
     drained.published > 5 && drained.failed === 0,
     `FG outbox drained (${drained.published})`

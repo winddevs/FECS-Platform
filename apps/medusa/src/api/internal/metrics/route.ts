@@ -4,6 +4,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { renderHttpMetrics } from "../../../lib/observability/http-metrics";
+import { renderProviderMetrics } from "../../../lib/observability/provider-calls";
 import { OUTBOX_ALERT_ATTEMPTS } from "../../../lib/outbox/outbox";
 import { OUTBOX_TABLES } from "../../../lib/retention";
 
@@ -53,7 +54,9 @@ export async function GET(
   res.setHeader("content-type", "text/plain; version=0.0.4");
   res
     .status(200)
-    .send(`${[...cache.lines, ...renderHttpMetrics()].join("\n")}\n`);
+    .send(
+      `${[...cache.lines, ...renderHttpMetrics(), ...renderProviderMetrics()].join("\n")}\n`
+    );
 }
 
 const CACHE_TTL_MS = 15_000;
@@ -138,5 +141,75 @@ const collectBusinessGauges = async (req: MedusaRequest): Promise<string[]> => {
   );
   out.push(line("fashion_fg_balance_invariant_violations", {}, fgNeg.n));
 
+  await collectDomainGauges(rows, out);
   return out;
+};
+
+type Rows = (sql: string) => Promise<Array<Record<string, any>>>;
+
+/** Quality, throughput, projection lag and the results of the worker checks. */
+const collectDomainGauges = async (
+  rows: Rows,
+  out: string[]
+): Promise<void> => {
+  out.push("# TYPE fashion_qc_inspected_pieces_24h gauge");
+  const [qc] = await rows(
+    `SELECT COALESCE(SUM(pass_qty), 0)::float AS pass, COALESCE(SUM(reject_qty), 0)::float AS reject,
+            COALESCE(SUM(rework_qty), 0)::float AS rework
+     FROM "quality_inspection" WHERE created_at > now() - interval '24 hours' AND deleted_at IS NULL`
+  );
+  out.push(
+    line("fashion_qc_inspected_pieces_24h", { result: "pass" }, qc.pass),
+    line("fashion_qc_inspected_pieces_24h", { result: "reject" }, qc.reject),
+    line("fashion_qc_inspected_pieces_24h", { result: "rework" }, qc.rework)
+  );
+  for (const r of await rows(
+    `SELECT status, count(*)::int AS n FROM "manufacturing_order" WHERE deleted_at IS NULL
+       AND (status NOT IN ('COMPLETED', 'CANCELLED', 'FAILED') OR updated_at > now() - interval '24 hours')
+     GROUP BY 1`
+  )) {
+    out.push(line("fashion_manufacturing_orders", { status: r.status }, r.n));
+  }
+  const [lag] = await rows(
+    `SELECT count(*)::int AS pending,
+            COALESCE(EXTRACT(EPOCH FROM now() - MIN(b.updated_at)), 0)::int AS oldest
+     FROM "fg_balance" b
+     JOIN "fg_location" l ON l.id = b.location_id AND l.is_commerce = true AND l.deleted_at IS NULL
+     LEFT JOIN "commerce_sync_state" s ON s.sku = b.sku AND s.location_id = b.location_id AND s.deleted_at IS NULL
+     WHERE b.deleted_at IS NULL AND b.version > COALESCE(s.last_applied_version, 0)`
+  );
+  out.push(
+    "# TYPE fashion_fg_projection_pending gauge",
+    line("fashion_fg_projection_pending", {}, lag.pending),
+    line("fashion_fg_projection_oldest_pending_seconds", {}, lag.oldest)
+  );
+  for (const r of await rows(
+    `SELECT type, count(*)::int AS n FROM "shipment_exception" WHERE status = 'OPEN' AND deleted_at IS NULL GROUP BY 1`
+  )) {
+    out.push(line("fashion_shipment_exceptions_open", { type: r.type }, r.n));
+  }
+  const [counts] = await rows(
+    `SELECT count(*)::int AS n FROM "material_cycle_count" WHERE status = 'PENDING_APPROVAL' AND deleted_at IS NULL`
+  );
+  out.push(line("fashion_cycle_counts_pending_approval", {}, counts.n));
+  const [transit] = await rows(
+    `SELECT count(*)::int AS n, COALESCE(EXTRACT(EPOCH FROM now() - MIN(dispatched_at)), 0)::int AS oldest
+     FROM "material_transfer" WHERE status = 'IN_TRANSIT' AND deleted_at IS NULL`
+  );
+  out.push(
+    line("fashion_transfers_in_transit", {}, transit.n),
+    line("fashion_transfers_oldest_in_transit_seconds", {}, transit.oldest)
+  );
+  out.push("# TYPE fashion_reconciliation_issues gauge");
+  for (const r of await rows(
+    `SELECT name, value FROM "ops_gauge" WHERE name LIKE 'reconcile.%' AND deleted_at IS NULL`
+  )) {
+    out.push(
+      line(
+        "fashion_reconciliation_issues",
+        { check: String(r.name).replace("reconcile.", "") },
+        Number(r.value)
+      )
+    );
+  }
 };

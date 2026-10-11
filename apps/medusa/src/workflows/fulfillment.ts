@@ -9,6 +9,8 @@ import {
   cancelCarrierShipmentStep,
   createCarrierShipmentStep,
   ingestCarrierEventsStep,
+  replaceCarrierShipmentStep,
+  resolveShipmentExceptionStep,
 } from "./steps/fulfillment";
 
 /** Shipment creation is audited with its outcome (FR-ADM-003, NFR-AUD-002). */
@@ -59,5 +61,41 @@ export const ingestCarrierEventsWorkflow = createWorkflow(
   "fulfillment-ingest-carrier-events-workflow",
   function (input: Parameters<typeof ingestCarrierEventsStep>[0]) {
     return new WorkflowResponse(ingestCarrierEventsStep(input));
+  }
+);
+
+export const resolveShipmentExceptionWorkflow = createWorkflow(
+  "fulfillment-resolve-exception-workflow",
+  function (input: Parameters<typeof resolveShipmentExceptionStep>[0]) {
+    const result = resolveShipmentExceptionStep(input);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: "fulfillment.exception.resolve",
+      resource_type: "shipment_exception",
+      resource_id: input.exception_id,
+      reason: input.note,
+      after: { resolution: result.resolution },
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
+  }
+);
+
+export const replaceCarrierShipmentWorkflow = createWorkflow(
+  "fulfillment-replace-shipment-workflow",
+  function (input: Parameters<typeof replaceCarrierShipmentStep>[0]) {
+    const result = replaceCarrierShipmentStep(input);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: "fulfillment.shipment.replace",
+      resource_type: "carrier_shipment",
+      resource_id: input.shipment_id,
+      reason: input.reason,
+      after: { replaced_by: result.shipment.id },
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
   }
 );

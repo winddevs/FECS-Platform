@@ -49,6 +49,14 @@ const DICTIONARY = {
     vi: "Không tìm thấy sản phẩm phù hợp.",
     en: "No matching products found.",
   },
+  muted: {
+    vi: "Đã tắt thông báo loại này. Gõ 'bật thông báo' kèm loại để bật lại.",
+    en: "Those notifications are off. Send 'unmute' with the same word to turn them back on.",
+  },
+  unmuted: {
+    vi: "Đã bật lại thông báo loại này.",
+    en: "Those notifications are back on.",
+  },
   toolsDisabled: {
     vi: "Tính năng này hiện chưa khả dụng.",
     en: "That isn't available right now.",

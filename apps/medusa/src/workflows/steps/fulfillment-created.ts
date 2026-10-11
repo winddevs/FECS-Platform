@@ -15,6 +15,8 @@ import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
 import type FinishedGoodsModuleService from "../../modules/finishedGoods/service";
 import { FASHION_FULFILLMENT_MODULE } from "../../modules/fulfillment";
 import type FulfillmentModuleService from "../../modules/fulfillment/service";
+import { INTEGRATION_MODULE } from "../../modules/integration";
+import type IntegrationModuleService from "../../modules/integration/service";
 import { wrapStep, type Resolver } from "./wrap";
 
 type QueryGraph = {
@@ -123,7 +125,13 @@ export const createShipmentForFulfillmentStep = wrapStep(
     if (!context) {
       return { skipped: true as const, reason: "FULFILLMENT_NOT_FOUND" };
     }
-    const provider = getCarrierProvider(DEFAULT_CARRIER);
+    // The carrier of the delivery country (section 26), else the default one.
+    const profile = await c
+      .resolve<IntegrationModuleService>(INTEGRATION_MODULE)
+      .profileFor(context.order.shipping_address?.country_code);
+    const provider = getCarrierProvider(
+      profile?.carrier_code ?? DEFAULT_CARRIER
+    );
     const shipment = await createCarrierShipment(
       c.resolve<FulfillmentModuleService>(FASHION_FULFILLMENT_MODULE),
       provider,

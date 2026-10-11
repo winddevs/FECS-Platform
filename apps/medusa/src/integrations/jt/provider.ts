@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { observeProviderCall } from "../../lib/observability/provider-calls";
 import {
   CarrierError,
   type CarrierParty,
@@ -115,7 +116,17 @@ export class JTCarrierProvider implements CarrierProvider {
       .digest("hex");
   }
 
-  private async call<T>(
+  private call<T>(
+    method: "GET" | "POST",
+    path: string,
+    payload?: Record<string, unknown>
+  ): Promise<T> {
+    return observeProviderCall("jt", `${method} ${path}`, () =>
+      this.rawCall<T>(method, path, payload)
+    );
+  }
+
+  private async rawCall<T>(
     method: "GET" | "POST",
     path: string,
     payload?: Record<string, unknown>

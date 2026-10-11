@@ -7,6 +7,7 @@ import {
   returnReceivedText,
   shipmentText,
 } from "../../modules/socialCommerce/lib/messages";
+import type { NotificationCategory } from "../../modules/socialCommerce/lib/policy";
 import type { EventEnvelope } from "../events/envelope";
 
 /**
@@ -18,6 +19,7 @@ export type CustomerNotification = {
   order_id: string;
   dedupe_key: string;
   text: string;
+  category: NotificationCategory;
 };
 
 export const NOTIFY_SHIPMENT_STATES = new Set([
@@ -25,6 +27,7 @@ export const NOTIFY_SHIPMENT_STATES = new Set([
   "OUT_FOR_DELIVERY",
   "DELIVERED",
   "DELIVERY_FAILED",
+  "RETURNED",
 ]);
 export const NOTIFY_PRODUCTION_STATES = new Set([
   "IN_PRODUCTION",
@@ -56,6 +59,7 @@ export const describeCustomerNotification = (
       }
       return {
         order_id: data.order_id,
+        category: "SHIPMENT",
         dedupe_key: `shipment:${data.shipment_id}:${data.to}`,
         text: shipmentText(
           { tracking_number: data.tracking_number ?? null, status: data.to },
@@ -73,6 +77,7 @@ export const describeCustomerNotification = (
       }
       return {
         order_id: data.customer_order_id,
+        category: "PRODUCTION",
         dedupe_key: `mo:${data.mo_id}:${status}`,
         text: productionText(status, locale),
       };
@@ -83,6 +88,7 @@ export const describeCustomerNotification = (
       }
       return {
         order_id: data.allocated_to_order_id,
+        category: "PRODUCTION",
         dedupe_key: `fg:${data.batch_id}:READY_TO_SHIP`,
         text: productionText("READY_TO_SHIP", locale),
       };
@@ -93,6 +99,7 @@ export const describeCustomerNotification = (
       }
       return {
         order_id: data.order_id,
+        category: "RETURN",
         dedupe_key: `return:${data.return_id}:RECEIVED`,
         text: returnReceivedText(locale),
       };
@@ -103,6 +110,7 @@ export const describeCustomerNotification = (
       }
       return {
         order_id: data.order_id,
+        category: "RETURN",
         dedupe_key: `return:${data.return_id}:REFUNDED`,
         text: refundCompletedText(locale),
       };

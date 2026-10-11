@@ -8,15 +8,21 @@ import {
   DEFAULT_CARRIER,
   getCarrierProvider,
 } from "../../integrations/carrier/registry";
+import { readSetting } from "../../lib/config/settings";
 import { domainError, ErrorCodes } from "../../lib/errors";
 import { isEnabled } from "../../lib/feature-flags";
-import { senderFromEnv } from "../../lib/fulfillment/build-request";
+import {
+  buildShipmentRequest,
+  senderFromEnv,
+} from "../../lib/fulfillment/build-request";
 import { createCarrierShipment } from "../../lib/fulfillment/create-shipment";
 import { lineQuantity, toNumber } from "../../lib/medusa-number";
 import { FINISHED_GOODS_MODULE } from "../../modules/finishedGoods";
 import type FinishedGoodsModuleService from "../../modules/finishedGoods/service";
 import { FASHION_FULFILLMENT_MODULE } from "../../modules/fulfillment";
 import type FulfillmentModuleService from "../../modules/fulfillment/service";
+import { INTEGRATION_MODULE } from "../../modules/integration";
+import type IntegrationModuleService from "../../modules/integration/service";
 import { RETURNS_MODULE } from "../../modules/returns";
 import {
   evaluateReturnEligibility,
@@ -40,7 +46,27 @@ type Cmd = {
 };
 type Actor = { actor_id: string; correlation_id?: string | null };
 
-const DEFAULT_RETURN_WINDOW_DAYS = 14;
+/**
+ * The returns policy of the customer's country wins (section 26), then the
+ * platform-wide setting, then the environment default.
+ */
+const returnWindowDays = async (
+  c: Resolver,
+  countryCode: string | null | undefined
+): Promise<number> => {
+  const country = countryCode?.toUpperCase() ?? "";
+  const profile = await c
+    .resolve<IntegrationModuleService>(INTEGRATION_MODULE)
+    .profileFor(country);
+  if (profile?.return_window_days) {
+    return Number(profile.return_window_days);
+  }
+  return await readSetting(
+    c,
+    "returns.window_days",
+    country ? [{ scope_type: "COUNTRY", scope_id: country }] : []
+  );
+};
 
 export type RequestReturnWorkflowInput = Cmd & {
   order_id: string;
@@ -67,6 +93,7 @@ export const requestReturnStep = wrapStep(
         "items.variant_sku",
         "items.variant.metadata",
         "items.variant.product.metadata",
+        "shipping_address.country_code",
       ],
       filters: {
         id: input.order_id,
@@ -135,8 +162,9 @@ export const requestReturnStep = wrapStep(
     const eligibility = evaluateReturnEligibility(
       {
         now: new Date(),
-        window_days: Number(
-          process.env.RETURN_WINDOW_DAYS ?? DEFAULT_RETURN_WINDOW_DAYS
+        window_days: await returnWindowDays(
+          c,
+          order.shipping_address?.country_code
         ),
         delivered_at: deliveredAt,
         purchased,
@@ -496,5 +524,127 @@ export const refundReturnStep = wrapStep(
       return_id: i.return_id,
       ok: true,
     });
+  }
+);
+
+/**
+ * Sends the replacement of an exchange (FR-RET-004): the goods reserved when
+ * the exchange was authorized leave the finished-goods ledger and a carrier
+ * parcel is created to the customer. Only after the return has arrived, and
+ * only once. Safe to repeat: each side effect is idempotent on the RMA.
+ */
+export const shipExchangeReplacementStep = wrapStep(
+  "returns-ship-exchange-replacement",
+  async (i: Actor & { return_id: string }, c) => {
+    const [auth] = await rma(c).listReturnAuthorizations({ id: i.return_id });
+    const refuse = (message: string): never => {
+      throw domainError(
+        MedusaError.Types.NOT_ALLOWED,
+        ErrorCodes.INVALID_STATE,
+        message
+      );
+    };
+    if (!auth) {
+      throw domainError(
+        MedusaError.Types.NOT_FOUND,
+        ErrorCodes.NOT_FOUND,
+        "Return not found"
+      );
+    }
+    if (auth.type !== "EXCHANGE" || !auth.exchange_sku) {
+      refuse("Only an exchange has a replacement to send");
+    }
+    if (auth.replacement_shipped_at) {
+      return {
+        replay: true as const,
+        shipment_id: auth.replacement_shipment_id,
+      };
+    }
+    if (!["RECEIVED", "INSPECTED", "CLOSED"].includes(auth.status)) {
+      refuse(
+        `The replacement is sent after the returned goods arrive (this return is ${auth.status})`
+      );
+    }
+    const sku = auth.exchange_sku as string;
+    const items = await rma(c).listRmaItems({ return_id: i.return_id });
+    const qty = items.reduce((sum, item) => sum + Number(item.qty), 0);
+
+    const fg = c.resolve<FinishedGoodsModuleService>(FINISHED_GOODS_MODULE);
+    const allocations = await fg.listFgAllocations({
+      order_id: auth.order_id,
+      sku,
+      status: "ALLOCATED",
+    });
+    const allocation = allocations.find(
+      (a) => Number(a.qty) - Number(a.shipped_qty) >= qty
+    );
+    if (!allocation) {
+      refuse(
+        `EXCHANGE_STOCK_NOT_RESERVED: ${qty} x ${sku} is not reserved for this exchange`
+      );
+    }
+
+    const query = c.resolve<QueryGraph>(ContainerRegistrationKeys.QUERY);
+    const { data: orders } = await query.graph({
+      entity: "order",
+      fields: ["id", "display_id", "shipping_address.*"],
+      filters: { id: auth.order_id },
+    });
+    const order = orders[0];
+    if (!order?.shipping_address) {
+      refuse("The order has no shipping address to send the replacement to");
+    }
+    const request = {
+      ...buildShipmentRequest(
+        {
+          id: order.id,
+          display_id: order.display_id,
+          total: 0,
+          payment_status: "paid",
+          shipping_address: order.shipping_address,
+        },
+        {
+          id: `X-${auth.id}`,
+          items: [{ title: sku, sku, quantity: qty }],
+        }
+      ),
+      merchant_reference: `X-${auth.id}`,
+      cod_amount: 0,
+      notes: `Exchange ${auth.rma_no}`,
+    };
+    const shipment = await createCarrierShipment(
+      c.resolve<FulfillmentModuleService>(FASHION_FULFILLMENT_MODULE),
+      getCarrierProvider(DEFAULT_CARRIER),
+      {
+        actor_id: i.actor_id,
+        correlation_id: i.correlation_id,
+        order_id: auth.order_id,
+        exchange_return_id: auth.id,
+        request,
+      }
+    );
+    await fg.shipFinishedGoods({
+      actor_id: i.actor_id,
+      correlation_id: i.correlation_id,
+      idempotency_key: `exchange:${auth.id}:${sku}`,
+      sku,
+      location_id: (allocation as { location_id: string }).location_id,
+      qty,
+      reference_type: "EXCHANGE",
+      reference_id: auth.id,
+      order_id: auth.order_id,
+    });
+    await rma(c).markReplacementShipped({
+      actor_id: i.actor_id,
+      correlation_id: i.correlation_id,
+      return_id: auth.id,
+      shipment_id: shipment.id,
+    });
+    return {
+      replay: false as const,
+      shipment_id: shipment.id,
+      create_state: shipment.create_state,
+      tracking_number: shipment.tracking_number,
+    };
   }
 );

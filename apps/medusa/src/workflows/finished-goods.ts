@@ -13,8 +13,11 @@ import { recordAuditStep } from "./steps/fashion-audit";
 import {
   adjustFgStep,
   allocateFgStep,
+  cancelFgTransferStep,
   changeFgHoldStep,
   checkPackDestinationStep,
+  dispatchFgTransferStep,
+  receiveFgTransferStep,
   receiveFinishedGoodsStep,
   receivePackedOutputStep,
   releaseFgAllocationStep,
@@ -119,5 +122,50 @@ export const syncSellableToMedusaWorkflow = createWorkflow(
   "fg-sync-sellable-workflow",
   function (input: ProjectionEvent) {
     return new WorkflowResponse(syncSellableToMedusaStep(input));
+  }
+);
+
+export const dispatchFgTransferWorkflow = createWorkflow(
+  "fg-transfer-dispatch-workflow",
+  function (input: Parameters<typeof dispatchFgTransferStep>[0]) {
+    const result = dispatchFgTransferStep(input);
+    const audit = transform({ input, result }, ({ input, result }) => ({
+      actor_id: input.actor_id,
+      action: "finished_goods.transfer.dispatch",
+      resource_type: "fg_transfer",
+      resource_id: result.transfer_id,
+      reason: input.notes ?? null,
+      after: {
+        sku: input.sku,
+        qty: input.qty,
+        from: input.from_location_id,
+        to: input.to_location_id,
+      },
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
+  }
+);
+export const receiveFgTransferWorkflow = createWorkflow(
+  "fg-transfer-receive-workflow",
+  function (input: Parameters<typeof receiveFgTransferStep>[0]) {
+    return new WorkflowResponse(receiveFgTransferStep(input));
+  }
+);
+export const cancelFgTransferWorkflow = createWorkflow(
+  "fg-transfer-cancel-workflow",
+  function (input: Parameters<typeof cancelFgTransferStep>[0]) {
+    const result = cancelFgTransferStep(input);
+    const audit = transform({ input }, ({ input }) => ({
+      actor_id: input.actor_id,
+      action: "finished_goods.transfer.cancel",
+      resource_type: "fg_transfer",
+      resource_id: input.transfer_id,
+      reason: input.reason ?? null,
+      correlation_id: input.correlation_id ?? null,
+    }));
+    recordAuditStep(audit);
+    return new WorkflowResponse(result);
   }
 );

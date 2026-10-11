@@ -2,6 +2,7 @@ import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { getMessageChannel } from "../integrations/channel/registry";
+import { readSetting } from "../lib/config/settings";
 import type { EventEnvelope } from "../lib/events/envelope";
 import { isEnabled } from "../lib/feature-flags";
 import { socialLocale } from "../lib/inbox/handlers/meta";
@@ -56,10 +57,12 @@ export default async function notifyCustomerEvents({
         SOCIAL_COMMERCE_MODULE
       ),
       channel: getMessageChannel(),
+      maxPerHour: await readSetting(container, "social.notifications_per_hour"),
     },
     {
       customer_id: customerId,
       dedupe_key: notification.dedupe_key,
+      category: notification.category,
       event_type: envelope.event_type,
       text: `${prefix}${notification.text}`,
     }

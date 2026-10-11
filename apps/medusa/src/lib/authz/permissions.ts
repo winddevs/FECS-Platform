@@ -66,6 +66,8 @@ export const PERMISSIONS = [
   "social:manage",
   "order:read",
   "ops:read",
+  // Changing platform settings and country profiles. ERP_ADMIN only.
+  "config:manage",
   // Legacy commerce admin (catalog sync, invoices, analytics). ERP_ADMIN and
   // COMMERCE_ADMIN only.
   "commerce:admin",

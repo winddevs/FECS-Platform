@@ -1,3 +1,4 @@
+import type { NotificationCategory } from "./policy";
 export type Intent =
   | { name: "LINK"; code: string }
   | { name: "ORDER"; ref: string | null }
@@ -9,6 +10,8 @@ export type Intent =
   | { name: "RESUME_BOT" }
   | { name: "STOP" }
   | { name: "START" }
+  | { name: "MUTE"; category: NotificationCategory }
+  | { name: "UNMUTE"; category: NotificationCategory }
   | { name: "HELP" };
 
 const LINK = /^\s*link\s+([a-z0-9]{8})\s*$/i;
@@ -29,6 +32,29 @@ const STOP_COMMAND =
 const START_COMMAND =
   /^(?:start|subscribe|dang ky|đăng ký|nhan tin|nhận tin)[\s.!]*$/u;
 
+// "mute shipping" / "tắt thông báo giao hàng": switch one category off or on.
+const MUTE_COMMAND =
+  /^(?:mute|tắt thông báo|tat thong bao)\s+(orders?|shipping|shipment|delivery|production|returns?|đơn hàng|don hang|giao hàng|giao hang|sản xuất|san xuat|trả hàng|tra hang)[\s.!]*$/u;
+const UNMUTE_COMMAND =
+  /^(?:unmute|bật thông báo|bat thong bao)\s+(orders?|shipping|shipment|delivery|production|returns?|đơn hàng|don hang|giao hàng|giao hang|sản xuất|san xuat|trả hàng|tra hang)[\s.!]*$/u;
+const CATEGORY_WORDS: Record<string, NotificationCategory> = {
+  order: "ORDER",
+  orders: "ORDER",
+  "đơn hàng": "ORDER",
+  "don hang": "ORDER",
+  shipping: "SHIPMENT",
+  shipment: "SHIPMENT",
+  delivery: "SHIPMENT",
+  "giao hàng": "SHIPMENT",
+  "giao hang": "SHIPMENT",
+  production: "PRODUCTION",
+  "sản xuất": "PRODUCTION",
+  "san xuat": "PRODUCTION",
+  return: "RETURN",
+  returns: "RETURN",
+  "trả hàng": "RETURN",
+  "tra hang": "RETURN",
+};
 // Customer's way back from a human agent to the bot.
 const RESUME_BOT_COMMAND =
   /^(?:bot|back to bot|chat with bot|quay lai bot|quay lại bot|chat voi bot|chat với bot)[\s.!]*$/u;
@@ -68,6 +94,10 @@ export const parseIntent = (rawText: string): Intent => {
   if (link) return { name: "LINK", code: link[1].toUpperCase() };
   if (STOP_COMMAND.test(lower)) return { name: "STOP" };
   if (START_COMMAND.test(lower)) return { name: "START" };
+  const mute = MUTE_COMMAND.exec(lower);
+  if (mute) return { name: "MUTE", category: CATEGORY_WORDS[mute[1]] };
+  const unmute = UNMUTE_COMMAND.exec(lower);
+  if (unmute) return { name: "UNMUTE", category: CATEGORY_WORDS[unmute[1]] };
   if (RESUME_BOT_COMMAND.test(lower)) return { name: "RESUME_BOT" };
   if (HANDOFF.test(lower)) return { name: "HANDOFF" };
   const buy = BUY.exec(text);

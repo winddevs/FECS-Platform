@@ -248,3 +248,19 @@ export const syncSellableToMedusaStep = wrapStep(
     });
   }
 );
+
+export const dispatchFgTransferStep = wrapStep(
+  "fg-transfer-dispatch",
+  (i: Parameters<FinishedGoodsModuleService["dispatchFgTransfer"]>[0], c) =>
+    fg(c).dispatchFgTransfer(i)
+);
+export const receiveFgTransferStep = wrapStep(
+  "fg-transfer-receive",
+  (i: Parameters<FinishedGoodsModuleService["receiveFgTransfer"]>[0], c) =>
+    fg(c).receiveFgTransfer(i)
+);
+export const cancelFgTransferStep = wrapStep(
+  "fg-transfer-cancel",
+  (i: Parameters<FinishedGoodsModuleService["cancelFgTransfer"]>[0], c) =>
+    fg(c).cancelFgTransfer(i)
+);

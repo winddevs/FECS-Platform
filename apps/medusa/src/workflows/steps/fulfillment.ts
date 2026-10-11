@@ -108,3 +108,59 @@ export const ingestCarrierEventsStep = wrapStep(
       { actor_id: input.actor_id, correlation_id: input.correlation_id }
     )
 );
+
+export const resolveShipmentExceptionStep = wrapStep(
+  "fulfillment-resolve-exception",
+  (
+    input: {
+      exception_id: string;
+      resolution: "REDELIVER" | "REFUND" | "RESTOCK" | "CLOSE";
+      note: string;
+      actor_id: string;
+      correlation_id?: string | null;
+    },
+    c
+  ) => svc(c).resolveShipmentException(input)
+);
+
+/**
+ * Replaces a parcel that is no longer live: frees the fulfillment's slot and
+ * creates a new shipment from the same request under a new merchant
+ * reference (FR-FUL-003). The old row is kept for the audit trail.
+ */
+export const replaceCarrierShipmentStep = wrapStep(
+  "fulfillment-replace-shipment",
+  async (
+    input: {
+      shipment_id: string;
+      reason: string;
+      actor_id: string;
+      correlation_id?: string | null;
+    },
+    c
+  ) => {
+    const old = await svc(c).supersedeShipment(input);
+    const request = {
+      ...(old.request as unknown as CreateCarrierShipmentInput["request"]),
+      merchant_reference: old.next_merchant_reference,
+    };
+    const created = await createCarrierShipment(
+      svc(c),
+      getCarrierProvider(old.shipment.carrier_code),
+      {
+        actor_id: input.actor_id,
+        correlation_id: input.correlation_id,
+        order_id: old.shipment.order_id,
+        medusa_fulfillment_id: old.shipment.medusa_fulfillment_id,
+        return_id: old.shipment.return_id,
+        exchange_return_id: old.shipment.exchange_return_id,
+        request,
+      }
+    );
+    await svc(c).linkReplacement({
+      shipment_id: input.shipment_id,
+      replaced_by_id: created.id,
+    });
+    return { replaced: input.shipment_id, shipment: created };
+  }
+);

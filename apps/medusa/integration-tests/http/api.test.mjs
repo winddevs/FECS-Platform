@@ -988,4 +988,159 @@ assert(
   "a cutting operator cannot dispatch transfers"
 );
 
+console.log("# configuration, country profiles, exceptions and metrics");
+const settings = await call(roles.sre, "GET", "/admin/settings");
+assert(
+  settings.status === 200 &&
+    settings.body.settings.some(
+      (s) => s.key === "returns.window_days" && s.effective >= 1
+    ),
+  "SRE can read every setting with its effective value"
+);
+assert(
+  (
+    await call(roles.planner, "PUT", "/admin/settings/returns.window_days", {
+      value: 20,
+    })
+  ).status === 403,
+  "only ERP_ADMIN may change settings"
+);
+assert(
+  (
+    await call(roles.admin, "PUT", "/admin/settings/returns.window_days", {
+      value: 0,
+    })
+  ).status === 400,
+  "a value that breaks the rule of its setting is refused"
+);
+assert(
+  (
+    await call(roles.admin, "PUT", "/admin/settings/no.such.setting", {
+      value: 1,
+    })
+  ).status === 404,
+  "an unknown setting is a 404"
+);
+assert(
+  (
+    await call(roles.admin, "PUT", "/admin/settings/mto.payment_gate", {
+      value: "authorized",
+      scope_type: "COUNTRY",
+      scope_id: "VN",
+    })
+  ).status === 400,
+  "a setting that has no per-country meaning cannot be set per country"
+);
+const setWindow = await call(
+  roles.admin,
+  "PUT",
+  "/admin/settings/returns.window_days",
+  { value: 45, scope_type: "COUNTRY", scope_id: "TH" }
+);
+assert(setWindow.status === 200, "ERP_ADMIN sets a per-country return window");
+const afterSet = await call(roles.sre, "GET", "/admin/settings");
+assert(
+  afterSet.body.settings
+    .find((s) => s.key === "returns.window_days")
+    .overrides.some((o) => o.scope_id === "TH" && o.value === 45),
+  "the override is listed"
+);
+assert(
+  (
+    await call(
+      roles.admin,
+      "DELETE",
+      "/admin/settings/returns.window_days?scope_type=COUNTRY&scope_id=TH"
+    )
+  ).status === 200,
+  "and can be cleared"
+);
+
+const profile = await call(roles.admin, "POST", "/admin/country-profiles", {
+  country_code: "id",
+  name: "Indonesia",
+  currency_code: "IDR",
+  carrier_code: "JNT_ID",
+  payment_providers: ["qris"],
+  warehouse_codes: ["JKT"],
+  return_window_days: 7,
+  social_channels: ["WHATSAPP"],
+  legal_entity: { name: "Fashion ID PT" },
+});
+assert(
+  profile.status === 201 && profile.body.country_profile.country_code === "ID",
+  "ERP_ADMIN saves a country profile"
+);
+assert(
+  (
+    await call(roles.planner, "POST", "/admin/country-profiles", {
+      country_code: "TH",
+      name: "x",
+      currency_code: "THB",
+    })
+  ).status === 403,
+  "a planner cannot"
+);
+const profiles = await call(roles.planner, "GET", "/admin/country-profiles");
+assert(
+  profiles.status === 200 &&
+    profiles.body.country_profiles.some((p) => p.country_code === "ID"),
+  "but can read profiles (master data)"
+);
+
+const metricsRes = await fetch(`${BASE}/internal/metrics`, {
+  headers: { authorization: `Bearer ${process.env.METRICS_TOKEN}` },
+});
+const metricsText = await metricsRes.text();
+assert(
+  metricsRes.status === 200 &&
+    metricsText.includes("fashion_qc_inspected_pieces_24h") &&
+    metricsText.includes("fashion_fg_projection_pending") &&
+    metricsText.includes("fashion_http_auth_failures_total") &&
+    metricsText.includes("fashion_provider_call_duration_ms"),
+  "metrics expose QC, projection lag, auth failures and provider calls"
+);
+assert(
+  /fashion_http_auth_failures_total\{route="[^"]+",status="403"\} [1-9]/.test(
+    metricsText
+  ),
+  "the 403s this test provoked are counted"
+);
+assert(
+  (await fetch(`${BASE}/internal/metrics`)).status === 401,
+  "metrics need the token"
+);
+const exceptions = await call(
+  roles.admin,
+  "GET",
+  "/admin/fulfillment/exceptions?status=OPEN"
+);
+assert(
+  exceptions.status === 200 && Array.isArray(exceptions.body.exceptions),
+  "support has a queue of failed deliveries"
+);
+assert(
+  (
+    await call(
+      roles.cutter,
+      "POST",
+      "/admin/fulfillment/exceptions/fake/resolve",
+      { resolution: "CLOSE", note: "x" }
+    )
+  ).status === 403,
+  "a cutting operator cannot resolve delivery exceptions"
+);
+assert(
+  (await call(roles.admin, "GET", "/admin/finished-goods/transfers")).status ===
+    200 &&
+    (
+      await call(
+        roles.admin,
+        "GET",
+        "/admin/finished-goods/locations?kind=IN_TRANSIT"
+      )
+    ).status === 200,
+  "FG transfers and location kinds are listable"
+);
+
 console.log(`HTTP TEST PASSED (${checks} checks)`);

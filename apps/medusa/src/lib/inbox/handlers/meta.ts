@@ -1,3 +1,4 @@
+import { OpenAiCompatibleAgentModel } from "../../../integrations/agent/openai-compatible";
 import { getMessageChannel } from "../../../integrations/channel/registry";
 import { SOCIAL_COMMERCE_MODULE } from "../../../modules/socialCommerce";
 import type { Locale } from "../../../modules/socialCommerce/lib/messages";
@@ -35,6 +36,9 @@ export const handleMetaInboxEvent: InboxHandler = async (container, event) => {
         readTools: isEnabled("AGENT_READ_TOOLS_ENABLED"),
         stateChange: isEnabled("AGENT_STATE_CHANGE_ENABLED"),
       },
+      agent: isEnabled("AGENT_LLM_ENABLED")
+        ? OpenAiCompatibleAgentModel.fromEnv()
+        : null,
     },
     { ...payload, occurred_at: new Date(payload.occurred_at) }
   );

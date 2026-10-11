@@ -246,6 +246,8 @@ then runs the fashion use-case journeys and failure scenarios. See
 
 ## Deploying
 
+On a single server behind nginx (bibaestudios.com): `docs/deploy-nginx.md`.
+
 1. CI builds, scans and pushes `ghcr.io/<org>/fashion-medusa:<git-sha>`.
 2. Run the migration Job (`infra/k8s/migrate`) with the new tag **before** the
    rollout; abort on failure.

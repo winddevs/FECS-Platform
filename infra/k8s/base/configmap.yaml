@@ -1,5 +1,5 @@
 # Non-secret configuration. Secrets (DATABASE_URL, REDIS_URL, JWT_SECRET,
-# COOKIE_SECRET, JT_*, META_*, S3_*, RESEND_*, METRICS_TOKEN, ...) live in the
+# COOKIE_SECRET, JT_*, META_*, S3_*, SMTP_PASSWORD, METRICS_TOKEN, ...) live in the
 # `fashion-platform-secrets` Secret, populated by your secret manager
 # (see ../examples/external-secret.yaml). Never put them here.
 apiVersion: v1
@@ -27,5 +27,11 @@ data:
   AGENT_READ_TOOLS_ENABLED: "false"
   AGENT_STATE_CHANGE_ENABLED: "false"
   SOCIAL_DEFAULT_LOCALE: vi
+  # Email over SMTP (Resend). SMTP_PASSWORD (the API key) is a secret; set
+  # EMAIL_FROM in the overlay to the verified sender address.
+  SMTP_HOST: smtp.resend.com
+  SMTP_PORT: "465"
+  SMTP_SECURE: "true"
+  SMTP_USER: resend
   RETURN_WINDOW_DAYS: "14"
   MTO_PAYMENT_GATE: captured

@@ -213,6 +213,19 @@ Vietnamese (`vi`) is the default everywhere; English stays available.
   `EMAIL_DEFAULT_LOCALE` / `INVOICE_DEFAULT_LOCALE` (default `vi`). The invoice
   uses Roboto so diacritics print correctly.
 
+### Email (SMTP)
+
+Medusa notifications (order confirmation with the invoice attached, password
+reset, admin invitation) and Payload CMS mail go out over SMTP. For Resend:
+`SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465` (implicit TLS; 587/2587 use
+STARTTLS with `SMTP_SECURE=false`), `SMTP_USER=resend`, `SMTP_PASSWORD=<your
+Resend API key>` and `EMAIL_FROM` set to an address on a domain verified in
+Resend. Keep the password in the secret manager (`SMTP_PASSWORD` in
+`infra/k8s/examples/external-secret.yaml`), never in git. A failed send is
+logged (without addresses or credentials) and never blocks the order.
+The local stack only logs emails; export `SMTP_PASSWORD` and `EMAIL_FROM`
+before `run.sh up` to send for real.
+
 ### Startup checks
 
 The integration module's loader runs in every process before traffic: it

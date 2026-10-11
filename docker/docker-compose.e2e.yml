@@ -74,6 +74,13 @@ x-medusa-env: &medusa-env
   KAFKA_RELAY_ENABLED: "true"
   KAFKA_REST_URL: http://redpanda:8082
   KAFKA_TOPIC_PREFIX: e2e.
+  # Emails are only logged unless you export SMTP_PASSWORD (your Resend API key)
+  # and EMAIL_FROM before `run.sh up`; then they go out through Resend's SMTP.
+  SMTP_HOST: ${SMTP_HOST:-smtp.resend.com}
+  SMTP_PORT: ${SMTP_PORT:-465}
+  SMTP_USER: ${SMTP_USER:-resend}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
   AGENT_LLM_ENABLED: "true"
   AGENT_LLM_BASE_URL: http://mock-providers:7000/v1
   AGENT_LLM_API_KEY: mock-llm-key

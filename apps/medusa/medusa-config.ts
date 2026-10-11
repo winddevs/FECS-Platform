@@ -125,7 +125,7 @@ if (process.env.INTEGRATION_TEST === "true") {
   // LOCAL_STACK=true: the production topology (Redis event bus, cache,
   // locks and workflow engine, separate server/worker) with local stand-ins for
   // the SaaS pieces that cannot run on a laptop: files on disk instead of S3,
-  // notifications written to the log instead of Resend, no PostHog. Used by
+  // notifications written to the log instead of SMTP, no PostHog. Used by
   // docker/docker-compose.e2e.yml. Never set it in production.
   const localStack = process.env.LOCAL_STACK === "true";
 
@@ -222,19 +222,27 @@ if (process.env.INTEGRATION_TEST === "true") {
         resolve: "@medusajs/medusa/notification",
         options: {
           providers: [
-            localStack
+            // The local stack only logs emails, unless an SMTP password is set
+            // (then it really sends, e.g. through Resend's SMTP service).
+            localStack && !process.env.SMTP_PASSWORD
               ? {
                   resolve: "@medusajs/medusa/notification-local",
                   id: "local",
                   options: { channels: ["email"] },
                 }
               : {
-                  resolve: "./src/modules/resend",
-                  id: "resend",
+                  resolve: "./src/modules/smtp",
+                  id: "smtp",
                   options: {
                     channels: ["email"],
-                    api_key: process.env.RESEND_API_KEY,
-                    from: process.env.RESEND_FROM_EMAIL,
+                    // Resend over SMTP: smtp.resend.com:465, user "resend",
+                    // password = the Resend API key.
+                    host: process.env.SMTP_HOST,
+                    port: process.env.SMTP_PORT,
+                    secure: process.env.SMTP_SECURE,
+                    user: process.env.SMTP_USER,
+                    password: process.env.SMTP_PASSWORD,
+                    from: process.env.EMAIL_FROM,
                   },
                 },
           ],

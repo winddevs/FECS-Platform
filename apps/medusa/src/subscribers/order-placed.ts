@@ -25,7 +25,7 @@ export default async function orderPlacedHandler({
         order_id: data.id,
       },
     });
-    // Medusa notification attachments carry base64 content; the Resend
+    // Medusa notification attachments carry base64 content; the SMTP
     // provider forwards it as-is.
     invoicePdfBase64 = Buffer.from(pdf_buffer).toString("base64");
   } catch (error) {

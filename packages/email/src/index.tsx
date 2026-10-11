@@ -1,5 +1,4 @@
 import { render } from "react-email";
-import { Resend } from "resend";
 
 import {
   type EmailLocale,
@@ -83,8 +82,18 @@ export async function renderTemplate(
   return render(component(data, resolvedLocale) as React.ReactElement);
 }
 
+/** The part of a nodemailer transport that `sendEmail` needs. */
+export type MailTransport = {
+  sendMail: (message: {
+    from: string;
+    to: string;
+    subject: string;
+    html: string;
+  }) => Promise<unknown>;
+};
+
 export async function sendEmail(
-  resendClient: Resend,
+  transport: MailTransport,
   options: {
     from: string;
     to: string;
@@ -97,9 +106,9 @@ export async function sendEmail(
   const html = await renderTemplate(options.template, options.data, locale);
   const subject = getEmailSubject(options.template, locale);
 
-  return resendClient.emails.send({
+  return transport.sendMail({
     from: options.from,
-    to: [options.to],
+    to: options.to,
     subject,
     html,
   });

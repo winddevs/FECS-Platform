@@ -34,7 +34,7 @@ bash docker/e2e/run.sh down    # stop and delete the data volume
 - Mocked: the language model (`/v1/chat/completions`), J&T (HMAC verified, idempotent per `txlogisticId`, failure injection
   at `/__jt/fail`, push webhooks via `/__jt/scan`), Meta Graph, Payload.
 - Swapped by `LOCAL_STACK=true` in `medusa-config.ts`: file storage, analytics
-  and notifications use local providers instead of S3, PostHog and Resend.
+  and notifications use local providers instead of S3, PostHog and SMTP email.
 
 Real carrier/Meta payload formats and SaaS behaviour are not verified here.
 

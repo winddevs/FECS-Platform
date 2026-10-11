@@ -15,8 +15,7 @@
   "dependencies": {
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-email": "catalog:",
-    "resend": "^6.17.1"
+    "react-email": "catalog:"
   },
   "devDependencies": {
     "@ecommerce/config": "workspace:*",

@@ -2,7 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { postgresAdapter } from "@payloadcms/db-postgres";
-import { resendAdapter } from "@payloadcms/email-resend";
+import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig, PayloadRequest } from "payload";
 import sharp from "sharp";
@@ -363,10 +363,22 @@ export default buildConfig({
       fileSize: 5000000, // 5MB, written in bytes
     },
   },
-  email: resendAdapter({
-    defaultFromAddress: process.env.RESEND_FROM_EMAIL || "",
-    defaultFromName: "Ecom",
-    apiKey: process.env.RESEND_API_KEY || "",
+  // Resend over SMTP (smtp.resend.com:465, user "resend", password = API key).
+  email: nodemailerAdapter({
+    defaultFromAddress: process.env.EMAIL_FROM || "",
+    defaultFromName: "FECS Fashion",
+    transportOptions: {
+      host: process.env.SMTP_HOST || "smtp.resend.com",
+      port: Number(process.env.SMTP_PORT || 465),
+      secure:
+        (process.env.SMTP_SECURE ?? "") === ""
+          ? Number(process.env.SMTP_PORT || 465) === 465
+          : process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER ?? "resend",
+        pass: process.env.SMTP_PASSWORD || "",
+      },
+    },
   }),
   jobs: {
     access: {

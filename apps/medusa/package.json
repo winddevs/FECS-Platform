@@ -53,14 +53,15 @@
     "@tanstack/react-query": "^5.101.4",
     "algoliasearch": "catalog:",
     "axios": "^1.18.1",
+    "nodemailer": "9.1.1",
     "pdfmake": "^0.3.11",
     "qs": "catalog:",
-    "react-hook-form": "catalog:",
-    "resend": "^6.18.1"
+    "react-hook-form": "catalog:"
   },
   "devDependencies": {
     "@swc/core": "1.15.47",
     "@types/node": "catalog:",
+    "@types/nodemailer": "8.0.2",
     "@types/pdfmake": "^0.3.3",
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.1",

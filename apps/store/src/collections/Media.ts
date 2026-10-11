@@ -23,8 +23,14 @@ export const Media: CollectionConfig = {
         position: "centre",
       },
     ],
-    adminThumbnail: "thumbnail",
-    mimeTypes: ["image/*"],
+    // Videos have no generated sizes, so fall back to no thumbnail for them.
+    adminThumbnail: ({ doc }) => {
+      const sizes = doc.sizes as
+        | { thumbnail?: { url?: string | null } }
+        | undefined;
+      return sizes?.thumbnail?.url ?? null;
+    },
+    mimeTypes: ["image/*", "video/*"],
     pasteURL: {
       allowList: [
         { protocol: "http", hostname: "localhost" },

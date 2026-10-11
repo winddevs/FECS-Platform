@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef } from "react";
 
-import { getClientSideURL } from "@/utilities/getURL";
 import { cn } from "@/utilities/ui";
 
 import type { Props as MediaProps } from "../types";
@@ -24,7 +23,11 @@ export const VideoMedia: React.FC<MediaProps> = (props) => {
   }, []);
 
   if (resource && typeof resource === "object") {
-    const { filename } = resource;
+    const { mimeType, url } = resource;
+
+    if (!url) {
+      return null;
+    }
 
     return (
       <video
@@ -37,7 +40,7 @@ export const VideoMedia: React.FC<MediaProps> = (props) => {
         playsInline
         ref={videoRef}
       >
-        <source src={`${getClientSideURL()}/media/${filename}`} />
+        <source src={url} type={mimeType ?? undefined} />
       </video>
     );
   }

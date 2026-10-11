@@ -101,7 +101,11 @@ export const plugins: Plugin[] = [
       },
     },
   }),
+  // MinIO (or any S3-compatible server). Files go straight from the browser to
+  // the bucket through presigned URLs, so large videos never pass through the
+  // Next.js server. The bucket needs a CORS rule for the admin origin.
   s3Storage({
+    clientUploads: true,
     collections: {
       media: {
         disablePayloadAccessControl: true,
@@ -120,23 +124,6 @@ export const plugins: Plugin[] = [
         secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
       },
       forcePathStyle: true,
-    },
-  }),
-  (config) => ({
-    ...config,
-    admin: {
-      ...config.admin,
-      components: {
-        ...config.admin?.components,
-        providers: (config.admin?.components?.providers || []).filter(
-          (provider) => {
-            if (typeof provider === "object" && "path" in provider) {
-              return !provider.path.includes("S3ClientUploadHandler");
-            }
-            return true;
-          }
-        ),
-      },
     },
   }),
 ];

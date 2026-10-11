@@ -360,7 +360,7 @@ export default buildConfig({
   plugins: [...plugins],
   upload: {
     limits: {
-      fileSize: 5000000, // 5MB, written in bytes
+      fileSize: 100_000_000, // 100MB, written in bytes (videos included)
     },
   },
   // Resend over SMTP (smtp.resend.com:465, user "resend", password = API key).

@@ -34,6 +34,45 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # S3-compatible object storage for Payload media (images and videos).
+  # Built from source, see ./minio/Dockerfile.
+  minio:
+    build: ./minio
+    image: ecommerce-minio:local
+    container_name: ecommerce-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      # Lets the browser upload straight to MinIO from the Payload admin.
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:3000,http://localhost:8000"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ecommerce_minio_data:/data
+    restart: unless-stopped
+
+  # One-shot job: creates the bucket and makes the media prefix publicly readable.
+  minio-init:
+    image: amazon/aws-cli:2.27.50
+    container_name: ecommerce-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./minio/public-read-policy.json:/policy.json:ro
+    entrypoint: >
+      /bin/sh -c "
+      aws --endpoint-url http://minio:9000 s3api head-bucket --bucket ecommerce-media 2>/dev/null ||
+      aws --endpoint-url http://minio:9000 s3 mb s3://ecommerce-media;
+      aws --endpoint-url http://minio:9000 s3api put-bucket-policy --bucket ecommerce-media --policy file:///policy.json
+      "
+    restart: "no"
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: ecommerce-pgadmin
@@ -49,3 +88,4 @@ services:
 volumes:
   ecommerce_postgres_data:
   ecommerce_redis_data:
+  ecommerce_minio_data:

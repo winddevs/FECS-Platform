@@ -113,6 +113,26 @@ goes in `SMTP_PASSWORD`, outside git.
 - Behind Cloudflare or another proxy, add `set_real_ip_from` rules for it so
   rate limits see the visitor and not the proxy.
 
+## Media cache in front of MinIO (optional)
+
+`media.bibaestudios.com.conf` is a read-only cache for images and videos stored
+in MinIO. Uploads still go straight from the browser to MinIO, so only reads
+use it.
+
+1. DNS: add `media.bibaestudios.com`, and add it to the certificate.
+2. Copy `media.bibaestudios.com.conf` to `/etc/nginx/conf.d/` and set the
+   `upstream minio-media` address to your MinIO server.
+3. Create the cache folder: `mkdir -p /var/cache/nginx/media` (owned by the
+   nginx user).
+4. Storefront env: `S3_ENDPOINT` stays the MinIO address (uploads),
+   `S3_FILE_URL=https://media.bibaestudios.com/<bucket>` (reads).
+
+What it does: caches files for 30 days on disk (20 GB cap), tells browsers to
+keep them for a year (`immutable`; file names never repeat), caches video in
+1 MB pieces so seeking works from cache, and keeps serving cached files if
+MinIO is down. Only `GET`/`HEAD` on `/<bucket>/cms/media/` are allowed. The
+`X-Cache-Status` header shows `HIT` or `MISS`.
+
 ## Check it
 
 ```bash

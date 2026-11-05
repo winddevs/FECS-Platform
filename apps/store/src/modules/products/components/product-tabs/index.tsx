@@ -46,7 +46,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
 const ProductInfoTab = ({ product }: ProductTabsProps) => {
   const t = useTranslations("products.tabs");
   return (
-    <div className="text-small-regular py-8">
+    <div className="py-4 text-sm leading-6 text-[var(--sf-ink-soft)]">
       <div className="grid grid-cols-2 gap-x-8">
         <div className="flex flex-col gap-y-4">
           <div>
@@ -92,8 +92,8 @@ const ProductInfoTab = ({ product }: ProductTabsProps) => {
 const ShippingInfoTab = () => {
   const t = useTranslations("products.tabs");
   return (
-    <div className="text-small-regular py-8">
-      <div className="grid grid-cols-1 gap-y-8">
+    <div className="py-4 text-sm leading-6 text-[var(--sf-ink-soft)]">
+      <div className="grid grid-cols-1 gap-y-6">
         <div className="flex items-start gap-x-2">
           <FastDelivery />
           <div>

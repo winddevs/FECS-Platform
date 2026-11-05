@@ -1,4 +1,3 @@
-import { Heading, Text } from "@medusajs/ui";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 // @ts-ignore
 import { RichText } from "@payloadcms/richtext-lexical/react";
@@ -9,40 +8,48 @@ type ProductInfoProps = {
   product: StoreProductWithPayload;
 };
 
+/** Collection link and title, shown above the price and options. */
 const ProductInfo = ({ product }: ProductInfoProps) => {
   return (
     <div id="product-info">
-      <div className="flex flex-col gap-y-4 lg:max-w-[500px] mx-auto">
-        {product.collection && (
-          <LocalizedClientLink
-            href={`/collections/${product.collection.handle}`}
-            className="text-medium text-ui-fg-muted hover:text-ui-fg-subtle"
-          >
-            {product.collection.title}
-          </LocalizedClientLink>
-        )}
-        <Heading
-          level="h2"
-          className="text-3xl leading-10 text-ui-fg-base"
-          data-testid="product-title"
+      {product.collection && (
+        <LocalizedClientLink
+          href={`/collections/${product.collection.handle}`}
+          className="sf-pdp-collection"
         >
-          {product?.payload_product?.title || product.title}
-        </Heading>
-
-        {product?.payload_product?.description !== undefined && (
-          <RichText data={product.payload_product.description} />
-        )}
-
-        {product?.payload_product?.description === undefined && (
-          <Text
-            className="text-medium text-ui-fg-subtle whitespace-pre-line"
-            data-testid="product-description"
-          >
-            {product.description}
-          </Text>
-        )}
-      </div>
+          {product.collection.title}
+        </LocalizedClientLink>
+      )}
+      <h1 className="sf-pdp-title" data-testid="product-title">
+        {product?.payload_product?.title || product.title}
+      </h1>
     </div>
+  );
+};
+
+/** Long description, rendered from the CMS rich text when present. */
+export const ProductDescription = ({ product }: ProductInfoProps) => {
+  const richDescription = product?.payload_product?.description;
+
+  if (richDescription !== undefined) {
+    return (
+      <div className="sf-pdp-desc">
+        <RichText data={richDescription} />
+      </div>
+    );
+  }
+
+  if (!product.description) {
+    return null;
+  }
+
+  return (
+    <p
+      className="sf-pdp-desc whitespace-pre-line"
+      data-testid="product-description"
+    >
+      {product.description}
+    </p>
   );
 };
 

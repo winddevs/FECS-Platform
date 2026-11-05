@@ -13,5 +13,7 @@
   "regionNotFound": "We do not serve this region yet.",
   "cartNotFound": "We could not find your cart. Please try again.",
   "invalidItem": "We could not find this item.",
-  "invalidRequest": "The request is not valid. Please try again."
+  "invalidRequest": "The request is not valid. Please try again.",
+  "captchaFailed": "Please confirm you are not a robot, then try again.",
+  "captchaUnavailable": "We could not run the security check. Please try again later."
 }

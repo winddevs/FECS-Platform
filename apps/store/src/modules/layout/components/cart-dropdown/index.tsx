@@ -8,13 +8,13 @@ import {
 } from "@headlessui/react";
 import { convertToLocale } from "@lib/util/money";
 import { HttpTypes } from "@medusajs/types";
-import { Button } from "@medusajs/ui";
 import DeleteButton from "@modules/common/components/delete-button";
 import LineItemOptions from "@modules/common/components/line-item-options";
 import LineItemPrice from "@modules/common/components/line-item-price";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
-import Thumbnail from "@modules/products/components/thumbnail";
+import { ShoppingBag } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
 
@@ -79,18 +79,29 @@ const CartDropdown = ({
 
   return (
     <div
-      className="h-full z-50"
+      className="sf-cart-anchor z-50"
       onMouseEnter={openAndCancel}
       onMouseLeave={close}
     >
-      <Popover className="relative h-full">
+      <Popover className="relative flex h-full items-center">
         <PopoverButton as={Fragment}>
           <LocalizedClientLink
-            className="inline-flex min-h-11 min-w-11 items-center justify-center hover:text-ui-fg-base"
+            className="sf-icon-btn"
             href="/cart"
             data-testid="nav-cart-link"
           >
-            <span aria-live="polite" aria-atomic="true">
+            <ShoppingBag aria-hidden="true" />
+            <span
+              className={`sf-cart-count${totalItems > 0 ? " has-items" : ""}`}
+              aria-hidden="true"
+            >
+              {totalItems}
+            </span>
+            <span
+              className="sf-visually-hidden"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {tNav("cart", { count: totalItems })}
             </span>
           </LocalizedClientLink>
@@ -107,12 +118,10 @@ const CartDropdown = ({
         >
           <PopoverPanel
             static
-            className="hidden small:block absolute top-[calc(100%+1px)] right-0 bg-white border-x border-b border-gray-200 w-[420px] text-ui-fg-base"
+            className="sf-cart-panel"
             data-testid="nav-cart-dropdown"
           >
-            <div className="p-4 flex items-center justify-center">
-              <h3 className="text-large-semi">{t("title")}</h3>
-            </div>
+            <h3 className="sf-cart-panel-title">{t("title")}</h3>
             {cartState && cartState.items?.length ? (
               <>
                 <div className="overflow-y-scroll max-h-[402px] px-4 grid grid-cols-1 gap-y-8 no-scrollbar p-px">
@@ -124,25 +133,38 @@ const CartDropdown = ({
                     })
                     .map((item) => (
                       <div
-                        className="grid grid-cols-[122px_1fr] gap-x-4"
+                        className="sf-cart-line"
                         key={item.id}
                         data-testid="cart-item"
                       >
                         <LocalizedClientLink
                           href={`/products/${item.product_handle}`}
-                          className="w-24"
+                          className="block"
                         >
-                          <Thumbnail
-                            thumbnail={item.thumbnail}
-                            images={item.variant?.product?.images}
-                            size="square"
-                          />
+                          <div className="sf-card-media">
+                            {item.thumbnail ? (
+                              <Image
+                                src={item.thumbnail}
+                                alt={item.title}
+                                fill
+                                sizes="74px"
+                                quality={50}
+                              />
+                            ) : (
+                              <span
+                                className="sf-card-placeholder !text-2xl"
+                                aria-hidden="true"
+                              >
+                                {item.title.charAt(0)}
+                              </span>
+                            )}
+                          </div>
                         </LocalizedClientLink>
                         <div className="flex flex-col justify-between flex-1">
                           <div className="flex flex-col flex-1">
                             <div className="flex items-start justify-between">
                               <div className="flex flex-col overflow-ellipsis whitespace-nowrap mr-4 w-[180px]">
-                                <h3 className="text-base-regular overflow-hidden text-ellipsis">
+                                <h3 className="sf-cart-line-title overflow-hidden text-ellipsis">
                                   <LocalizedClientLink
                                     href={`/products/${item.product_handle}`}
                                     data-testid="product-link"
@@ -182,14 +204,16 @@ const CartDropdown = ({
                       </div>
                     ))}
                 </div>
-                <div className="p-4 flex flex-col gap-y-4 text-small-regular">
-                  <div className="flex items-center justify-between">
-                    <span className="text-ui-fg-base font-semibold">
+                <div className="p-4 flex flex-col gap-y-4 border-t border-[var(--sf-line)]">
+                  <div className="sf-cart-subtotal">
+                    <span>
                       {t("subtotal")}{" "}
-                      <span className="font-normal">{t("excludingTaxes")}</span>
+                      <span className="text-[var(--sf-muted)]">
+                        {t("excludingTaxes")}
+                      </span>
                     </span>
                     <span
-                      className="text-large-semi"
+                      className="text-base"
                       data-testid="cart-subtotal"
                       data-value={subtotal}
                     >
@@ -200,34 +224,26 @@ const CartDropdown = ({
                       })}
                     </span>
                   </div>
-                  <Button
-                    asChild
-                    className="w-full"
-                    size="large"
+                  <LocalizedClientLink
+                    href="/cart"
+                    className="sf-btn sf-btn-dark sf-btn-wide"
                     data-testid="go-to-cart-button"
                   >
-                    <LocalizedClientLink href="/cart">
-                      {t("goToCart")}
-                    </LocalizedClientLink>
-                  </Button>
+                    {t("goToCart")}
+                  </LocalizedClientLink>
                 </div>
               </>
             ) : (
-              <div>
-                <div className="flex py-16 flex-col gap-y-4 items-center justify-center">
-                  <div className="bg-gray-900 text-small-regular flex items-center justify-center w-6 h-6 rounded-full text-white">
-                    <span>0</span>
-                  </div>
-                  <span>{t("empty")}</span>
-                  <div>
-                    <LocalizedClientLink href="/store">
-                      <>
-                        <span className="sr-only">{t("allProductsLink")}</span>
-                        <Button onClick={close}>{t("explore")}</Button>
-                      </>
-                    </LocalizedClientLink>
-                  </div>
-                </div>
+              <div className="sf-cart-empty">
+                <span>{t("empty")}</span>
+                <LocalizedClientLink
+                  href="/store"
+                  className="sf-btn sf-btn-dark sf-btn-sm"
+                  onClick={close}
+                >
+                  <span className="sr-only">{t("allProductsLink")}</span>
+                  <span aria-hidden="true">{t("explore")}</span>
+                </LocalizedClientLink>
               </div>
             )}
           </PopoverPanel>

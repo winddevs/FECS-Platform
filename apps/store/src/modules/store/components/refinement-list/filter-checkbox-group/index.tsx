@@ -53,7 +53,7 @@ const FilterCheckboxGroup = ({
         onClick={() => collapsible && setIsOpen(!isOpen)}
         aria-expanded={isOpen}
       >
-        <span className="text-sm font-medium">{title}</span>
+        <span className="sf-filter-title">{title}</span>
         {collapsible && (
           <ChevronDown
             className={cn(

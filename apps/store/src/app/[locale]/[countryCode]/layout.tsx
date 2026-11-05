@@ -8,6 +8,7 @@ import {
   setRequestLocale,
 } from "next-intl/server";
 // import { getBaseURL } from '@lib/util/env';
+import { Be_Vietnam_Pro, Cormorant_Garamond, Jost } from "next/font/google";
 import { notFound } from "next/navigation";
 import type { TypedLocale } from "payload";
 
@@ -19,6 +20,31 @@ import { Providers } from "@/providers";
 import { InitTheme } from "@/providers/Theme/InitTheme";
 import { getServerSideURL } from "@/utilities/getURL";
 import { mergeOpenGraph } from "@/utilities/mergeOpenGraph";
+
+// Display serif for headings. Cormorant ships a Vietnamese subset.
+const fontSerif = Cormorant_Garamond({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-serif",
+  display: "swap",
+});
+
+// Body sans. Jost has no Vietnamese subset, so Be Vietnam Pro covers the
+// missing diacritics through the font-family fallback chain.
+const fontSans = Jost({
+  subsets: ["latin", "latin-ext"],
+  weight: ["300", "400", "500"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const fontSansVi = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["300", "400", "500"],
+  variable: "--font-sans-vi",
+  display: "swap",
+});
 
 type Args = {
   children: React.ReactNode;
@@ -59,13 +85,14 @@ export default async function RootLayout({ children, params }: Args) {
       data-mode="light"
       lang={locale}
       dir={direction}
+      className={`${fontSerif.variable} ${fontSans.variable} ${fontSansVi.variable}`}
       suppressHydrationWarning
     >
       <head>
         <InitTheme />
         <link href="/favicon/favicon.ico" rel="icon" sizes="32x32" />
       </head>
-      <body className="font-default">
+      <body>
         <Providers>
           <NextIntlClientProvider messages={messages}>
             <a

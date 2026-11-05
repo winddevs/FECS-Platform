@@ -7,7 +7,9 @@ import { SubmitButton } from "@modules/checkout/components/submit-button";
 import Input from "@modules/common/components/input";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import { useTranslations } from "next-intl";
-import { useActionState } from "react";
+
+import { FCaptchaField } from "@/components/FCaptchaField";
+import { useCaptchaAction } from "@/components/FCaptchaField/use-captcha-action";
 
 type Props = {
   setCurrentView: (view: LOGIN_VIEW) => void;
@@ -16,7 +18,7 @@ type Props = {
 const Register = ({ setCurrentView }: Props) => {
   const t = useTranslations("account.register");
   const tf = useTranslations("account.form");
-  const [message, formAction] = useActionState(signup, null);
+  const { attempts, formAction, state: message } = useCaptchaAction(signup);
 
   return (
     <div
@@ -67,6 +69,7 @@ const Register = ({ setCurrentView }: Props) => {
             data-testid="password-input"
           />
         </div>
+        <FCaptchaField resetSignal={attempts} />
         <ErrorMessage error={message} data-testid="register-error" />
         <span className="text-center text-ui-fg-base text-small-regular mt-6">
           {t.rich("agree", {

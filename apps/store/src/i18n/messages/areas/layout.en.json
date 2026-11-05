@@ -39,6 +39,27 @@
     "collections": "Collections",
     "links": "Links",
     "blog": "Blog",
-    "poweredBy": "Powered by"
+    "poweredBy": "Powered by",
+    "about": "Considered clothing, made well and made to order.",
+    "shop": "Shop",
+    "allProducts": "All products",
+    "copyright": "© bibaestudios. All rights reserved."
+  },
+  "announcement": {
+    "label": "Announcements",
+    "one": "Made-to-order tailoring available",
+    "two": "Explore the new collection",
+    "three": "Secure checkout"
+  },
+  "header": {
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "mainNav": "Main navigation",
+    "mobileNav": "Mobile navigation",
+    "cartLabel": "Cart, {count} items",
+    "accountLabel": "Account",
+    "openSection": "Toggle {label}",
+    "allProducts": "All products",
+    "breadcrumb": "Breadcrumb"
   }
 }

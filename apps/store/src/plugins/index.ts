@@ -12,6 +12,7 @@ import {
 import { s3Storage } from "@payloadcms/storage-s3";
 import { Plugin } from "payload";
 
+import { requireCaptcha } from "@/hooks/requireCaptcha";
 import { revalidateRedirects } from "@/hooks/revalidateRedirects";
 import { Page, Post } from "@/payload-types";
 import { beforeSyncWithSearch } from "@/search/beforeSync";
@@ -67,6 +68,11 @@ export const plugins: Plugin[] = [
   formBuilderPlugin({
     fields: {
       payment: false,
+    },
+    formSubmissionOverrides: {
+      hooks: {
+        beforeOperation: [requireCaptcha],
+      },
     },
     formOverrides: {
       fields: ({ defaultFields }) => {

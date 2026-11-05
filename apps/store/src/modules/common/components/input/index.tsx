@@ -15,6 +15,13 @@ type InputProps = Omit<
   topLabel?: string;
 };
 
+// Upper bound for any text field. The server re-checks; this keeps honest
+// users from pasting megabytes and gives the browser a limit to enforce.
+const DEFAULT_MAX_LENGTH = 255;
+
+// Types where autocorrect / auto-capitalize would corrupt the value.
+const RAW_TYPES = new Set(["email", "password", "url"]);
+
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ type, name, label, touched, required, topLabel, ...props }, ref) => {
     const t = useTranslations("common.input");
@@ -47,6 +54,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             name={name}
             placeholder=" "
             required={required}
+            maxLength={DEFAULT_MAX_LENGTH}
+            autoCapitalize={RAW_TYPES.has(type ?? "") ? "none" : undefined}
+            autoCorrect={RAW_TYPES.has(type ?? "") ? "off" : undefined}
+            spellCheck={RAW_TYPES.has(type ?? "") ? false : undefined}
             className="pt-4 pb-1 block w-full h-11 px-4 mt-0 bg-ui-bg-field border rounded-md appearance-none focus:outline-none focus:ring-0 focus:shadow-borders-interactive-with-active border-ui-border-base hover:bg-ui-bg-field-hover"
             {...props}
             id={inputId}
@@ -54,7 +65,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
           <label
             htmlFor={inputId}
-            className="flex items-center justify-center mx-3 px-1 transition-all absolute duration-300 top-3 -z-1 origin-0 text-ui-fg-subtle"
+            className="pointer-events-none absolute top-3 z-[1] mx-3 flex origin-left items-center justify-center px-1 text-ui-fg-subtle transition-all duration-300"
           >
             {label}
             {required && <span className="text-rose-500">*</span>}

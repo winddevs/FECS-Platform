@@ -1,8 +1,19 @@
 "use server";
 
 import { sdk } from "@lib/config";
+import {
+  LIMITS,
+  isCountryCode,
+  isSafeInternalPath,
+  isSafeToken,
+  isSupportedLocale,
+  isValidEmail,
+  readAddress,
+  readText,
+} from "@lib/util/form-input";
 import medusaError, { AppError } from "@lib/util/medusa-error";
 import { HttpTypes } from "@medusajs/types";
+import { getLocale, getTranslations } from "next-intl/server";
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -24,7 +35,7 @@ import { getRegion } from "./regions";
 export async function retrieveCart(cartId?: string) {
   const id = cartId || (await getCartId());
 
-  if (!id) {
+  if (!(id && isSafeToken(id, LIMITS.idToken))) {
     return null;
   }
 
@@ -127,8 +138,14 @@ export async function addToCart({
   quantity: number;
   countryCode: string;
 }) {
-  if (!variantId) {
+  if (!isSafeToken(variantId, LIMITS.idToken)) {
     throw new AppError("Missing variant ID when adding to cart", "invalidItem");
+  }
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+    throw new AppError("Invalid quantity", "invalidItem");
+  }
+  if (!isCountryCode(countryCode)) {
+    throw new AppError("Invalid country code", "regionNotFound");
   }
 
   const cart = await getOrSetCart(countryCode);
@@ -168,11 +185,15 @@ export async function updateLineItem({
   lineId: string;
   quantity: number;
 }) {
-  if (!lineId) {
+  if (!isSafeToken(lineId, LIMITS.idToken)) {
     throw new AppError(
       "Missing lineItem ID when updating line item",
       "invalidItem"
     );
+  }
+  // Quantity comes from the client: whole numbers from 1 to 99 only.
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+    throw new AppError("Invalid quantity", "invalidItem");
   }
 
   const cartId = await getCartId();
@@ -201,7 +222,7 @@ export async function updateLineItem({
 }
 
 export async function deleteLineItem(lineId: string) {
-  if (!lineId) {
+  if (!isSafeToken(lineId, LIMITS.idToken)) {
     throw new AppError(
       "Missing lineItem ID when deleting line item",
       "invalidItem"
@@ -240,6 +261,15 @@ export async function setShippingMethod({
   cartId: string;
   shippingMethodId: string;
 }) {
+  if (
+    !(
+      isSafeToken(cartId, LIMITS.idToken) &&
+      isSafeToken(shippingMethodId, LIMITS.idToken)
+    )
+  ) {
+    throw new AppError("Invalid shipping method", "invalidRequest");
+  }
+
   const headers = {
     ...(await getAuthHeaders()),
   };
@@ -271,7 +301,17 @@ export async function initiatePaymentSession(
     .catch(medusaError);
 }
 
+const MAX_PROMO_CODES = 10;
+
 export async function applyPromotions(codes: string[]) {
+  // Codes arrive from the client: keep a short list of plain strings.
+  const cleanCodes = codes
+    .filter((code) => typeof code === "string")
+    .map((code) => code.trim())
+    .filter((code) => code.length > 0 && code.length <= LIMITS.promoCode)
+    .slice(0, MAX_PROMO_CODES);
+  codes = cleanCodes;
+
   const cartId = await getCartId();
 
   if (!cartId) {
@@ -341,7 +381,11 @@ export async function submitPromotionForm(
   currentState: unknown,
   formData: FormData
 ) {
-  const code = formData.get("code") as string;
+  const code = readText(formData, "code", LIMITS.promoCode);
+  if (!code) {
+    const t = await getTranslations("account.errors");
+    return t("invalidPromo");
+  }
   try {
     await applyPromotions([code]);
   } catch (e: any) {
@@ -351,6 +395,9 @@ export async function submitPromotionForm(
 
 // TODO: Pass a POJO instead of a form entity here
 export async function setAddresses(currentState: unknown, formData: FormData) {
+  const t = await getTranslations("account.errors");
+  let nextCountry = "";
+
   try {
     if (!formData) {
       throw new AppError(
@@ -358,7 +405,7 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
         "invalidRequest"
       );
     }
-    const cartId = getCartId();
+    const cartId = await getCartId();
     if (!cartId) {
       throw new AppError(
         "No existing cart found when setting addresses",
@@ -366,46 +413,34 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
       );
     }
 
-    const data = {
-      shipping_address: {
-        first_name: formData.get("shipping_address.first_name"),
-        last_name: formData.get("shipping_address.last_name"),
-        address_1: formData.get("shipping_address.address_1"),
-        address_2: "",
-        company: formData.get("shipping_address.company"),
-        postal_code: formData.get("shipping_address.postal_code"),
-        city: formData.get("shipping_address.city"),
-        country_code: formData.get("shipping_address.country_code"),
-        province: formData.get("shipping_address.province"),
-        phone: formData.get("shipping_address.phone"),
-      },
-      email: formData.get("email"),
-    } as any;
+    const email = readText(formData, "email", LIMITS.email).toLowerCase();
+    const shipping = readAddress(formData, "shipping_address.");
+    if (!(shipping && isValidEmail(email))) {
+      return t("invalidAddress");
+    }
 
-    const sameAsBilling = formData.get("same_as_billing");
-    if (sameAsBilling === "on") data.billing_address = data.shipping_address;
+    const sameAsBilling = formData.get("same_as_billing") === "on";
+    const billing = sameAsBilling
+      ? shipping
+      : readAddress(formData, "billing_address.");
+    if (!billing) {
+      return t("invalidAddress");
+    }
 
-    if (sameAsBilling !== "on")
-      data.billing_address = {
-        first_name: formData.get("billing_address.first_name"),
-        last_name: formData.get("billing_address.last_name"),
-        address_1: formData.get("billing_address.address_1"),
-        address_2: "",
-        company: formData.get("billing_address.company"),
-        postal_code: formData.get("billing_address.postal_code"),
-        city: formData.get("billing_address.city"),
-        country_code: formData.get("billing_address.country_code"),
-        province: formData.get("billing_address.province"),
-        phone: formData.get("billing_address.phone"),
-      };
-    await updateCart(data);
+    // `address_2` is not collected at checkout; keep it empty as before.
+    await updateCart({
+      email,
+      shipping_address: { ...shipping, address_2: "" },
+      billing_address: { ...billing, address_2: "" },
+    });
+    nextCountry = shipping.country_code;
   } catch (e: any) {
     return e.message;
   }
 
-  redirect(
-    `/${formData.get("shipping_address.country_code")}/checkout?step=delivery`
-  );
+  // Built only from validated parts (two letters + a supported locale).
+  const locale = await getLocale();
+  redirect(`/${locale}/${nextCountry}/checkout?step=delivery`);
 }
 
 /**
@@ -415,6 +450,7 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
  */
 export async function placeOrder(locale: string, cartId?: string) {
   const id = cartId || (await getCartId());
+  const safeLocale = isSupportedLocale(locale) ? locale : await getLocale();
 
   if (!id) {
     throw new AppError(
@@ -437,14 +473,17 @@ export async function placeOrder(locale: string, cartId?: string) {
     .catch(medusaError);
 
   if (cartRes?.type === "order") {
-    const countryCode =
-      cartRes.order.shipping_address?.country_code?.toLowerCase();
+    const rawCountry =
+      cartRes.order.shipping_address?.country_code?.toLowerCase() ?? "";
+    const countryCode = isCountryCode(rawCountry) ? rawCountry : "";
 
     const orderCacheTag = await getCacheTag("orders");
     revalidateTag(orderCacheTag);
 
     removeCartId();
-    redirect(`/${locale}/${countryCode}/order/${cartRes?.order.id}/confirmed`);
+    redirect(
+      `/${safeLocale}/${countryCode}/order/${cartRes?.order.id}/confirmed`
+    );
   }
 
   return cartRes.cart;
@@ -460,6 +499,13 @@ export async function updateRegion(
   currentPath: string,
   locale: string
 ) {
+  // All three values come from the client and end up in a redirect, so a
+  // forged value must never turn this into an open redirect.
+  if (!(isCountryCode(countryCode) && isSupportedLocale(locale))) {
+    throw new AppError("Invalid locale or country code", "invalidRequest");
+  }
+  const safePath = isSafeInternalPath(currentPath) ? currentPath : "";
+
   const cartId = await getCartId();
   const region = await getRegion(countryCode);
 
@@ -482,7 +528,7 @@ export async function updateRegion(
   const productsCacheTag = await getCacheTag("products");
   revalidateTag(productsCacheTag);
 
-  redirect(`/${locale}/${countryCode}${currentPath}`);
+  redirect(`/${locale}/${countryCode}${safePath}`);
 }
 
 export async function listCartOptions() {

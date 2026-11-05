@@ -13,5 +13,7 @@
   "regionNotFound": "Chúng tôi chưa hỗ trợ khu vực này.",
   "cartNotFound": "Không tìm thấy giỏ hàng của bạn. Vui lòng thử lại.",
   "invalidItem": "Không tìm thấy sản phẩm này.",
-  "invalidRequest": "Yêu cầu không hợp lệ. Vui lòng thử lại."
+  "invalidRequest": "Yêu cầu không hợp lệ. Vui lòng thử lại.",
+  "captchaFailed": "Vui lòng xác nhận bạn không phải là robot, rồi thử lại.",
+  "captchaUnavailable": "Không thể thực hiện kiểm tra bảo mật. Vui lòng thử lại sau."
 }

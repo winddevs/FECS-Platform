@@ -1,5 +1,4 @@
 import { HttpTypes } from "@medusajs/types";
-import { clx } from "@medusajs/ui";
 import { useTranslations } from "next-intl";
 import React from "react";
 
@@ -25,12 +24,12 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
   const label = t("selectOption", { title });
 
   return (
-    <div className="flex flex-col gap-y-3">
-      <span className="text-sm">{label}</span>
+    <div>
+      <p className="sf-pdp-label">{title}</p>
       <div
         role="group"
         aria-label={label}
-        className="flex flex-wrap gap-2"
+        className="sf-size-row"
         data-testid={dataTestId}
       >
         {filteredOptions.map((v) => {
@@ -42,18 +41,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
               onClick={() => updateOption(option.id, v)}
               key={v}
               aria-pressed={isSelected}
-              className={clx(
-                // 44px minimum touch target (WCAG 2.5.5 / storefront guidelines)
-                "border-ui-border-base bg-ui-bg-subtle border text-small-regular min-h-11 min-w-11 rounded-rounded px-3 py-2 flex-1 touch-manipulation",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-border-interactive",
-                "disabled:cursor-not-allowed disabled:opacity-60",
-                {
-                  "border-ui-border-interactive bg-ui-bg-base font-medium shadow-borders-interactive-with-active":
-                    isSelected,
-                  "hover:shadow-elevation-card-rest transition-shadow ease-in-out duration-150":
-                    !isSelected,
-                }
-              )}
+              className="sf-size touch-manipulation"
               disabled={disabled}
               data-testid="option-button"
             >

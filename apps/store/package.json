@@ -50,6 +50,7 @@
     "cross-env": "catalog:",
     "geist": "catalog:",
     "graphql": "catalog:",
+    "ioredis": "5.11.1",
     "lodash": "^4.18.1",
     "lodash.merge": "^4.6.2",
     "lucide-react": "catalog:",

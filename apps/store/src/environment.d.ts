@@ -17,6 +17,10 @@ declare global {
       NEXT_PUBLIC_ALGOLIA_API_KEY: string;
       NEXT_PUBLIC_ALGOLIA_PRODUCT_INDEX_NAME: string;
       NEXT_PUBLIC_VERCEL_URL: string;
+      NEXT_PUBLIC_FCAPTCHA_ORIGIN?: string;
+      NEXT_PUBLIC_FCAPTCHA_SITE_KEY?: string;
+      FCAPTCHA_ORIGIN?: string;
+      FCAPTCHA_VERIFY_SECRET?: string;
       PREVIEW_SECRET: string;
       PAYLOAD_SERVER_URL: string;
       REVALIDATE_SECRET: string;

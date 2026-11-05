@@ -82,7 +82,7 @@ const FilterPriceRange = ({
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
       >
-        <span className="text-sm font-medium">{t("title")}</span>
+        <span className="sf-filter-title">{t("title")}</span>
         <ChevronDown
           className={cn(
             "size-4 transition-transform duration-200 text-muted-foreground",

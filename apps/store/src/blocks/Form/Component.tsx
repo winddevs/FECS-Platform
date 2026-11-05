@@ -12,8 +12,11 @@ import type React from "react";
 import { useCallback, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 
+import { FCaptchaField } from "@/components/FCaptchaField";
 import RichText from "@/components/RichText";
+import { CAPTCHA_ERROR_CODE, CAPTCHA_HEADER } from "@/lib/captcha/constants";
 import { getClientSideURL } from "@/utilities/getURL";
+import { safeRedirectTarget } from "@/utilities/safeRedirect";
 
 import { fields } from "./fields";
 
@@ -54,6 +57,8 @@ export const FormBlock: React.FC<
   } = formMethods;
 
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [attempts, setAttempts] = useState(0);
   const [hasSubmitted, setHasSubmitted] = useState<boolean>();
   const [error, setError] = useState<
     { message: string; status?: string } | undefined
@@ -88,6 +93,8 @@ export const FormBlock: React.FC<
               }),
               headers: {
                 "Content-Type": "application/json",
+                // Verified by Payload before the submission is stored.
+                ...(captchaToken ? { [CAPTCHA_HEADER]: captchaToken } : {}),
               },
               method: "POST",
             }
@@ -100,8 +107,16 @@ export const FormBlock: React.FC<
           if (req.status >= 400) {
             setIsLoading(false);
 
+            const errorData = res.errors?.[0]?.data;
+            const isCaptchaError = errorData?.code === CAPTCHA_ERROR_CODE;
+            const captchaMessage =
+              errorData?.reason === "unavailable"
+                ? tErrors("captchaUnavailable")
+                : tErrors("captchaFailed");
             setError({
-              message: res.errors?.[0]?.message || tErrors("server"),
+              message: isCaptchaError
+                ? captchaMessage
+                : res.errors?.[0]?.message || tErrors("server"),
               status: res.status,
             });
 
@@ -112,9 +127,8 @@ export const FormBlock: React.FC<
           setHasSubmitted(true);
 
           if (confirmationType === "redirect" && redirect) {
-            const { url } = redirect;
-
-            const redirectUrl = url;
+            // The URL is CMS content; only follow it when it stays on this site.
+            const redirectUrl = safeRedirectTarget(redirect.url);
 
             if (redirectUrl) router.push(redirectUrl);
           }
@@ -124,12 +138,15 @@ export const FormBlock: React.FC<
           setError({
             message: tErrors("generic"),
           });
+        } finally {
+          // A token works once, so the visitor verifies again for the next try.
+          setAttempts((count) => count + 1);
         }
       };
 
       void submitForm();
     },
-    [router, formID, redirect, confirmationType, tErrors]
+    [router, formID, redirect, confirmationType, tErrors, captchaToken]
   );
 
   return (
@@ -176,6 +193,11 @@ export const FormBlock: React.FC<
                     return null;
                   })}
               </div>
+
+              <FCaptchaField
+                onTokenChange={setCaptchaToken}
+                resetSignal={attempts}
+              />
 
               <Button
                 form={formID}

@@ -1,8 +1,81 @@
 {
   "hero": {
-    "title": "Ecommerce Starter Template",
-    "subtitle": "with payloadcms and medusa",
-    "cta": "Shop now"
+    "label": "Featured collections",
+    "prev": "Previous slide",
+    "next": "Next slide",
+    "goTo": "Go to slide {number}",
+    "slides": {
+      "one": {
+        "eyebrow": "New season",
+        "title": "Everyday essentials, made well",
+        "subtitle": "Timeless basics in quality fabrics",
+        "cta": "Shop now"
+      },
+      "two": {
+        "eyebrow": "Made to order",
+        "title": "Tailored to your measurements",
+        "subtitle": "Pieces cut for you and finished with care",
+        "cta": "Explore the collection"
+      }
+    },
+    "pause": "Pause slideshow",
+    "play": "Play slideshow"
+  },
+  "marquee": {
+    "one": "Quality fabrics",
+    "two": "Made-to-order tailoring",
+    "three": "Considered design",
+    "four": "Carefully packed"
+  },
+  "trending": {
+    "eyebrow": "Trending now",
+    "title": "Curated edits",
+    "latest": "New arrivals",
+    "scrollBack": "Scroll back",
+    "scrollForward": "Scroll forward",
+    "tabsLabel": "Product groups"
+  },
+  "categories": {
+    "eyebrow": "Shop by category",
+    "title": "Find your style",
+    "shop": "Shop"
+  },
+  "banners": {
+    "one": {
+      "eyebrow": "Made to order",
+      "title": "Cut to your measurements",
+      "cta": "Discover"
+    },
+    "two": {
+      "eyebrow": "The essentials",
+      "title": "Wardrobe basics,\nrefined",
+      "cta": "Explore"
+    }
+  },
+  "bestSellers": {
+    "eyebrow": "Our picks",
+    "title": "Latest products",
+    "viewAll": "View all"
+  },
+  "values": {
+    "eyebrow": "Why bibaestudios",
+    "title": "Made with intention",
+    "quality": {
+      "title": "Quality",
+      "text": "Fabrics chosen for how they feel, wear and last, season after season."
+    },
+    "craft": {
+      "title": "Craftsmanship",
+      "text": "Careful construction and finishing, from the first cut to the last stitch."
+    },
+    "care": {
+      "title": "Care",
+      "text": "Thoughtful service and packaging, so every order feels looked after."
+    }
+  },
+  "quote": {
+    "text": "Clothes should feel as good as they look.",
+    "attribution": "bibaestudios"
   },
   "featured": {
     "viewAll": "View all"

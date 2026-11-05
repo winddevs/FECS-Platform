@@ -111,7 +111,10 @@ export function Pagination({
 
   // Render the component
   return (
-    <nav className="flex justify-center w-full mt-12" aria-label={t("label")}>
+    <nav
+      className="sf-pagination flex justify-center w-full mt-12"
+      aria-label={t("label")}
+    >
       <div className="flex gap-1 items-center" data-testid={dataTestid}>
         {renderPageButtons()}
       </div>

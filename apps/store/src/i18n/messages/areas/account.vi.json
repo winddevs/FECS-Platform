@@ -143,5 +143,18 @@
     "requested": "Đã yêu cầu chuyển đơn hàng {orderId}",
     "emailSent": "Email yêu cầu chuyển đơn đã được gửi đến {email}",
     "dismiss": "Đóng"
+  },
+  "errors": {
+    "invalidCredentials": "Email hoặc mật khẩu không đúng.",
+    "tooManyAttempts": "Quá nhiều lần thử. Vui lòng đợi vài phút rồi thử lại.",
+    "captchaFailed": "Vui lòng xác nhận bạn không phải là robot, rồi thử lại.",
+    "captchaUnavailable": "Không thể thực hiện kiểm tra bảo mật. Vui lòng thử lại sau.",
+    "signupFailed": "Không thể tạo tài khoản. Nếu bạn đã có tài khoản, hãy đăng nhập.",
+    "invalidInput": "Một số thông tin không hợp lệ. Vui lòng kiểm tra biểu mẫu và thử lại.",
+    "invalidEmail": "Nhập địa chỉ email hợp lệ.",
+    "passwordLength": "Dùng mật khẩu từ {min} đến {max} ký tự.",
+    "invalidAddress": "Kiểm tra địa chỉ: cần có tên, địa chỉ, thành phố, mã bưu chính và quốc gia.",
+    "invalidPromo": "Nhập mã khuyến mãi hợp lệ.",
+    "invalidOrderId": "Nhập mã đơn hàng hợp lệ."
   }
 }

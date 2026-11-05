@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 
 import type { FilterOption } from "../../../types/filters";
+import PageHero from "../components/page-hero";
 import PaginatedProducts from "./paginated-products";
 
 const StoreTemplate = ({
@@ -42,36 +43,36 @@ const StoreTemplate = ({
   const sort = sortBy || "created_at";
 
   return (
-    <div
-      className="flex flex-col small:flex-row small:items-start py-6 content-container"
-      data-testid="category-container"
-    >
-      <RefinementList
-        sortBy={sort}
-        categories={categories}
-        collections={collections}
-        types={types}
-        tags={tags}
-        optionValues={optionValues}
-      />
-      <div className="w-full">
-        <div className="mb-8 text-2xl-semi">
-          <h1 data-testid="store-page-title">{t("title")}</h1>
+    <>
+      <PageHero title={t("title")} data-testid="store-page-title" />
+      <div
+        className="sf-listing small:flex-row small:items-start small:gap-10"
+        data-testid="category-container"
+      >
+        <RefinementList
+          sortBy={sort}
+          categories={categories}
+          collections={collections}
+          types={types}
+          tags={tags}
+          optionValues={optionValues}
+        />
+        <div className="w-full min-w-0">
+          <Suspense fallback={<SkeletonProductGrid />}>
+            <PaginatedProducts
+              sortBy={sort}
+              page={pageNumber}
+              collectionId={collectionId}
+              countryCode={countryCode}
+              typeId={typeId}
+              tagId={tagId}
+              priceFrom={priceFrom}
+              priceTo={priceTo}
+            />
+          </Suspense>
         </div>
-        <Suspense fallback={<SkeletonProductGrid />}>
-          <PaginatedProducts
-            sortBy={sort}
-            page={pageNumber}
-            collectionId={collectionId}
-            countryCode={countryCode}
-            typeId={typeId}
-            tagId={tagId}
-            priceFrom={priceFrom}
-            priceTo={priceTo}
-          />
-        </Suspense>
       </div>
-    </div>
+    </>
   );
 };
 

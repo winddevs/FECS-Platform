@@ -1,8 +1,81 @@
 {
   "hero": {
-    "title": "Mẫu khởi tạo thương mại điện tử",
-    "subtitle": "với PayloadCMS và Medusa",
-    "cta": "Mua sắm ngay"
+    "label": "Bộ sưu tập nổi bật",
+    "prev": "Slide trước",
+    "next": "Slide sau",
+    "goTo": "Chuyển đến slide {number}",
+    "slides": {
+      "one": {
+        "eyebrow": "Mùa mới",
+        "title": "Cơ bản mỗi ngày, làm thật tử tế",
+        "subtitle": "Những món đồ vượt thời gian từ chất liệu tốt",
+        "cta": "Mua sắm ngay"
+      },
+      "two": {
+        "eyebrow": "May đo theo yêu cầu",
+        "title": "Vừa vặn theo số đo của bạn",
+        "subtitle": "Được cắt may riêng và hoàn thiện cẩn thận",
+        "cta": "Khám phá bộ sưu tập"
+      }
+    },
+    "pause": "Tạm dừng trình chiếu",
+    "play": "Phát trình chiếu"
+  },
+  "marquee": {
+    "one": "Chất liệu chọn lọc",
+    "two": "May đo theo yêu cầu",
+    "three": "Thiết kế tinh tế",
+    "four": "Đóng gói cẩn thận"
+  },
+  "trending": {
+    "eyebrow": "Xu hướng",
+    "title": "Gợi ý chọn lọc",
+    "latest": "Hàng mới về",
+    "scrollBack": "Cuộn lùi",
+    "scrollForward": "Cuộn tiếp",
+    "tabsLabel": "Nhóm sản phẩm"
+  },
+  "categories": {
+    "eyebrow": "Mua theo danh mục",
+    "title": "Tìm phong cách của bạn",
+    "shop": "Xem"
+  },
+  "banners": {
+    "one": {
+      "eyebrow": "May đo",
+      "title": "Cắt may theo số đo của bạn",
+      "cta": "Khám phá"
+    },
+    "two": {
+      "eyebrow": "Món đồ cơ bản",
+      "title": "Tủ đồ cơ bản,\ntinh giản hơn",
+      "cta": "Xem ngay"
+    }
+  },
+  "bestSellers": {
+    "eyebrow": "Lựa chọn của chúng tôi",
+    "title": "Sản phẩm mới nhất",
+    "viewAll": "Xem tất cả"
+  },
+  "values": {
+    "eyebrow": "Vì sao chọn bibaestudios",
+    "title": "Làm ra có chủ đích",
+    "quality": {
+      "title": "Chất lượng",
+      "text": "Chất liệu được chọn vì cảm giác khi mặc và độ bền theo từng mùa."
+    },
+    "craft": {
+      "title": "Thủ công",
+      "text": "Đường may và hoàn thiện cẩn thận, từ nhát cắt đầu tiên đến mũi chỉ cuối cùng."
+    },
+    "care": {
+      "title": "Chăm chút",
+      "text": "Dịch vụ và đóng gói chu đáo, để mỗi đơn hàng đều được quan tâm."
+    }
+  },
+  "quote": {
+    "text": "Quần áo nên đẹp khi nhìn và dễ chịu khi mặc.",
+    "attribution": "bibaestudios"
   },
   "featured": {
     "viewAll": "Xem tất cả"

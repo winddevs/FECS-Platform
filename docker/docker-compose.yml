@@ -118,6 +118,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Self-hosted captcha for the storefront forms (https://github.com/WebDecoy/FCaptcha).
+  # Storefront: NEXT_PUBLIC_FCAPTCHA_ORIGIN=http://localhost:3100
+  #             FCAPTCHA_ORIGIN=http://localhost:3100
+  #             NEXT_PUBLIC_FCAPTCHA_SITE_KEY=storefront-dev
+  #             FCAPTCHA_VERIFY_SECRET=<same value as below>
+  # The two keys below are for local use only. In production generate each with
+  # `openssl rand -hex 32` and keep them in a secret manager (docs/deploy-nginx.md).
+  fcaptcha:
+    image: ghcr.io/webdecoy/fcaptcha:1.46.1
+    container_name: ecommerce-fcaptcha
+    environment:
+      FCAPTCHA_SECRET: ${FCAPTCHA_SECRET:-5f0c1d7a9e3b46c8a2d4f6e8b0c2a4d6e8f0a1b3c5d7e9f1a3b5c7d9e1f3a5b7}
+      FCAPTCHA_VERIFY_SECRET: ${FCAPTCHA_VERIFY_SECRET:-9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d5e4f30211203f4e5d6c7b8a9}
+      FCAPTCHA_SITE_KEYS: ${FCAPTCHA_SITE_KEYS:-storefront-dev}
+      FCAPTCHA_ALLOWED_HOSTNAMES: ${FCAPTCHA_ALLOWED_HOSTNAMES:-localhost}
+    ports:
+      - "127.0.0.1:3100:3000"
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: ecommerce-pgadmin

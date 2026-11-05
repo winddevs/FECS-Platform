@@ -13,7 +13,10 @@
   },
   "images": {
     "thumbnail": "Ảnh đại diện",
-    "productImage": "Ảnh sản phẩm {number}"
+    "productImage": "Ảnh sản phẩm {number}",
+    "previous": "Ảnh trước",
+    "next": "Ảnh sau",
+    "showImage": "Xem ảnh {number}"
   },
   "tabs": {
     "productInformation": "Thông tin sản phẩm",
@@ -40,5 +43,10 @@
     "created": "Sản phẩm demo của bạn đã được tạo thành công! 🎉",
     "continueHint": "Bây giờ bạn có thể tiếp tục thiết lập cửa hàng trong trang quản trị.",
     "continueButton": "Tiếp tục thiết lập trong trang quản trị"
+  },
+  "detail": {
+    "description": "Mô tả",
+    "details": "Chi tiết",
+    "home": "Trang chủ"
   }
 }

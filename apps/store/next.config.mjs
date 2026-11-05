@@ -30,6 +30,29 @@ const s3RemotePattern = getS3RemotePattern();
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // Do not advertise the framework on every response.
+  poweredByHeader: false,
+  // Keep the Redis client out of the bundle (native sockets, not bundlable).
+  serverExternalPackages: ["ioredis"],
+  // Baseline headers. A Content-Security-Policy is deliberately not set here:
+  // Stripe, Algolia and inline theme scripts need a tested allow-list first.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // SAMEORIGIN keeps the Payload live preview (same-origin iframe) working.
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
   cacheComponents: true,
   transpilePackages: ["@ecommerce/medusa"],
   turbopack: {

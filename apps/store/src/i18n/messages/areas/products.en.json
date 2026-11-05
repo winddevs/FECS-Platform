@@ -13,7 +13,10 @@
   },
   "images": {
     "thumbnail": "Thumbnail",
-    "productImage": "Product image {number}"
+    "productImage": "Product image {number}",
+    "previous": "Previous image",
+    "next": "Next image",
+    "showImage": "Show image {number}"
   },
   "tabs": {
     "productInformation": "Product Information",
@@ -40,5 +43,10 @@
     "created": "Your demo product was successfully created! 🎉",
     "continueHint": "You can now continue setting up your store in the admin.",
     "continueButton": "Continue setup in admin"
+  },
+  "detail": {
+    "description": "Description",
+    "details": "Details",
+    "home": "Home"
   }
 }

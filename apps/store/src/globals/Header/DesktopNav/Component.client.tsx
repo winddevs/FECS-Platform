@@ -1,264 +1,473 @@
 "use client";
 
-import { FlickeringGrid } from "@ecommerce/ui/components/flickeringPatterns/flickeringDots";
+import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import type { Header } from "@payload-types";
-import { SearchIcon } from "lucide-react";
+import { ChevronDown, Menu, Search, User, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type React from "react";
-import { useState, useRef, useEffect } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 
 import { CMSLink } from "@/components/Link";
-import Logo from "@/components/Logo/Logo";
 import { PayloadImage } from "@/components/PayloadImage";
-import LocaleSwitcher from "@/components/ui/locale-switcher";
 import SearchModal from "@/modules/search/components/modal";
 import { useHeaderTheme } from "@/providers/HeaderTheme";
 
+const MENU_CLOSE_DELAY_MS = 200;
+
+export type HeaderCategory = {
+  id: string;
+  name: string;
+  handle: string;
+  children: { id: string; name: string; handle: string }[];
+};
+
+type NavItem = NonNullable<Header["navItems"]>[number];
+type CmsLink = NonNullable<NonNullable<NavItem["linkFields"]>["link"]>;
+type GroupFields = NonNullable<NavItem["groupFields"]>;
+
+type MegaColumn = {
+  key: string;
+  title?: string | null;
+  image?: { url: string; alt: string };
+  description?: string | null;
+  links: {
+    key: string;
+    description?: string | null;
+    cms?: CmsLink;
+    href?: string;
+    label?: string;
+  }[];
+};
+
+type MenuEntry =
+  | { kind: "link"; key: string; link: CmsLink }
+  | { kind: "mega"; key: string; label: string; columns: MegaColumn[] };
+
 interface HeaderClientProps {
   data: Header;
-  showOnlyNav?: boolean;
-  showOnlyActions?: boolean;
-  showOnlySearch?: boolean;
-  showOnlyMegaMenu?: boolean;
+  categories: HeaderCategory[];
+  cartSlot: ReactNode;
+  localeSlot: ReactNode;
 }
+
+const toColumns = (groups: GroupFields["groups"], key: string): MegaColumn[] =>
+  (groups ?? []).map((group, groupIndex) => ({
+    key: `${key}-${group.id ?? groupIndex}`,
+    title: group.title,
+    description: group.description,
+    image:
+      group.image && typeof group.image === "object" && "url" in group.image
+        ? {
+            url: group.image.url as string,
+            alt: group.image.alt || group.title || "",
+          }
+        : undefined,
+    links: (group.links ?? []).map((item, linkIndex) => ({
+      key: `${key}-${groupIndex}-${linkIndex}`,
+      cms: item.link,
+      description: item.description,
+    })),
+  }));
+
+const buildMenus = (
+  data: Header,
+  categories: HeaderCategory[],
+  categoriesLabel: string
+): MenuEntry[] => {
+  const entries: MenuEntry[] = [];
+
+  for (const [index, item] of (data?.navItems ?? []).entries()) {
+    const key = `nav-${item.id ?? index}`;
+    if (item.type === "link" && item.linkFields?.link) {
+      entries.push({ kind: "link", key, link: item.linkFields.link });
+    }
+    if (item.type === "group" && item.groupFields) {
+      entries.push({
+        kind: "mega",
+        key,
+        label: item.groupFields.label,
+        columns: toColumns(item.groupFields.groups, key),
+      });
+    }
+  }
+
+  if (categories.length > 0) {
+    entries.push({
+      kind: "mega",
+      key: "categories",
+      label: categoriesLabel,
+      columns: categories.map((category) => ({
+        key: `cat-${category.id}`,
+        title: category.name,
+        links:
+          category.children.length === 0
+            ? [
+                {
+                  key: `cat-${category.id}-self`,
+                  href: `/categories/${category.handle}`,
+                  label: category.name,
+                },
+              ]
+            : category.children.map((child) => ({
+                key: `cat-${child.id}`,
+                href: `/categories/${child.handle}`,
+                label: child.name,
+              })),
+      })),
+    });
+  }
+
+  return entries;
+};
 
 export const HeaderClient: React.FC<HeaderClientProps> = ({
   data,
-  showOnlyNav = false,
-  showOnlyActions = false,
-  showOnlySearch = false,
-  showOnlyMegaMenu = false,
+  categories,
+  cartSlot,
+  localeSlot,
 }) => {
-  const t = useTranslations("search");
+  const t = useTranslations("layout.header");
+  const tSearch = useTranslations("search");
   const tHeader = useTranslations("components.header");
-  const { headerTheme, setHeaderTheme } = useHeaderTheme();
+  const { setHeaderTheme } = useHeaderTheme();
   const pathname = usePathname();
-  const navItems = data?.navItems || [];
-  const [theme, setTheme] = useState<string | null>(null);
-  const [activeMegaMenu, setActiveMegaMenu] = useState<number | null>(null);
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const groupItems = useRef(
-    navItems.filter((item) => item.type === "group")
-  ).current;
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const burgerRef = useRef<HTMLButtonElement>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    setHeaderTheme(null);
-  }, [pathname, setHeaderTheme]);
-
-  useEffect(() => {
-    if (headerTheme && headerTheme !== theme) setTheme(headerTheme);
-  }, [headerTheme, theme]);
-
-  const handleMouseEnter = (index: number) => {
-    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-    setActiveMegaMenu(index);
-  };
-
-  const handleMouseLeave = () => {
-    hoverTimeout.current = setTimeout(() => {
-      setActiveMegaMenu(null);
-    }, 300);
-  };
+  const menus = useMemo(
+    () => buildMenus(data, categories, tHeader("categories")),
+    [data, categories, tHeader]
+  );
 
   useEffect(() => {
-    return () => {
-      if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-    };
+    setMounted(true);
   }, []);
 
-  // Show only navigation items
-  if (showOnlyNav) {
-    return (
-      <nav className="flex items-stretch h-full relative">
-        {navItems.map((item, i) => {
-          if (item.type === "link" && item.linkFields?.link) {
-            return (
-              <CMSLink
-                key={i}
-                {...item.linkFields.link}
-                appearance="link"
-                className="flex items-center px-4 hover:text-ui-fg-base txt-compact-small"
-              />
-            );
-          }
-          if (item.type !== "group" || !item.groupFields) return null;
+  // Pages that tint the header via context start from a clean slate.
+  useEffect(() => {
+    setHeaderTheme(null);
+    setOpenMenu(null);
+    setDrawerOpen(false);
+  }, [pathname, setHeaderTheme]);
 
-          const groupIndex = groupItems.findIndex((g) => g === item);
-          const { label } = item.groupFields;
+  const cancelClose = useCallback(() => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  }, []);
 
-          return (
-            <div
-              key={i}
-              className="group relative h-full flex items-stretch"
-              onMouseEnter={() => handleMouseEnter(groupIndex)}
-              onMouseLeave={handleMouseLeave}
-            >
-              <div className="cursor-pointer flex items-center h-full px-4 hover:text-ui-fg-base txt-compact-small">
-                <span>{label}</span>
-              </div>
-            </div>
-          );
-        })}
-      </nav>
+  const scheduleClose = useCallback(() => {
+    cancelClose();
+    closeTimer.current = setTimeout(
+      () => setOpenMenu(null),
+      MENU_CLOSE_DELAY_MS
     );
-  }
+  }, [cancelClose]);
 
-  // Show only search
-  if (showOnlySearch) {
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => {
-            setIsSearchModalOpen(true);
-          }}
-          aria-label={t("title")}
-          className="text-ui-fg-subtle hover:text-ui-fg-base flex min-h-11 min-w-11 items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-border-interactive"
+  useEffect(() => cancelClose, [cancelClose]);
+
+  const openMenuNow = (key: string) => {
+    cancelClose();
+    setOpenMenu(key);
+  };
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    burgerRef.current?.focus();
+  }, []);
+
+  // Drawer: Escape closes, body scroll is locked, focus moves inside.
+  useEffect(() => {
+    if (!drawerOpen) {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    drawerCloseRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeDrawer();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [drawerOpen, closeDrawer]);
+
+  const onZoneKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape" && openMenu) {
+      setOpenMenu(null);
+    }
+  };
+
+  const onZoneBlur = (event: React.FocusEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setOpenMenu(null);
+    }
+  };
+
+  return (
+    <>
+      <div className="sf-header-inner">
+        <div
+          role="presentation"
+          className="sf-header-left"
+          onKeyDown={onZoneKeyDown}
+          onBlur={onZoneBlur}
         >
-          <SearchIcon className="w-4 h-4" aria-hidden="true" />
-          <span className="txt-compact-small hidden sm:inline">
-            {t("title")}
-          </span>
-        </button>
-        <SearchModal
-          isOpen={isSearchModalOpen}
-          onClose={() => setIsSearchModalOpen(false)}
-        />
-      </>
-    );
-  }
+          <button
+            ref={burgerRef}
+            type="button"
+            className="sf-icon-btn sf-burger"
+            aria-label={t("openMenu")}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+          >
+            <Menu aria-hidden="true" />
+          </button>
 
-  // Show only actions (language switcher and sign up)
-  if (showOnlyActions) {
-    return (
-      <div className="flex items-center gap-4">
-        <LocaleSwitcher />
-      </div>
-    );
-  }
-
-  // Show only mega menu
-  if (showOnlyMegaMenu) {
-    return (
-      <div {...(theme ? { "data-theme": theme } : {})}>
-        <div className="absolute left-0 right-0 z-20 bg-muted">
-          {groupItems.map((item, i) => {
-            if (item.type !== "group" || !item.groupFields) return null;
-            const { groups } = item.groupFields;
-
-            const formattedGroups =
-              groups?.map((group) => ({
-                title: group.title,
-                image:
-                  group.image && "url" in group.image
-                    ? {
-                        url: group.image.url as string,
-                        alt: group.image.alt || "",
-                      }
-                    : undefined,
-                description: group.description,
-                links: (group.links || []).map((linkItem) => ({
-                  link: linkItem.link,
-                  description: linkItem.description,
-                })),
-              })) || [];
-
-            return (
-              <div
-                key={i}
-                className={`${
-                  activeMegaMenu === i ? "block" : "hidden"
-                } shadow-inset-top w-full transition-all duration-200 ease-in-out relative`}
-                onMouseEnter={() => handleMouseEnter(i)}
-                onMouseLeave={handleMouseLeave}
-              >
-                <div className="absolute inset-y-0 left-0 w-24 z-0">
-                  <FlickeringGrid
-                    className="w-full h-full [mask-image:linear-gradient(to_left,transparent_0%,white_100%)] [mask-composite:intersect] shadow-inset-top"
-                    color="#11A1EB"
-                    maxOpacity={0.7}
-                    flickerChance={0.2}
-                    height={400}
-                    width={96}
-                  />
-                </div>
-                <div className="absolute inset-y-0 right-0 w-24 z-0">
-                  <FlickeringGrid
-                    className="w-full h-full [mask-image:linear-gradient(to_right,transparent_0%,white_100%)] [mask-composite:intersect] shadow-inset-top"
-                    color="#60A5FA"
-                    maxOpacity={0.7}
-                    flickerChance={0.2}
-                    height={400}
-                    width={96}
-                  />
-                </div>
-
-                <div className="content-container relative z-10">
-                  <div className="py-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      {formattedGroups.map((group, groupIndex) => (
-                        <div key={groupIndex} className="space-y-4">
-                          {(group.title || group.image) && (
-                            <div>
-                              {group.title && (
-                                <h3 className="txt-compact-small-plus uppercase tracking-wider text-ui-fg-muted font-medium mb-3">
-                                  {group.title}
-                                </h3>
-                              )}
-                              {group.image?.url && (
-                                <PayloadImage
-                                  loading="lazy"
-                                  width={300}
-                                  height={200}
-                                  src={group.image.url}
-                                  alt={
-                                    group.image.alt ||
-                                    group.title ||
-                                    tHeader("groupImage")
-                                  }
-                                  className="rounded-md object-cover w-full h-40"
+          <nav className="sf-nav" aria-label={t("mainNav")}>
+            {menus.map((menu) => {
+              if (menu.kind === "link") {
+                return (
+                  <div key={menu.key} className="sf-nav-item">
+                    <CMSLink
+                      {...menu.link}
+                      appearance="inline"
+                      className="sf-nav-link"
+                    />
+                  </div>
+                );
+              }
+              const isOpen = openMenu === menu.key;
+              return (
+                <div
+                  key={menu.key}
+                  className="sf-nav-item"
+                  onMouseEnter={() => openMenuNow(menu.key)}
+                  onMouseLeave={scheduleClose}
+                >
+                  <button
+                    type="button"
+                    className="sf-nav-link"
+                    aria-expanded={isOpen}
+                    aria-controls={`mega-${menu.key}`}
+                    onClick={() =>
+                      isOpen ? setOpenMenu(null) : openMenuNow(menu.key)
+                    }
+                  >
+                    {menu.label}
+                  </button>
+                  <div
+                    id={`mega-${menu.key}`}
+                    className={`sf-mega${openMenu === menu.key ? " is-open" : ""}`}
+                    onMouseEnter={cancelClose}
+                    onMouseLeave={scheduleClose}
+                  >
+                    <div className="sf-mega-inner">
+                      {menu.columns.map((column) => (
+                        <div key={column.key} className="sf-mega-col">
+                          {column.title && (
+                            <p className="sf-mega-heading">{column.title}</p>
+                          )}
+                          {column.image?.url && (
+                            <div className="sf-mega-img">
+                              <PayloadImage
+                                loading="lazy"
+                                width={400}
+                                height={225}
+                                src={column.image.url}
+                                alt={column.image.alt || tHeader("groupImage")}
+                              />
+                            </div>
+                          )}
+                          {column.description && (
+                            <p className="sf-mega-desc">{column.description}</p>
+                          )}
+                          {column.links.map((item) => (
+                            <div key={item.key}>
+                              {item.cms ? (
+                                <CMSLink
+                                  {...item.cms}
+                                  appearance="inline"
+                                  className=""
                                 />
+                              ) : (
+                                <LocalizedClientLink
+                                  href={item.href ?? "/"}
+                                  onClick={() => setOpenMenu(null)}
+                                >
+                                  {item.label}
+                                </LocalizedClientLink>
                               )}
-                              {group.description && (
-                                <p className="txt-compact-small text-ui-fg-subtle mt-3">
-                                  {group.description}
+                              {item.description && (
+                                <p className="sf-mega-link-desc">
+                                  {item.description}
                                 </p>
                               )}
                             </div>
-                          )}
-                          <div className="space-y-2">
-                            {group.links.map((item, linkIndex) => (
-                              <div key={linkIndex} className="space-y-1">
-                                <CMSLink
-                                  {...item.link}
-                                  appearance="link"
-                                  className="font-normal txt-compact-small text-ui-fg-base hover:text-ui-fg-interactive"
-                                />
-                                {item.description && (
-                                  <p className="txt-compact-xsmall text-ui-fg-subtle">
-                                    {item.description}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                          ))}
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </nav>
+        </div>
+
+        <LocalizedClientLink
+          href="/"
+          className="sf-logo"
+          data-testid="nav-store-link"
+        >
+          bibaestudios
+        </LocalizedClientLink>
+
+        <div className="sf-actions">
+          <button
+            type="button"
+            className="sf-icon-btn"
+            aria-label={tSearch("title")}
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search aria-hidden="true" />
+          </button>
+          <div className="sf-actions-desktop flex items-center">
+            {localeSlot}
+          </div>
+          <LocalizedClientLink
+            href="/account"
+            className="sf-icon-btn sf-account-link"
+            aria-label={t("accountLabel")}
+            data-testid="nav-account-link"
+          >
+            <User aria-hidden="true" />
+          </LocalizedClientLink>
+          {cartSlot}
         </div>
       </div>
-    );
-  }
 
-  // Default: show nothing (this shouldn't be reached with the new structure)
-  return null;
+      <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Portaled: the frosted header (backdrop-filter) would otherwise
+          become the containing block of these fixed-position layers. */}
+      {mounted &&
+        createPortal(
+          <>
+            <div
+              className={`sf-overlay${drawerOpen ? " is-open" : ""}`}
+              onClick={closeDrawer}
+              aria-hidden="true"
+            />
+            <div
+              className={`sf-drawer${drawerOpen ? " is-open" : ""}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("mobileNav")}
+            >
+              <div className="sf-drawer-head">
+                <span className="sf-drawer-title">bibaestudios</span>
+                <button
+                  ref={drawerCloseRef}
+                  type="button"
+                  className="sf-icon-btn"
+                  aria-label={t("closeMenu")}
+                  onClick={closeDrawer}
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+              <nav className="sf-drawer-nav" aria-label={t("mobileNav")}>
+                <LocalizedClientLink href="/store" onClick={closeDrawer}>
+                  {t("allProducts")}
+                </LocalizedClientLink>
+                {menus.map((menu) => {
+                  if (menu.kind === "link") {
+                    return (
+                      <CMSLink
+                        key={menu.key}
+                        {...menu.link}
+                        appearance="inline"
+                      />
+                    );
+                  }
+                  const expanded = openSection === menu.key;
+                  return (
+                    <div key={menu.key}>
+                      <button
+                        type="button"
+                        className="sf-drawer-accordion w-full"
+                        aria-expanded={expanded}
+                        aria-label={t("openSection", { label: menu.label })}
+                        onClick={() =>
+                          setOpenSection(expanded ? null : menu.key)
+                        }
+                      >
+                        <span>{menu.label}</span>
+                        <ChevronDown aria-hidden="true" />
+                      </button>
+                      <div className="sf-drawer-sub">
+                        {menu.columns.flatMap((column) =>
+                          column.links.map((item) =>
+                            item.cms ? (
+                              <CMSLink
+                                key={item.key}
+                                {...item.cms}
+                                appearance="inline"
+                              />
+                            ) : (
+                              <LocalizedClientLink
+                                key={item.key}
+                                href={item.href ?? "/"}
+                                onClick={closeDrawer}
+                              >
+                                {item.label}
+                              </LocalizedClientLink>
+                            )
+                          )
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </nav>
+              <div className="sf-drawer-foot">
+                <LocalizedClientLink
+                  href="/account"
+                  className="sf-link"
+                  onClick={closeDrawer}
+                >
+                  {t("accountLabel")}
+                </LocalizedClientLink>
+                {localeSlot}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+    </>
+  );
 };

@@ -87,6 +87,51 @@ Then set the domain-specific variables from `infra/nginx/env.production.example`
 (CORS, public URLs, sender address) and restart both apps. The Resend API key
 goes in `SMTP_PASSWORD`, outside git.
 
+## Captcha: FCaptcha (`captcha.bibaestudios.com`)
+
+FCaptcha protects the storefront sign-in, sign-up and CMS forms (contact etc.).
+The visitor ticks a checkbox, the browser gets a one-time token, and the
+storefront server checks that token before it does any work. Without a valid
+token the form is rejected. In production a missing setting also rejects the
+form, so set everything below before you deploy the storefront.
+
+1. DNS: `captcha.bibaestudios.com  A  <server ip>`. Get a certificate like the
+   other hosts (section 3), then install the site:
+   ```sh
+   sudo cp infra/nginx/captcha.bibaestudios.com.conf /etc/nginx/conf.d/
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+2. Run the container on localhost only. Generate **two different** keys and keep
+   them in your secret manager:
+   ```sh
+   docker run -d --name fcaptcha --restart unless-stopped \
+     -p 127.0.0.1:3100:3000 \
+     -e FCAPTCHA_SECRET="$(openssl rand -hex 32)" \
+     -e FCAPTCHA_VERIFY_SECRET="<second key from openssl rand -hex 32>" \
+     -e FCAPTCHA_SITE_KEYS=storefront \
+     -e FCAPTCHA_ALLOWED_HOSTNAMES=bibaestudios.com \
+     ghcr.io/webdecoy/fcaptcha:1.46.1
+   ```
+   `FCAPTCHA_SECRET` signs tokens and stays on this container.
+   `FCAPTCHA_VERIFY_SECRET` is what the storefront sends to check a token.
+   With more than one container, add `REDIS_URL` (see the
+   [hardening notes](https://github.com/WebDecoy/FCaptcha/blob/main/HARDENING.md)).
+3. Storefront (`apps/store/.env`):
+   ```sh
+   NEXT_PUBLIC_FCAPTCHA_ORIGIN=https://captcha.bibaestudios.com
+   NEXT_PUBLIC_FCAPTCHA_SITE_KEY=storefront
+   FCAPTCHA_ORIGIN=http://127.0.0.1:3100
+   FCAPTCHA_VERIFY_SECRET=<the verify key from step 2>
+   ```
+   The two `NEXT_PUBLIC_` values are compiled into the browser bundle, so
+   **rebuild** the storefront after changing them.
+4. Check it: open the sign-in page, tick the box, sign in. Then stop the
+   container and try again: the form must refuse with "We could not run the
+   security check", not let you through.
+
+If you add a Content-Security-Policy later, allow `https://captcha.bibaestudios.com`
+in `script-src` and `connect-src`, and `blob:` in `worker-src`.
+
 ## 5. Tell the other services
 
 | Service        | Setting                                                                                                                                       |
@@ -105,8 +150,20 @@ goes in `SMTP_PASSWORD`, outside git.
   bytes).
 - `/internal/*` (readiness, metrics) is answered only to loopback and private
   networks. `/health` stays public for uptime monitors.
-- Admin sign-in (`/auth/user/emailpass`) and Payload sign-in are limited to 10
+- Admin sign-in (`/auth/user/*`) and Payload sign-in are limited to 10
   attempts a minute per address.
+- Customer sign-in, sign-up and password reset on the public API
+  (`/auth/customer/*`) are limited to 10 a minute per address (burst 5), so
+  nobody can guess passwords by calling the API directly. Other `/auth/` routes
+  get a loose 60 a minute flood limit. Requests from the storefront server's
+  own address (loopback) are not counted here; the storefront limits those per
+  account itself (below).
+- **Per-account limits in the storefront.** Sign-in and sign-up also count
+  attempts per email and per address inside the Next.js app. Set `REDIS_URL` for
+  the storefront so all instances share the counts and a restart keeps them.
+  Without it the counts are per process and reset on restart, and the server
+  logs a warning in production. If Redis is down, the app falls back to those
+  per-process counts instead of blocking sign-in.
 - Medusa Admin and ERP routes allow slow requests (120 s). To lock the
   back-office to your office or VPN, uncomment the `allow` / `deny` lines in the
   `/app` and `/admin` location.

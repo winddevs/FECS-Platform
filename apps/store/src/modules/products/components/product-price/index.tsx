@@ -1,6 +1,5 @@
 import { getProductPrice } from "@lib/util/get-product-price";
 import { HttpTypes } from "@medusajs/types";
-import { clx } from "@medusajs/ui";
 import { useLocale, useTranslations } from "next-intl";
 
 export default function ProductPrice({
@@ -21,16 +20,12 @@ export default function ProductPrice({
   const selectedPrice = variant ? variantPrice : cheapestPrice;
 
   if (!selectedPrice) {
-    return <div className="block w-32 h-9 bg-gray-100 animate-pulse" />;
+    return <div className="sf-skeleton block h-7 w-32" />;
   }
 
   return (
-    <div className="flex flex-col text-ui-fg-base">
-      <span
-        className={clx("text-xl-semi", {
-          "text-ui-fg-interactive": selectedPrice.price_type === "sale",
-        })}
-      >
+    <p className="sf-pdp-price">
+      <span className={selectedPrice.price_type === "sale" ? "is-sale" : ""}>
         {!variant && `${t("from")} `}
         <span
           data-testid="product-price"
@@ -41,21 +36,18 @@ export default function ProductPrice({
       </span>
       {selectedPrice.price_type === "sale" && (
         <>
-          <p>
-            <span className="text-ui-fg-subtle">{t("original")} </span>
+          <span className="was">
+            <span className="sf-visually-hidden">{t("original")} </span>
             <span
-              className="line-through"
               data-testid="original-product-price"
               data-value={selectedPrice.original_price_number}
             >
               {selectedPrice.original_price}
             </span>
-          </p>
-          <span className="text-ui-fg-interactive">
-            -{selectedPrice.percentage_diff}%
           </span>
+          <span className="save">-{selectedPrice.percentage_diff}%</span>
         </>
       )}
-    </div>
+    </p>
   );
 }

@@ -1,6 +1,9 @@
-import { Container } from "@medusajs/ui";
+"use client";
+
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { useState } from "react";
 
 type ImageGalleryProps = {
   images: {
@@ -8,39 +11,90 @@ type ImageGalleryProps = {
     url: string;
     alt?: string;
   }[];
+  /** Product title, used for the placeholder initial and the default alt. */
+  title?: string;
 };
 
-const ImageGallery = ({ images }: ImageGalleryProps) => {
+const STAGE_SIZES = "(max-width: 1023px) 100vw, 55vw";
+
+const ImageGallery = ({ images, title = "" }: ImageGalleryProps) => {
   const t = useTranslations("products.images");
+  const [index, setIndex] = useState(0);
+
+  const visible = images.filter((image) => !!image.url);
+  const count = visible.length;
+  const current = visible[index] ?? visible[0];
+
+  const go = (next: number) => setIndex((next + count) % count);
+
+  const altFor = (position: number) =>
+    visible[position]?.alt || t("productImage", { number: position + 1 });
 
   return (
-    <div className="flex items-start relative">
-      <div className="flex flex-col flex-1 small:mx-16 gap-y-4">
-        {images.map((image, index) => {
-          return (
-            <Container
-              key={image.id}
-              className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle"
-              id={image.id}
+    <div className="sf-gallery" data-testid="product-gallery">
+      <div className="sf-stage">
+        {current ? (
+          <Image
+            key={current.id}
+            src={current.url}
+            alt={altFor(index)}
+            fill
+            priority
+            sizes={STAGE_SIZES}
+            quality={80}
+            draggable={false}
+          />
+        ) : (
+          <span className="sf-card-placeholder" aria-hidden="true">
+            {title.charAt(0)}
+          </span>
+        )}
+        {count > 1 && (
+          <>
+            <button
+              type="button"
+              className="sf-stage-arrow sf-stage-prev"
+              aria-label={t("previous")}
+              onClick={() => go(index - 1)}
             >
-              {!!image.url && (
+              <ChevronLeft aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="sf-stage-arrow sf-stage-next"
+              aria-label={t("next")}
+              onClick={() => go(index + 1)}
+            >
+              <ChevronRight aria-hidden="true" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {count > 1 && (
+        <ul className="sf-thumbs">
+          {visible.map((image, position) => (
+            <li key={image.id}>
+              <button
+                type="button"
+                className="sf-thumb"
+                aria-label={t("showImage", { number: position + 1 })}
+                aria-current={position === index}
+                onClick={() => setIndex(position)}
+              >
                 <Image
                   src={image.url}
-                  priority={index === 0}
-                  loading={index === 0 ? "eager" : "lazy"}
-                  className="absolute inset-0 rounded-rounded"
-                  alt={image.alt || t("productImage", { number: index + 1 })}
+                  alt=""
                   fill
-                  sizes="(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
-                  style={{
-                    objectFit: "cover",
-                  }}
+                  sizes="76px"
+                  quality={50}
+                  draggable={false}
                 />
-              )}
-            </Container>
-          );
-        })}
-      </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

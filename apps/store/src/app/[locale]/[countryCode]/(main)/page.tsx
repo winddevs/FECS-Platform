@@ -1,7 +1,6 @@
 import { localizedAlternates } from "@lib/seo/alternates";
-import { FeaturedProductsFallback } from "@modules/home/components/featured-products/FeaturedProductsFallback";
-import { FeaturedProductsSection } from "@modules/home/components/featured-products/FeaturedProductsSection";
-import Hero from "@modules/home/components/hero";
+import HomeContent from "@modules/home/components/home-content";
+import HomeFallback from "@modules/home/components/home-fallback";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -26,11 +25,8 @@ export default async function Home(props: {
   const { countryCode } = params;
 
   return (
-    <>
-      <Hero />
-      <Suspense fallback={<FeaturedProductsFallback />}>
-        <FeaturedProductsSection countryCode={countryCode} />
-      </Suspense>
-    </>
+    <Suspense fallback={<HomeFallback />}>
+      <HomeContent countryCode={countryCode} />
+    </Suspense>
   );
 }

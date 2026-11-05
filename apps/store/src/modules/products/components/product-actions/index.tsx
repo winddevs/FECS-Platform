@@ -3,10 +3,9 @@
 import { addToCart } from "@lib/data/cart";
 import { useIntersection } from "@lib/hooks/use-in-view";
 import { HttpTypes } from "@medusajs/types";
-import { Button } from "@medusajs/ui";
-import Divider from "@modules/common/components/divider";
 import OptionSelect from "@modules/products/components/product-actions/option-select";
 import { isEqual } from "lodash";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -145,10 +144,11 @@ export default function ProductActions({
 
   return (
     <>
-      <div className="flex flex-col gap-y-2" ref={actionsRef}>
+      <div className="mt-4 flex flex-col gap-y-6" ref={actionsRef}>
+        <ProductPrice product={product} variant={selectedVariant} />
         <div>
           {(product.variants?.length ?? 0) > 1 && (
-            <div className="flex flex-col gap-y-4">
+            <div className="flex flex-col gap-y-5">
               {(product.options || []).map((option) => {
                 const payloadOption = product.payload_product?.options?.find(
                   (o) => o.medusa_id === option.id
@@ -166,14 +166,12 @@ export default function ProductActions({
                   </div>
                 );
               })}
-              <Divider />
             </div>
           )}
         </div>
 
-        <ProductPrice product={product} variant={selectedVariant} />
-
-        <Button
+        <button
+          type="button"
           onClick={handleAddToCart}
           disabled={
             !inStock ||
@@ -182,13 +180,15 @@ export default function ProductActions({
             isAdding ||
             !isValidVariant
           }
-          variant="primary"
-          className="w-full h-11"
-          isLoading={isAdding}
+          aria-busy={isAdding}
+          className="sf-btn sf-btn-dark sf-btn-wide gap-2"
           data-testid="add-product-button"
         >
+          {isAdding && (
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          )}
           {addToCartLabel}
-        </Button>
+        </button>
         <MobileActions
           product={product}
           variant={selectedVariant}

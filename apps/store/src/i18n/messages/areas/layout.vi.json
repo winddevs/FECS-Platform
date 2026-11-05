@@ -39,6 +39,27 @@
     "collections": "Bộ sưu tập",
     "links": "Liên kết",
     "blog": "Blog",
-    "poweredBy": "Được cung cấp bởi"
+    "poweredBy": "Được cung cấp bởi",
+    "about": "Trang phục tinh tế, làm cẩn thận và may đo theo yêu cầu.",
+    "shop": "Cửa hàng",
+    "allProducts": "Tất cả sản phẩm",
+    "copyright": "© bibaestudios. Bảo lưu mọi quyền."
+  },
+  "announcement": {
+    "label": "Thông báo",
+    "one": "Nhận may đo theo yêu cầu",
+    "two": "Khám phá bộ sưu tập mới",
+    "three": "Thanh toán an toàn"
+  },
+  "header": {
+    "openMenu": "Mở menu",
+    "closeMenu": "Đóng menu",
+    "mainNav": "Điều hướng chính",
+    "mobileNav": "Điều hướng di động",
+    "cartLabel": "Giỏ hàng, {count} sản phẩm",
+    "accountLabel": "Tài khoản",
+    "openSection": "Mở/đóng {label}",
+    "allProducts": "Tất cả sản phẩm",
+    "breadcrumb": "Đường dẫn"
   }
 }

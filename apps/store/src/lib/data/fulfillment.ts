@@ -1,6 +1,7 @@
 "use server";
 
 import { sdk } from "@lib/config";
+import { LIMITS, isSafeToken } from "@lib/util/form-input";
 import { HttpTypes } from "@medusajs/types";
 
 import { getAuthHeaders, getCacheOptions } from "./cookies";
@@ -48,6 +49,9 @@ export const calculatePriceForShippingOption = async (
     ...(await getCacheOptions("fulfillment")),
   };
 
+  if (!isSafeToken(optionId, LIMITS.idToken)) {
+    return null;
+  }
   const body = { cart_id: cartId, data };
 
   if (data) {

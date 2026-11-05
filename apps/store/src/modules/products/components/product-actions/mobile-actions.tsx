@@ -3,9 +3,10 @@ import useToggleState from "@lib/hooks/use-toggle-state";
 import { getProductPrice } from "@lib/util/get-product-price";
 import { isSimpleProduct } from "@lib/util/product";
 import { HttpTypes } from "@medusajs/types";
-import { Button, clx } from "@medusajs/ui";
+import { clx } from "@medusajs/ui";
 import ChevronDown from "@modules/common/icons/chevron-down";
 import X from "@modules/common/icons/x";
+import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import React, { Fragment, useMemo } from "react";
 
@@ -72,12 +73,11 @@ const MobileActions: React.FC<MobileActionsProps> = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div
-            className="bg-white flex flex-col gap-y-3 justify-center items-center text-large-regular px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] h-full w-full border-t border-gray-200"
-            data-testid="mobile-actions"
-          >
-            <div className="flex items-center gap-x-2">
-              <span data-testid="mobile-title">{product.title}</span>
+          <div className="sf-sticky-bar" data-testid="mobile-actions">
+            <div className="flex items-center justify-center gap-x-2 text-sm">
+              <span className="font-serif text-base" data-testid="mobile-title">
+                {product.title}
+              </span>
               <span>—</span>
               {selectedPrice ? (
                 <div className="flex items-end gap-x-2 text-ui-fg-base">
@@ -107,35 +107,37 @@ const MobileActions: React.FC<MobileActionsProps> = ({
               })}
             >
               {!isSimple && (
-                <Button
+                <button
+                  type="button"
                   onClick={open}
-                  variant="secondary"
-                  className="w-full h-11"
+                  className="sf-btn sf-btn-outline sf-btn-wide justify-between gap-2"
                   data-testid="mobile-actions-button"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span>
-                      {variant
-                        ? Object.values(options).join(" / ")
-                        : t("selectOptions")}
-                    </span>
-                    <ChevronDown />
-                  </div>
-                </Button>
+                  <span className="truncate">
+                    {variant
+                      ? Object.values(options).join(" / ")
+                      : t("selectOptions")}
+                  </span>
+                  <ChevronDown />
+                </button>
               )}
-              <Button
+              <button
+                type="button"
                 onClick={handleAddToCart}
-                disabled={!inStock || !variant}
-                className="w-full h-11"
-                isLoading={isAdding}
+                disabled={!inStock || !variant || isAdding}
+                aria-busy={isAdding}
+                className="sf-btn sf-btn-dark sf-btn-wide gap-2"
                 data-testid="mobile-cart-button"
               >
+                {isAdding && (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                )}
                 {!variant
                   ? t("selectVariant")
                   : !inStock
                     ? t("outOfStock")
                     : t("addToCart")}
-              </Button>
+              </button>
             </div>
           </div>
         </Transition>
@@ -174,13 +176,13 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                       type="button"
                       onClick={close}
                       aria-label={t("close")}
-                      className="bg-white w-12 h-12 rounded-full text-ui-fg-base flex justify-center items-center"
+                      className="bg-[var(--sf-paper)] size-12 rounded-full text-[var(--sf-ink)] flex justify-center items-center"
                       data-testid="close-modal-button"
                     >
                       <X />
                     </button>
                   </div>
-                  <div className="bg-white px-6 py-12">
+                  <div className="bg-[var(--sf-paper)] px-6 py-12">
                     {(product.variants?.length ?? 0) > 1 && (
                       <div className="flex flex-col gap-y-6">
                         {(product.options || []).map((option) => {

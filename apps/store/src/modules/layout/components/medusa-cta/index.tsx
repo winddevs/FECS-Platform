@@ -1,4 +1,3 @@
-import { Text } from "@medusajs/ui";
 import { useTranslations } from "next-intl";
 
 import Medusa from "@/modules/common/icons/medusa";
@@ -8,7 +7,7 @@ import PayloadCMS from "@/modules/common/icons/payloadcms";
 const MedusaCTA = () => {
   const t = useTranslations("layout.footer");
   return (
-    <Text className="flex gap-x-2 txt-compact-small-plus items-center">
+    <p className="flex items-center gap-x-2">
       {t("poweredBy")}
       <a
         href="https://www.medusajs.com"
@@ -36,7 +35,7 @@ const MedusaCTA = () => {
       >
         <NextJs fill="#9ca3af" />
       </a>
-    </Text>
+    </p>
   );
 };
 

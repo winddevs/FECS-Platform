@@ -229,7 +229,7 @@ const RefinementList = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="size-4" />
-          <span className="text-sm font-medium">{t("title")}</span>
+          <span className="sf-filter-title">{t("title")}</span>
           {activeCount > 0 && (
             <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
               {activeCount}
@@ -344,8 +344,8 @@ const RefinementList = ({
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden small:block small:w-[260px] small:min-w-[260px] small:mr-6">
-        <div className="sticky top-6 space-y-5 bg-card border border-border rounded-xl p-5">
+      <div className="hidden small:block small:w-[240px] small:min-w-[240px]">
+        <div className="sf-filters sticky top-[calc(var(--sf-header-h)+20px)] space-y-5">
           {filterContent}
         </div>
       </div>
@@ -356,7 +356,7 @@ const RefinementList = ({
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium hover:bg-accent transition-colors"
+            className="flex min-h-11 items-center gap-2 px-4 py-2 border border-border text-[11px] uppercase tracking-[0.16em] hover:bg-accent transition-colors"
           >
             <Filter className="size-4" />
             {t("title")}
@@ -415,7 +415,7 @@ const RefinementList = ({
                 type="button"
                 onClick={() => setMobileDrawerOpen(false)}
                 aria-label={t("close")}
-                className="p-1 hover:bg-accent rounded-md transition-colors"
+                className="flex size-11 items-center justify-center hover:bg-accent transition-colors"
               >
                 <X className="size-4" />
               </button>

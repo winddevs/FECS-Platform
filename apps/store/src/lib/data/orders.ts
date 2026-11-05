@@ -1,12 +1,18 @@
 "use server";
 
 import { sdk } from "@lib/config";
-import medusaError from "@lib/util/medusa-error";
+import { LIMITS, isSafeToken, readText } from "@lib/util/form-input";
+import medusaError, { AppError } from "@lib/util/medusa-error";
 import { HttpTypes } from "@medusajs/types";
 
 import { getAuthHeaders, getCacheOptions } from "./cookies";
 
 export const retrieveOrder = async (id: string) => {
+  // `id` comes from the URL and is placed in the backend request path.
+  if (!isSafeToken(id, LIMITS.idToken)) {
+    throw new AppError("Order not found", "notFound");
+  }
+
   const headers = {
     ...(await getAuthHeaders()),
   };
@@ -73,9 +79,10 @@ export const createTransferRequest = async (
   error: string | null;
   order: HttpTypes.StoreOrder | null;
 }> => {
-  const id = formData.get("order_id") as string;
+  const id = readText(formData, "order_id", LIMITS.idToken);
 
-  if (!id) {
+  // The id is placed in the request path, so only plain tokens pass.
+  if (!isSafeToken(id, LIMITS.idToken)) {
     return { success: false, error: "Order ID is required", order: null };
   }
 

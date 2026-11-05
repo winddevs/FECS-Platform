@@ -1,11 +1,12 @@
 import { listCategories } from "@lib/data/categories";
 import { listCollections } from "@lib/data/collections";
-import { Text, clx } from "@medusajs/ui";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import MedusaCTA from "@modules/layout/components/medusa-cta";
 import { getTranslations } from "next-intl/server";
 
 import { ThemeSelector } from "@/providers/Theme/ThemeSelector";
+
+const FOOTER_LIST_LIMIT = 6;
 
 export default async function Footer() {
   const t = await getTranslations("layout.footer");
@@ -13,152 +14,78 @@ export default async function Footer() {
     fields: "*products",
   });
   const productCategories = await listCategories();
+  const topCategories = (productCategories ?? [])
+    .filter((category) => !category.parent_category)
+    .slice(0, FOOTER_LIST_LIMIT);
 
   return (
-    <footer className="border-t border-ui-border-base w-full">
-      <div className="content-container flex flex-col w-full">
-        <div className="flex flex-col gap-y-6 xsmall:flex-row items-start justify-between py-40">
-          <div>
-            <LocalizedClientLink
-              href="/"
-              className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
-            >
-              bibaestudios
-            </LocalizedClientLink>
+    <footer className="sf-footer">
+      <div className="sf-footer-grid">
+        <div>
+          <LocalizedClientLink href="/" className="sf-footer-brand">
+            bibaestudios
+          </LocalizedClientLink>
+          <p className="sf-footer-about">{t("about")}</p>
+          <div className="sf-footer-theme">
+            <p className="sf-footer-heading">{t("theme")}</p>
+            <ThemeSelector />
           </div>
-          <div className="text-small-regular gap-10 md:gap-x-16 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-            {productCategories && productCategories?.length > 0 && (
-              <div className="flex flex-col gap-y-2">
-                <span className="txt-small-plus txt-ui-fg-base">
-                  {t("categories")}
-                </span>
-                <ul
-                  className="grid grid-cols-1 gap-2"
-                  data-testid="footer-categories"
-                >
-                  {productCategories?.slice(0, 6).map((c) => {
-                    if (c.parent_category) {
-                      return;
-                    }
+        </div>
 
-                    const children =
-                      c.category_children?.map((child) => ({
-                        name: child.name,
-                        handle: child.handle,
-                        id: child.id,
-                      })) || null;
-
-                    return (
-                      <li
-                        className="flex flex-col gap-2 text-ui-fg-subtle txt-small"
-                        key={c.id}
-                      >
-                        <LocalizedClientLink
-                          className={clx(
-                            "hover:text-ui-fg-base",
-                            children && "txt-small-plus"
-                          )}
-                          href={`/categories/${c.handle}`}
-                          data-testid="category-link"
-                        >
-                          {c.name}
-                        </LocalizedClientLink>
-                        {children && (
-                          <ul className="grid grid-cols-1 ml-3 gap-2">
-                            {children &&
-                              children.map((child) => (
-                                <li key={child.id}>
-                                  <LocalizedClientLink
-                                    className="hover:text-ui-fg-base"
-                                    href={`/categories/${child.handle}`}
-                                    data-testid="category-link"
-                                  >
-                                    {child.name}
-                                  </LocalizedClientLink>
-                                </li>
-                              ))}
-                          </ul>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            <div className="flex flex-col gap-y-2">
-              <span className="txt-small-plus txt-ui-fg-base">
-                {t("socials")}
-              </span>
-              <div className="flex flex-col gap-2 text-ui-fg-subtle txt-small">
-                <a href="#" className="hover:text-ui-fg-base">
-                  instagram
-                </a>
-                <a href="#" className="hover:text-ui-fg-base">
-                  facebook
-                </a>
-                <a href="#" className="hover:text-ui-fg-base">
-                  twitter
-                </a>
-                <a href="#" className="hover:text-ui-fg-base">
-                  linkedin
-                </a>
-              </div>
-            </div>
-            <div className="flex flex-col gap-y-2">
-              <span className="txt-small-plus txt-ui-fg-base">
-                {t("theme")}
-              </span>
-              <ThemeSelector />
-            </div>
-            {collections && collections.length > 0 && (
-              <div className="flex flex-col gap-y-2">
-                <span className="txt-small-plus txt-ui-fg-base">
-                  {t("collections")}
-                </span>
-                <ul
-                  className={clx(
-                    "grid grid-cols-1 gap-2 text-ui-fg-subtle txt-small",
-                    {
-                      "grid-cols-2": (collections?.length || 0) > 3,
-                    }
-                  )}
-                >
-                  {collections?.slice(0, 6).map((c) => (
-                    <li key={c.id}>
-                      <LocalizedClientLink
-                        className="hover:text-ui-fg-base"
-                        href={`/collections/${c.handle}`}
-                      >
-                        {c.title}
-                      </LocalizedClientLink>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="flex flex-col gap-y-2">
-              <span className="txt-small-plus txt-ui-fg-base">
-                {t("links")}
-              </span>
-              <ul className="grid grid-cols-1 gap-y-2 text-ui-fg-subtle txt-small">
-                <li>
-                  <a
-                    href="#"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-ui-fg-base"
+        <nav className="sf-footer-col" aria-label={t("shop")}>
+          <p className="sf-footer-heading">{t("shop")}</p>
+          <LocalizedClientLink href="/store">
+            {t("allProducts")}
+          </LocalizedClientLink>
+          {topCategories.length > 0 && (
+            <div data-testid="footer-categories">
+              {topCategories.map((category) => (
+                <div key={category.id}>
+                  <LocalizedClientLink
+                    href={`/categories/${category.handle}`}
+                    data-testid="category-link"
                   >
-                    {t("blog")}
-                  </a>
-                </li>
-              </ul>
+                    {category.name}
+                  </LocalizedClientLink>
+                  {category.category_children?.map((child) => (
+                    <LocalizedClientLink
+                      key={child.id}
+                      className="sf-footer-sub"
+                      href={`/categories/${child.handle}`}
+                      data-testid="category-link"
+                    >
+                      {child.name}
+                    </LocalizedClientLink>
+                  ))}
+                </div>
+              ))}
             </div>
-          </div>
+          )}
+        </nav>
+
+        {collections && collections.length > 0 && (
+          <nav className="sf-footer-col" aria-label={t("collections")}>
+            <p className="sf-footer-heading">{t("collections")}</p>
+            {collections.slice(0, FOOTER_LIST_LIMIT).map((collection) => (
+              <LocalizedClientLink
+                key={collection.id}
+                href={`/collections/${collection.handle}`}
+              >
+                {collection.title}
+              </LocalizedClientLink>
+            ))}
+          </nav>
+        )}
+
+        <div className="sf-footer-col">
+          <p className="sf-footer-heading">{t("links")}</p>
+          <LocalizedClientLink href="/posts">{t("blog")}</LocalizedClientLink>
         </div>
-        <div className="flex w-full mb-16 justify-between text-ui-fg-muted">
-          <Text className="txt-compact-small">© bibaestudios</Text>
-          <MedusaCTA />
-        </div>
+      </div>
+
+      <div className="sf-footer-bottom">
+        <p>{t("copyright")}</p>
+        <MedusaCTA />
       </div>
     </footer>
   );

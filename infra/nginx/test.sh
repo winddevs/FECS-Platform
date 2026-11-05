@@ -73,6 +73,21 @@ hsts=$(curl -sk -D - -o /dev/null "${R[@]}" https://api.bibaestudios.com:18443/h
 check "HSTS header present" 1 "$hsts"
 check "HTTP/2 negotiated" "2" "$(curl -sk -o /dev/null -w '%{http_version}' "${R[@]}" https://bibaestudios.com:18443/vi/vn)"
 
+echo "== rate limits"
+# 25 quick wrong sign-ins from one address: the first ones reach the app
+# (401), the rest are refused by nginx (429) once the burst is used up.
+codes=""
+for _ in $(seq 1 25); do
+  codes+="$(code "${R[@]}" -X POST -H 'content-type: application/json' \
+    -d '{"email":"nobody@example.com","password":"wrong-password"}' \
+    https://api.bibaestudios.com:18443/auth/customer/emailpass) "
+done
+check "customer sign-in: early attempts reach the app (not 429)" 1 \
+  "$([[ ${codes%% *} != 429 ]] && echo 1 || echo 0)"
+check "customer sign-in: flood is refused (429)" 1 \
+  "$([[ $codes == *429* ]] && echo 1 || echo 0)"
+check "other /auth/ routes are not caught by the customer limit" 1 \
+  "$([[ $(code "${R[@]}" https://api.bibaestudios.com:18443/auth/session) != 429 ]] && echo 1 || echo 0)"
 echo "== private paths"
 check "/internal/ready from a private address is allowed" 200 "$(code "${R[@]}" https://api.bibaestudios.com:18443/internal/ready)"
 run_nginx "$STRICT"

@@ -143,5 +143,18 @@
     "requested": "Transfer for order {orderId} requested",
     "emailSent": "Transfer request email sent to {email}",
     "dismiss": "Dismiss"
+  },
+  "errors": {
+    "invalidCredentials": "The email or password is not correct.",
+    "tooManyAttempts": "Too many attempts. Please wait a few minutes and try again.",
+    "captchaFailed": "Please confirm you are not a robot, then try again.",
+    "captchaUnavailable": "We could not run the security check. Please try again later.",
+    "signupFailed": "We could not create the account. If you already have one, sign in instead.",
+    "invalidInput": "Some information is not valid. Please check the form and try again.",
+    "invalidEmail": "Enter a valid email address.",
+    "passwordLength": "Use a password of {min} to {max} characters.",
+    "invalidAddress": "Check the address: name, street, city, postal code and country are required.",
+    "invalidPromo": "Enter a valid promotion code.",
+    "invalidOrderId": "Enter a valid order ID."
   }
 }

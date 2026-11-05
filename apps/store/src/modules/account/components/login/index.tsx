@@ -4,7 +4,9 @@ import ErrorMessage from "@modules/checkout/components/error-message";
 import { SubmitButton } from "@modules/checkout/components/submit-button";
 import Input from "@modules/common/components/input";
 import { useTranslations } from "next-intl";
-import { useActionState } from "react";
+
+import { FCaptchaField } from "@/components/FCaptchaField";
+import { useCaptchaAction } from "@/components/FCaptchaField/use-captcha-action";
 
 type Props = {
   setCurrentView: (view: LOGIN_VIEW) => void;
@@ -13,7 +15,7 @@ type Props = {
 const Login = ({ setCurrentView }: Props) => {
   const t = useTranslations("account.login");
   const tf = useTranslations("account.form");
-  const [message, formAction] = useActionState(login, null);
+  const { attempts, formAction, state: message } = useCaptchaAction(login);
 
   return (
     <div
@@ -44,6 +46,7 @@ const Login = ({ setCurrentView }: Props) => {
             data-testid="password-input"
           />
         </div>
+        <FCaptchaField resetSignal={attempts} />
         <ErrorMessage error={message} data-testid="login-error-message" />
         <SubmitButton data-testid="sign-in-button" className="w-full mt-6">
           {t("submit")}

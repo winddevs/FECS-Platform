@@ -133,7 +133,7 @@ const AddAddress = ({
               <Input
                 label={tf("phone")}
                 name="phone"
-                autoComplete="phone"
+                autoComplete="tel"
                 data-testid="phone-input"
               />
             </div>

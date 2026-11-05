@@ -1,63 +1,87 @@
-import { listProducts } from "@lib/data/products";
 import { getProductPrice } from "@lib/util/get-product-price";
 import { HttpTypes } from "@medusajs/types";
-import { Text } from "@medusajs/ui";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import { getLocale } from "next-intl/server";
+import Image from "next/image";
 
 import {
   getProductImages,
   getProductThumbnail,
 } from "../../../../lib/util/payload-images";
 import { StoreProductWithPayload } from "../../../../types/global";
-import Thumbnail from "../thumbnail";
 import PreviewPrice from "./price";
+
+const CARD_IMAGE_SIZES =
+  "(max-width: 640px) 46vw, (max-width: 1180px) 30vw, 320px";
 
 export default async function ProductPreview({
   product,
   isFeatured,
-  region,
+  label,
 }: {
   product: StoreProductWithPayload;
   isFeatured?: boolean;
-  region: HttpTypes.StoreRegion;
+  /** Small caps line above the title, e.g. the collection name. */
+  label?: string;
+  region?: HttpTypes.StoreRegion;
 }) {
-  // const pricedProduct = await listProducts({
-  //   regionId: region.id,
-  //   queryParams: { id: [product.id!] },
-  // }).then(({ response }) => response.products[0])
-
-  // if (!pricedProduct) {
-  //   return null
-  // }
-
   const locale = await getLocale();
-  const { cheapestPrice } = getProductPrice({
-    locale,
-    product,
-  });
+  const { cheapestPrice } = getProductPrice({ locale, product });
 
-  const productImages = getProductImages(product);
+  const title = product.payload_product?.title || product.title;
   const thumbnailData = getProductThumbnail(product);
+  const primaryUrl = thumbnailData?.url || product.thumbnail || null;
+  const hoverUrl =
+    getProductImages(product).find((image) => image.url !== primaryUrl)?.url ??
+    null;
+  const isSale = cheapestPrice?.price_type === "sale";
+  const cardLabel = label ?? product.collection?.title;
 
   return (
-    <LocalizedClientLink href={`/products/${product.handle}`} className="group">
-      <div data-testid="product-wrapper">
-        <Thumbnail
-          thumbnail={thumbnailData?.url || product.thumbnail}
-          images={productImages}
-          size="full"
-          alt={product.payload_product?.title || product.title}
-          isFeatured={isFeatured}
-        />
-        <div className="flex txt-compact-medium mt-4 justify-between">
-          <Text className="text-ui-fg-subtle" data-testid="product-title">
-            {product.payload_product?.title || product.title}
-          </Text>
-          <div className="flex items-center gap-x-2">
-            {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
-          </div>
-        </div>
+    <LocalizedClientLink
+      href={`/products/${product.handle}`}
+      className="sf-card"
+      data-testid="product-wrapper"
+    >
+      <div className="sf-card-media">
+        {primaryUrl ? (
+          <Image
+            src={primaryUrl}
+            alt={title}
+            fill
+            sizes={CARD_IMAGE_SIZES}
+            quality={60}
+            draggable={false}
+            priority={isFeatured}
+          />
+        ) : (
+          <span className="sf-card-placeholder" aria-hidden="true">
+            {title.charAt(0)}
+          </span>
+        )}
+        {primaryUrl && hoverUrl && (
+          <Image
+            className="sf-card-img-hover"
+            src={hoverUrl}
+            alt=""
+            fill
+            sizes={CARD_IMAGE_SIZES}
+            quality={60}
+            draggable={false}
+          />
+        )}
+        {isSale && cheapestPrice && (
+          <span className="sf-card-badge">
+            -{cheapestPrice.percentage_diff}%
+          </span>
+        )}
+      </div>
+      <div className="sf-card-info">
+        {cardLabel && <p className="sf-card-cat">{cardLabel}</p>}
+        <h3 className="sf-card-title" data-testid="product-title">
+          {title}
+        </h3>
+        {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
       </div>
     </LocalizedClientLink>
   );

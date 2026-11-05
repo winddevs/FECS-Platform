@@ -1,6 +1,5 @@
 import type { OptionValueGroup } from "@lib/data/product-options";
 import { HttpTypes } from "@medusajs/types";
-import InteractiveLink from "@modules/common/components/interactive-link";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid";
 import RefinementList from "@modules/store/components/refinement-list";
@@ -10,6 +9,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import type { FilterOption } from "../../../types/filters";
+import PageHero from "../../store/components/page-hero";
 
 export default function CategoryTemplate({
   category,
@@ -54,72 +54,66 @@ export default function CategoryTemplate({
 
   getParents(category);
 
+  const trail = parents.toReversed().map((parent) => ({
+    label: parent.name,
+    href: `/categories/${parent.handle}`,
+  }));
+
   return (
-    <div
-      className="flex flex-col small:flex-row small:items-start py-6 content-container"
-      data-testid="category-container"
-    >
-      <RefinementList
-        sortBy={sort}
-        categories={subcategories}
-        types={types}
-        tags={tags}
-        optionValues={optionValues}
+    <>
+      <PageHero
+        title={category.name}
+        description={category.description}
+        trail={trail}
+        data-testid="category-page-title"
       />
-      <div className="w-full">
-        <div className="flex flex-row mb-8 text-2xl-semi gap-4">
-          {parents &&
-            parents.map((parent) => (
-              <span key={parent.id} className="text-ui-fg-subtle">
-                <LocalizedClientLink
-                  className="mr-4 hover:text-black"
-                  href={`/categories/${parent.handle}`}
-                  data-testid="sort-by-link"
-                >
-                  {parent.name}
-                </LocalizedClientLink>
-                /
-              </span>
-            ))}
-          <h1 data-testid="category-page-title">{category.name}</h1>
-        </div>
-        {category.description && (
-          <div className="mb-8 text-base-regular">
-            <p>{category.description}</p>
-          </div>
-        )}
-        {category.category_children && (
-          <div className="mb-8 text-base-large">
-            <ul className="grid grid-cols-1 gap-2">
-              {category.category_children?.map((c) => (
-                <li key={c.id}>
-                  <InteractiveLink href={`/categories/${c.handle}`}>
-                    {c.name}
-                  </InteractiveLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <Suspense
-          fallback={
-            <SkeletonProductGrid
-              numberOfProducts={category.products?.length ?? 8}
+      <div
+        className="sf-listing small:flex-row small:items-start small:gap-10"
+        data-testid="category-container"
+      >
+        <RefinementList
+          sortBy={sort}
+          categories={subcategories}
+          types={types}
+          tags={tags}
+          optionValues={optionValues}
+        />
+        <div className="w-full min-w-0">
+          {category.category_children &&
+            category.category_children.length > 0 && (
+              <ul className="mb-8 flex flex-wrap gap-2">
+                {category.category_children.map((child) => (
+                  <li key={child.id}>
+                    <LocalizedClientLink
+                      className="sf-chip"
+                      href={`/categories/${child.handle}`}
+                    >
+                      {child.name}
+                    </LocalizedClientLink>
+                  </li>
+                ))}
+              </ul>
+            )}
+          <Suspense
+            fallback={
+              <SkeletonProductGrid
+                numberOfProducts={category.products?.length ?? 8}
+              />
+            }
+          >
+            <PaginatedProducts
+              sortBy={sort}
+              page={pageNumber}
+              categoryId={category.id}
+              countryCode={countryCode}
+              typeId={typeId}
+              tagId={tagId}
+              priceFrom={priceFrom}
+              priceTo={priceTo}
             />
-          }
-        >
-          <PaginatedProducts
-            sortBy={sort}
-            page={pageNumber}
-            categoryId={category.id}
-            countryCode={countryCode}
-            typeId={typeId}
-            tagId={tagId}
-            priceFrom={priceFrom}
-            priceTo={priceTo}
-          />
-        </Suspense>
+          </Suspense>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

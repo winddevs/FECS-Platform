@@ -65,6 +65,22 @@ export const PERMISSIONS = [
   "social:read",
   "social:manage",
   "order:read",
+  // Medusa's own admin (orders, catalog, customers, store setup). The routes
+  // are mapped to these in `core-admin-policy.ts`.
+  // Edit, cancel and complete orders; draft orders, claims, exchanges.
+  "order:manage",
+  // Capture and refund payments, mark a payment collection as paid.
+  "payment:manage",
+  "catalog:read",
+  // Products, variants, collections, categories, tags, types, file uploads.
+  "catalog:write",
+  // Price lists, promotions and campaigns.
+  "pricing:manage",
+  "customer:read",
+  "customer:write",
+  // Regions, sales channels, tax, shipping options, stock locations.
+  "store:read",
+  "store:manage",
   "ops:read",
   "analytics:read",
   // Changing platform settings and country profiles. ERP_ADMIN only.
@@ -121,6 +137,9 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "fulfillment:manage",
     "returns:read",
     "returns:receive",
+    "order:read",
+    "catalog:read",
+    "store:read",
   ],
   PRODUCTION_PLANNER: [
     "master:read",
@@ -132,6 +151,7 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "manufacturing:approve",
     "fg:read",
     "analytics:read",
+    "catalog:read",
   ],
   CUTTING_OPERATOR: [
     "inventory:read",
@@ -172,6 +192,14 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "social:read",
     "commerce:admin",
     "analytics:read",
+    "order:manage",
+    "catalog:read",
+    "catalog:write",
+    "pricing:manage",
+    "customer:read",
+    "customer:write",
+    "store:read",
+    "store:manage",
   ],
   CUSTOMER_SUPPORT: [
     "fg:read",
@@ -180,16 +208,24 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "returns:read",
     "returns:authorize",
     "order:read",
+    "order:manage",
     "social:read",
     "social:manage",
     "manufacturing:read",
+    "catalog:read",
+    "customer:read",
+    "customer:write",
+    "store:read",
   ],
   FINANCE: [
     "procurement:read",
     "returns:read",
     "returns:refund",
     "order:read",
+    "payment:manage",
     "analytics:read",
+    "customer:read",
+    "store:read",
   ],
   SRE: [
     "ops:read",
@@ -212,6 +248,9 @@ export const ROLE_PERMISSIONS: Record<FashionRole, readonly Permission[]> = {
     "returns:read",
     "social:read",
     "order:read",
+    "catalog:read",
+    "customer:read",
+    "store:read",
   ],
 };
 

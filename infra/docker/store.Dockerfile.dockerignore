@@ -1,0 +1,25 @@
+# Used instead of the root .dockerignore when building store.Dockerfile
+# (BuildKit picks <Dockerfile>.dockerignore first). The root file excludes
+# apps/store because the Medusa image does not need it.
+**/node_modules
+**/.next
+**/.medusa
+**/dist
+.git
+.github
+.kiro
+.agents
+.claude
+.codex
+.cursor
+.windsurf
+**/.env
+**/.env.*
+!**/.env.template
+**/*.log
+apps/medusa
+docs
+infra
+docker
+scripts
+apps/store/template.zip

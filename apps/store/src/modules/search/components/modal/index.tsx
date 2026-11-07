@@ -15,6 +15,10 @@ import {
 import { searchClient } from "../../../../lib/config";
 import Modal from "../../../common/components/modal";
 
+// InstantSearch needs an index name; the adapter in lib/config.ts ignores it
+// because every query goes through /api/search -> Medusa -> Meilisearch.
+const SEARCH_INDEX_NAME = "products";
+
 type Hit = {
   objectID: string;
   id: string;
@@ -105,7 +109,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         <div className="p-4">
           <InstantSearch
             searchClient={searchClient}
-            indexName={process.env.NEXT_PUBLIC_ALGOLIA_PRODUCT_INDEX_NAME}
+            indexName={SEARCH_INDEX_NAME}
           >
             <div className="mb-4">
               <SearchBox

@@ -30,6 +30,7 @@ import {
   ReserveMaterialSchema,
   ReturnMaterialSchema,
   ScrapMaterialSchema,
+  SetUserRolesSchema,
   SettingValueSchema,
   TransferStockSchema,
   UpdateLocationSchema,
@@ -314,6 +315,16 @@ export const fashionMiddlewares: MiddlewareRoute[] = [
   },
   guarded("/admin/country-profiles", "GET", "master:read"),
   body("/admin/country-profiles", "config:manage", CountryProfileSchema),
+  // ---- staff access -----------------------------------------------------------
+  guarded("/admin/access", "GET", "roles:manage"),
+  {
+    matcher: "/admin/access/users/:id",
+    methods: ["PUT"],
+    middlewares: [
+      requirePermission("roles:manage"),
+      validateAndTransformBody(SetUserRolesSchema as never),
+    ],
+  },
   // ---- procurement ---------------------------------------------------------
   list("/admin/procurement/purchase-orders", "procurement:read", {
     supplier_id: str,

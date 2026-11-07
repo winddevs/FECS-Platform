@@ -2,7 +2,7 @@ import { SubscriberArgs, type SubscriberConfig } from "@medusajs/framework";
 
 import { syncProductsWorkflow } from "../workflows/sync-products";
 
-export default async function algoliaSyncHandler({
+export default async function meilisearchSyncHandler({
   container,
 }: SubscriberArgs) {
   const logger = container.resolve("logger");
@@ -33,5 +33,5 @@ export default async function algoliaSyncHandler({
 }
 
 export const config: SubscriberConfig = {
-  event: "algolia.sync",
+  event: "meilisearch.sync",
 };

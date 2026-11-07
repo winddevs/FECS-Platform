@@ -41,6 +41,23 @@ RUN pnpm --filter medusa deploy --prod --legacy /out \
  && cp -R apps/medusa/.medusa/server/public /out/public \
  && cp apps/medusa/.medusa/server/medusa-config.js apps/medusa/.medusa/server/instrumentation.js /out/
 
+# @ecommerce/email is shipped as TSX source: its package.json "exports" point at
+# src/index.tsx, which Node cannot load. Compile it to CommonJS and point the
+# deployed copy at the output. Without this the SMTP notification provider fails
+# at start-up ("Unexpected identifier ...") and Medusa cannot boot with real email.
+# Type errors do not block the emit (the package has its own check-types script).
+RUN set -eu; \
+    cd packages/email; \
+    npx tsc -p tsconfig.json --outDir /tmp/email-cjs --rootDir src \
+      --module nodenext --moduleResolution nodenext \
+      --verbatimModuleSyntax false --composite false --incremental false \
+      --declaration false --declarationMap false --sourceMap false \
+      --noUnusedLocals false --noUnusedParameters false || true; \
+    test -f /tmp/email-cjs/index.js; \
+    target="$(readlink -f /out/node_modules/@ecommerce/email)"; \
+    cp -R /tmp/email-cjs "$target/dist"; \
+    node -e "const fs=require('fs');const f=process.argv[1]+'/package.json';const p=JSON.parse(fs.readFileSync(f,'utf8'));p.exports={'.':{default:'./dist/index.js'}};p.main='./dist/index.js';fs.writeFileSync(f,JSON.stringify(p,null,2))" "$target"
+
 # ---- runtime -------------------------------------------------------------------
 FROM node:${NODE_VERSION}-slim AS runtime
 ENV NODE_ENV=production MEDUSA_DISABLE_TELEMETRY=true PORT=9000

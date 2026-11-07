@@ -13,6 +13,7 @@
     "src/modules/fulfillment/**/*",
     "src/modules/socialCommerce/**/*",
     "src/modules/returns/**/*",
+    "src/modules/payos/**/*",
     "src/workflows/steps/wrap.ts",
     "src/workflows/steps/fashion-*.ts",
     "src/workflows/steps/material-inventory.ts",
@@ -49,6 +50,7 @@
     "src/api/admin/returns/**/*",
     "src/api/admin/social/**/*",
     "src/api/admin/ops/**/*",
+    "src/api/admin/access/**/*",
     "src/api/store/fashion/**/*",
     "src/scripts/grant-fashion-role.ts"
   ],

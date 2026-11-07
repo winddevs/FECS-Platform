@@ -33,9 +33,10 @@ x-medusa-env: &medusa-env
   # SaaS integrations pointed at the mock providers (never a real service)
   PAYLOAD_SERVER_URL: http://mock-providers:7000
   PAYLOAD_API_KEY: local
-  ALGOLIA_APP_ID: local
-  ALGOLIA_ADMIN_API_KEY: local
-  ALGOLIA_PRODUCT_INDEX_NAME: local
+  # No search server in this stack: indexing calls fail and are logged, as before.
+  MEILISEARCH_HOST: http://mock-providers:7000
+  MEILISEARCH_MASTER_KEY: local-e2e-master-key
+  MEILISEARCH_PRODUCT_INDEX: local
   # Fashion platform: every integration ON, against the mocks
   MANUFACTURING_ENABLED: "true"
   MTO_ENABLED: "true"

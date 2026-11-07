@@ -1,8 +1,8 @@
 import { ProductDTO } from "@medusajs/framework/types";
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk";
 
-import { ALGOLIA_MODULE } from "../../modules/algolia";
-import AlgoliaModuleService from "../../modules/algolia/service";
+import { MEILISEARCH_MODULE } from "../../modules/meilisearch";
+import MeilisearchModuleService from "../../modules/meilisearch/service";
 
 export type SyncProductsStepInput = {
   products: ProductDTO[];
@@ -11,19 +11,18 @@ export type SyncProductsStepInput = {
 export const syncProductsStep = createStep(
   "sync-products",
   async ({ products }: SyncProductsStepInput, { container }) => {
-    const algoliaModuleService: AlgoliaModuleService =
-      container.resolve(ALGOLIA_MODULE);
+    const searchService: MeilisearchModuleService =
+      container.resolve(MEILISEARCH_MODULE);
 
-    const existingProducts = (
-      await algoliaModuleService.retrieveFromIndex(
-        products.map((product) => product.id),
-        "product"
-      )
-    ).results.filter(Boolean);
-    const newProducts = products.filter(
-      (product) => !existingProducts.some((p) => p.objectID === product.id)
+    // Documents that already exist are restored if a later step fails.
+    const existingProducts = await searchService.retrieveFromIndex(
+      products.map((product) => product.id),
+      "product"
     );
-    await algoliaModuleService.indexData(
+    const newProducts = products.filter(
+      (product) => !existingProducts.some((p) => p.id === product.id)
+    );
+    await searchService.indexData(
       products as unknown as Record<string, unknown>[],
       "product"
     );
@@ -38,15 +37,15 @@ export const syncProductsStep = createStep(
       return;
     }
 
-    const algoliaModuleService: AlgoliaModuleService =
-      container.resolve(ALGOLIA_MODULE);
+    const searchService: MeilisearchModuleService =
+      container.resolve(MEILISEARCH_MODULE);
 
     if (input.newProducts) {
-      await algoliaModuleService.deleteFromIndex(input.newProducts, "product");
+      await searchService.deleteFromIndex(input.newProducts, "product");
     }
 
     if (input.existingProducts) {
-      await algoliaModuleService.indexData(input.existingProducts, "product");
+      await searchService.indexData(input.existingProducts, "product");
     }
   }
 );

@@ -76,5 +76,22 @@ const dictionary: Record<string, string> = {
   Settings: "Cài đặt",
   Analytics: "Phân tích",
   Operations: "Vận hành",
+  // Staff access
+  "Staff access": "Phân quyền nhân viên",
+  Staff: "Nhân viên",
+  Roles: "Vai trò",
+  Role: "Vai trò",
+  Email: "Email",
+  Permissions: "Số quyền",
+  "Can do": "Được phép",
+  Everything: "Tất cả",
+  "No role": "Chưa có vai trò",
+  "No admin users yet.": "Chưa có tài khoản quản trị nào.",
+  "Edit roles": "Sửa vai trò",
+  "Save roles": "Lưu vai trò",
+  "Roles saved": "Đã lưu vai trò",
+  "{count} permissions": "{count} quyền",
+  "Changes apply from the user's next request. A user with no role cannot open any ERP or commerce screen.":
+    "Thay đổi có hiệu lực từ lần gọi tiếp theo của người dùng. Người dùng chưa có vai trò không mở được màn ERP hoặc màn bán hàng nào.",
 };
 export default dictionary;

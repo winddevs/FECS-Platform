@@ -10,7 +10,9 @@ export default async function productCreatedHandler({
   const logger = container.resolve("logger");
 
   try {
-    logger.info(`Syncing newly created product ${event.data.id} to Algolia...`);
+    logger.info(
+      `Syncing newly created product ${event.data.id} to the search index...`
+    );
 
     await createPayloadProductsWorkflow(container).run({
       input: {
@@ -26,9 +28,14 @@ export default async function productCreatedHandler({
       },
     });
 
-    logger.info(`Successfully synced product ${event.data.id} to Algolia`);
+    logger.info(
+      `Successfully synced product ${event.data.id} to the search index`
+    );
   } catch (error) {
-    logger.error(`Failed to sync product ${event.data.id} to Algolia:`, error);
+    logger.error(
+      `Failed to sync product ${event.data.id} to the search index:`,
+      error
+    );
   }
 }
 

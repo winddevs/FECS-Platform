@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every integration test against a real Postgres using the lean
-# INTEGRATION_TEST profile of medusa-config.ts (no Redis/Algolia/S3 needed).
+# INTEGRATION_TEST profile of medusa-config.ts (no Redis/Meilisearch/S3 needed).
 #
 #   DATABASE_URL=postgresql://user:pass@localhost:5432/db bash integration-tests/run.sh [pattern]
 #

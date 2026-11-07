@@ -39,3 +39,17 @@ export const localization = {
     },
   ],
 };
+
+/**
+ * Languages the storefront serves (routes, switcher, hreflang). For now only
+ * Vietnamese and English: French and Arabic have almost no UI translations.
+ *
+ * `localization` above stays as it is on purpose: it is Payload's content
+ * locale list, and changing it changes the CMS database schema (needs a
+ * migration). To bring a language back, add its code here.
+ */
+export const STOREFRONT_LOCALE_CODES = ["vi", "en"] as const;
+
+export const storefrontLocales = localization.locales.filter((locale) =>
+  (STOREFRONT_LOCALE_CODES as readonly string[]).includes(locale.code)
+);

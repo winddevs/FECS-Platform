@@ -1,6 +1,6 @@
 "use client";
 
-import type { Button } from "@ecommerce/ui/components/button";
+import { Button } from "@ecommerce/ui/components/button";
 import type { HoverHighlightsBlock as HoverHighlightsBlockProps } from "@payload-types";
 import { useTranslations } from "next-intl";
 import Link from "next/link";

@@ -1,6 +1,8 @@
 import { loadEnv, defineConfig } from "@medusajs/framework/utils";
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
+import { payosConfigFromEnv } from "./src/lib/payos/config";
+
 // Load environment variables based on NODE_ENV
 loadEnv(process.env.NODE_ENV || "development", process.cwd());
 
@@ -47,6 +49,24 @@ const fashionModules = [
   { resolve: "./src/modules/returns" },
 ];
 
+// payOS (VietQR bank transfer). Registered only when all credentials and
+// STOREFRONT_URL are set, so deployments without payOS are unchanged. Cash on
+// delivery stays on the built-in system provider (pp_system_default); payOS is
+// added next to it.
+const payos = payosConfigFromEnv();
+const payosModules = payos
+  ? [
+      {
+        resolve: "@medusajs/medusa/payment",
+        options: {
+          providers: [
+            { resolve: "./src/modules/payos", id: "payos", options: payos },
+          ],
+        },
+      },
+    ]
+  : [];
+
 const integer = (value: string | undefined, fallback: number): number => {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -61,7 +81,7 @@ const httpConfig = {
 };
 
 // Integration-test profile: only core + fashion modules, in-memory workflow
-// engine, no Redis / Algolia / S3 / email needed. See integration-tests/.
+// engine, no Redis / Meilisearch / S3 / email needed. See integration-tests/.
 if (process.env.INTEGRATION_TEST === "true") {
   module.exports = defineConfig({
     modules: [
@@ -75,6 +95,7 @@ if (process.env.INTEGRATION_TEST === "true") {
           apiKey: "integration-test",
         },
       },
+      ...payosModules,
       ...fashionModules,
     ],
     admin: { disable: true },
@@ -163,13 +184,14 @@ if (process.env.INTEGRATION_TEST === "true") {
         },
       },
       {
-        resolve: "./src/modules/algolia",
+        resolve: "./src/modules/meilisearch",
         options: {
-          appId: process.env.ALGOLIA_APP_ID!,
-          apiKey: process.env.ALGOLIA_ADMIN_API_KEY!,
-          productIndexName: process.env.ALGOLIA_PRODUCT_INDEX_NAME!,
+          host: process.env.MEILISEARCH_HOST || "http://localhost:7700",
+          apiKey: process.env.MEILISEARCH_MASTER_KEY,
+          productIndexName: process.env.MEILISEARCH_PRODUCT_INDEX || "products",
         },
       },
+      ...payosModules,
       {
         resolve: "@medusajs/medusa/file",
         options: {
@@ -190,6 +212,12 @@ if (process.env.INTEGRATION_TEST === "true") {
                     region: process.env.S3_REGION,
                     bucket: process.env.S3_BUCKET,
                     endpoint: process.env.S3_ENDPOINT,
+                    // MinIO (and most self-hosted S3) needs path-style URLs
+                    // (https://host/bucket/key). R2 and AWS do not.
+                    additional_client_config: {
+                      forcePathStyle:
+                        process.env.S3_FORCE_PATH_STYLE === "true",
+                    },
                     // other options...
                   },
                 },
@@ -200,7 +228,9 @@ if (process.env.INTEGRATION_TEST === "true") {
         resolve: "@medusajs/medusa/analytics",
         options: {
           providers: [
-            localStack
+            // PostHog throws at start-up without a key, so a deployment
+            // without PostHog uses the local provider (events are not sent).
+            localStack || !process.env.POSTHOG_EVENTS_API_KEY
               ? {
                   resolve: "@medusajs/medusa/analytics-local",
                   id: "local",

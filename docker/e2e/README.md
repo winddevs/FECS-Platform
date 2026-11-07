@@ -57,7 +57,7 @@ duplicated or shipped twice once the system recovers.
 
 ## Notes
 
-- `medusa build` still reports legacy type-only errors (Payload, Algolia,
+- `medusa build` still reports legacy type-only errors (Payload, search,
   analytics, email templates). `apps/medusa/scripts/check-build-errors.mjs`
   fails the image build on any error outside the allow-list or when
   `.medusa/server/medusa-config.js` is missing (`pnpm build:check`).

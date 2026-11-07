@@ -57,7 +57,11 @@ Shared building blocks live in `src/lib`: `tx.ts` (idempotency, outbox, locks),
   `docs/events/catalog.json`. CI fails on uncataloged or removed events.
 - **New module with its own outbox**: add its key to `src/lib/outbox/drainers.ts`
   and its tables to `src/lib/retention.ts`.
-- **New role/permission**: `src/lib/authz/permissions.ts`.
+- **New role/permission**: `src/lib/authz/permissions.ts`. A new custom
+  `/admin/<area>` route needs an explicit guard in `api/fashion` and its first
+  path segment added to `SELF_GUARDED_SEGMENTS` in
+  `src/lib/authz/core-admin-policy.ts`; without that, the route needs
+  `config:manage` (ERP_ADMIN).
 
 ## Testing
 
@@ -70,6 +74,6 @@ pnpm --filter medusa events:check
 ```
 
 Integration tests use the `INTEGRATION_TEST=true` profile of
-`medusa-config.ts`: core + fashion modules only, no Redis/Algolia/S3 needed.
+`medusa-config.ts`: core + fashion modules only, no Redis/Meilisearch/S3 needed.
 
 See also: [operations](operations.md) and [runbooks](runbooks/).

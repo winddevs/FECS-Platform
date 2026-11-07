@@ -30,12 +30,21 @@ const s3RemotePattern = getS3RemotePattern();
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // Docker image build only (infra/docker/store.Dockerfile sets NEXT_OUTPUT).
+  // Normal builds, dev and CI are unchanged. The tracing root is the monorepo
+  // root so workspace packages end up in the standalone output.
+  ...(process.env.NEXT_OUTPUT === "standalone"
+    ? {
+        output: "standalone",
+        outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
+      }
+    : {}),
   // Do not advertise the framework on every response.
   poweredByHeader: false,
   // Keep the Redis client out of the bundle (native sockets, not bundlable).
   serverExternalPackages: ["ioredis"],
   // Baseline headers. A Content-Security-Policy is deliberately not set here:
-  // Stripe, Algolia and inline theme scripts need a tested allow-list first.
+  // Stripe and inline theme scripts need a tested allow-list first.
   async headers() {
     return [
       {
@@ -54,6 +63,12 @@ const nextConfig = {
     ];
   },
   cacheComponents: true,
+  // Docker builds on an emulated CPU (amd64 on Apple Silicon without Rosetta) crash
+  // with a segmentation fault when many workers prerender at once. The Dockerfile
+  // sets NEXT_BUILD_CPUS to a small number. Unset: Next picks its own default.
+  ...(process.env.NEXT_BUILD_CPUS
+    ? { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } }
+    : {}),
   transpilePackages: ["@ecommerce/medusa"],
   turbopack: {
     root: new URL("../../", import.meta.url).pathname,
@@ -65,7 +80,11 @@ const nextConfig = {
     },
   },
   typescript: {
-    ignoreBuildErrors: false,
+    // Strict by default. infra/docker/store.Dockerfile sets
+    // NEXT_IGNORE_TYPE_ERRORS=true: the storefront has ~150 known type errors
+    // (mostly Medusa SDK type drift) that do not stop it from running. Remove
+    // that line from the Dockerfile once they are fixed.
+    ignoreBuildErrors: process.env.NEXT_IGNORE_TYPE_ERRORS === "true",
   },
   images: {
     qualities: [50, 75],

@@ -66,7 +66,7 @@ apps/medusa/src/admin/
 | Fulfillment    | `/fulfillment`    | Shipments, Delivery exceptions                                                                                                              |
 | Returns        | `/returns`        | Returns                                                                                                                                     |
 | Social Support | `/social-support` | Conversations                                                                                                                               |
-| Operations     | `/operations`     | Ops summary, Settings, Country profiles, Analytics                                                                                          |
+| Operations     | `/operations`     | Ops summary, Settings, Country profiles, Analytics, Staff access                                                                            |
 
 ## Screen -> endpoint -> permission
 
@@ -244,7 +244,57 @@ From `apps/medusa/src/lib/authz/permissions.ts`. Roles are stored on the admin u
 | `analytics:read`        | ERP_ADMIN, PRODUCTION_PLANNER, COMMERCE_ADMIN, FINANCE, SRE, AUDITOR                                                                                      |
 | `config:manage`         | ERP_ADMIN                                                                                                                                                 |
 
-(`order:read`, `commerce:admin`, `roles:manage` are not used by these screens.)
+(`commerce:admin` is used only by the legacy sync, analytics and invoice-config routes.)
+
+### Medusa admin screens (orders, catalog, customers, store setup)
+
+These permissions gate Medusa's own dashboard routes. The route -> permission
+mapping is `apps/medusa/src/lib/authz/core-admin-policy.ts`; a GET needs the
+read permission, any other method the write one.
+
+| Area (`/admin/...`)                                                                                                          | Read            | Write                |
+| ---------------------------------------------------------------------------------------------------------------------------- | --------------- | -------------------- |
+| `orders`, `draft-orders`, `claims`, `exchanges`, `order-edits`, `order-changes`, core `returns`, `notifications`             | `order:read`    | `order:manage`       |
+| `orders/:id/fulfillments...`, `fulfillments`                                                                                 | `order:read`    | `fulfillment:manage` |
+| `payments`, `payment-collections`, `orders/:id/credit-lines`, `orders/:id/payment-sessions`                                  | `order:read`    | `payment:manage`     |
+| `products`, `product-*`, `collections`, `uploads`, `property-labels`                                                         | `catalog:read`  | `catalog:write`      |
+| `price-lists`, `price-preferences`, `promotions`, `campaigns`                                                                | `catalog:read`  | `pricing:manage`     |
+| `customers`, `customer-groups`                                                                                               | `customer:read` | `customer:write`     |
+| `inventory-items`, `reservations`                                                                                            | `fg:read`       | `fg:adjust`          |
+| `regions`, `sales-channels`, `currencies`, `tax-*`, `shipping-*`, `fulfillment-*`, `stock-locations`, `*-reasons`, `plugins` | `store:read`    | `store:manage`       |
+| `users`, `invites`                                                                                                           | `roles:manage`  | `roles:manage`       |
+| `api-keys`, `rbac`, `index`, anything not listed                                                                             | `config:manage` | `config:manage`      |
+| `workflows-executions`                                                                                                       | `ops:read`      | `config:manage`      |
+
+Open to every signed-in admin user: `GET /admin/users/me`, `/admin/stores`,
+`/admin/locales`, saved table views (`/admin/views`) and the user's own profile
+(`/admin/users/:own_id`). `GET /admin/feature-flags` and `POST /admin/invites/accept`
+are public in Medusa and are not checked.
+
+| Permission       | Roles                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| `order:read`     | ERP_ADMIN, WAREHOUSE_MANAGER, COMMERCE_ADMIN, CUSTOMER_SUPPORT, FINANCE, AUDITOR            |
+| `order:manage`   | ERP_ADMIN, COMMERCE_ADMIN, CUSTOMER_SUPPORT                                                 |
+| `payment:manage` | ERP_ADMIN, FINANCE                                                                          |
+| `catalog:read`   | ERP_ADMIN, WAREHOUSE_MANAGER, PRODUCTION_PLANNER, COMMERCE_ADMIN, CUSTOMER_SUPPORT, AUDITOR |
+| `catalog:write`  | ERP_ADMIN, COMMERCE_ADMIN                                                                   |
+| `pricing:manage` | ERP_ADMIN, COMMERCE_ADMIN                                                                   |
+| `customer:read`  | ERP_ADMIN, COMMERCE_ADMIN, CUSTOMER_SUPPORT, FINANCE, AUDITOR                               |
+| `customer:write` | ERP_ADMIN, COMMERCE_ADMIN, CUSTOMER_SUPPORT                                                 |
+| `store:read`     | ERP_ADMIN, WAREHOUSE_MANAGER, COMMERCE_ADMIN, CUSTOMER_SUPPORT, FINANCE, AUDITOR            |
+| `store:manage`   | ERP_ADMIN, COMMERCE_ADMIN                                                                   |
+| `roles:manage`   | ERP_ADMIN                                                                                   |
+
+### Staff access (Operations > Staff access)
+
+| Screen / action               | Endpoint                      | Permission     |
+| ----------------------------- | ----------------------------- | -------------- |
+| Staff list and role reference | `GET /admin/access`           | `roles:manage` |
+| Save the roles of one user    | `PUT /admin/access/users/:id` | `roles:manage` |
+
+The body is `{ "roles": ["CUSTOMER_SUPPORT", ...] }` (the full list; `[]` removes
+every role). The last ERP_ADMIN cannot be removed. Each change is audited as
+`access.roles.set`.
 
 ## Add a new list screen from a config
 

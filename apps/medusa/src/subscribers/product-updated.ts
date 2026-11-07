@@ -23,8 +23,10 @@ export default async function productUpdatedHandler({
       `Successfully synced updated product ${event.data.id} to Payload`
     );
 
-    // Then sync to Algolia
-    logger.info(`Syncing updated product ${event.data.id} to Algolia...`);
+    // Then sync to the search index
+    logger.info(
+      `Syncing updated product ${event.data.id} to the search index...`
+    );
 
     await syncProductsWorkflow(container).run({
       input: {
@@ -35,7 +37,7 @@ export default async function productUpdatedHandler({
     });
 
     logger.info(
-      `Successfully synced updated product ${event.data.id} to Algolia`
+      `Successfully synced updated product ${event.data.id} to the search index`
     );
   } catch (error) {
     logger.error(`Failed to sync updated product ${event.data.id}:`, error);

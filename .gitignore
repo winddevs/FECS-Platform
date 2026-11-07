@@ -56,3 +56,6 @@ tmp
 temp
 
 .opencode/plans
+
+# Deployment: local server settings (see infra/deploy/deploy.conf.example)
+infra/deploy/deploy.conf

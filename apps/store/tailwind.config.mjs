@@ -10,6 +10,11 @@ export default {
     "./src/components/**/*.{ts,tsx}",
     "./src/lib/**/*.{ts,tsx}",
     "./src/providers/**/*.{ts,tsx}",
+    // Only the Select of the shared UI package, on purpose. Its classes (for
+    // example the z-[100] of the menu) were never generated, so the language
+    // menu opened under the mobile drawer. Scanning all of packages/ui also
+    // restyled other inputs (the price filter), which was not the goal.
+    "../../packages/ui/src/components/select.tsx",
   ],
   theme: {
     container: {

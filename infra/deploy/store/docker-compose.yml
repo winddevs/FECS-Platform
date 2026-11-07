@@ -1,0 +1,52 @@
+# Store droplet: Next.js storefront + Payload CMS admin, and the FCaptcha server.
+# Lives at /opt/fecs/store on the server. Run through scripts/deploy.sh.
+#
+# Values come from two files that scripts/deploy.sh manages:
+#   .env          secrets and settings (generated once on `setup`, edit by hand)
+#   release.env   IMAGE_TAG / PREVIOUS_TAG (written on every release)
+#
+# The CMS database (ecommerce_cms), Medusa and Redis are on the backend droplet,
+# reached over the private VPC network (see DATABASE_URL, MEDUSA_BACKEND_URL and
+# REDIS_URL in .env). Both containers listen on loopback only; nginx is the
+# public entry point.
+name: fecs-store
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  store:
+    image: fecs-store:${IMAGE_TAG:?run scripts/deploy.sh release store}
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1024 --no-deprecation
+    # Loopback for nginx. The private address lets Medusa (backend droplet) call the
+    # Payload CMS API without going out to the internet and back through Cloudflare.
+    ports:
+      - "127.0.0.1:8000:3000"
+      - "${STORE_PRIVATE_IP:?}:8000:3000"
+    depends_on:
+      fcaptcha: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 1280m }
+    logging: *logging
+
+  # Captcha for sign-in, sign-up and CMS forms. Browser -> nginx
+  # (https://${CAPTCHA_DOMAIN}), storefront server -> 127.0.0.1:3100.
+  fcaptcha:
+    image: ghcr.io/webdecoy/fcaptcha:1.46.1
+    restart: unless-stopped
+    environment:
+      FCAPTCHA_SECRET: ${FCAPTCHA_SECRET:?}
+      FCAPTCHA_VERIFY_SECRET: ${FCAPTCHA_VERIFY_SECRET:?}
+      FCAPTCHA_SITE_KEYS: storefront
+      FCAPTCHA_ALLOWED_HOSTNAMES: ${DOMAIN:?}
+    ports: ["127.0.0.1:3100:3000"]
+    deploy:
+      resources:
+        limits: { memory: 256m }
+    logging: *logging

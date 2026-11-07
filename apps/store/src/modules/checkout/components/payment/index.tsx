@@ -1,7 +1,11 @@
 "use client";
 
 import { RadioGroup } from "@headlessui/react";
-import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants";
+import {
+  isPayos as isPayosFunc,
+  isStripe as isStripeFunc,
+  paymentInfoMap,
+} from "@lib/constants";
 import { initiatePaymentSession } from "@lib/data/cart";
 import { CheckCircleSolid, CreditCard } from "@medusajs/icons";
 import { Button, Container, Heading, Text, clx } from "@medusajs/ui";
@@ -11,7 +15,12 @@ import PaymentContainer, {
 } from "@modules/checkout/components/payment-container";
 import Divider from "@modules/common/components/divider";
 import { useTranslations } from "next-intl";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { getPaymentProviderTitleKey } from "../../utils/payment-provider-title";
@@ -25,6 +34,10 @@ const Payment = ({
 }) => {
   const t = useTranslations("checkout");
   const tProviders = useTranslations("checkout.payment.providers");
+  const { locale, countryCode } = useParams<{
+    locale: string;
+    countryCode: string;
+  }>();
   const activeSession = cart.payment_collection?.payment_sessions?.find(
     (paymentSession: any) => paymentSession.status === "pending"
   );
@@ -48,6 +61,8 @@ const Payment = ({
   const pathname = usePathname();
 
   const isOpen = searchParams.get("step") === "payment";
+  // payOS sends the customer back here when they cancel on its page.
+  const payosCancelled = searchParams.get("payos") === "cancelled";
 
   const isStripe = isStripeFunc(selectedPaymentMethod);
 
@@ -95,6 +110,10 @@ const Payment = ({
       if (!checkActiveSession) {
         await initiatePaymentSession(cart, {
           provider_id: selectedPaymentMethod,
+          // The provider builds the payOS return URL from these.
+          ...(isPayosFunc(selectedPaymentMethod)
+            ? { data: { locale, country_code: countryCode } }
+            : {}),
         });
       }
 
@@ -192,7 +211,7 @@ const Payment = ({
           )}
 
           <ErrorMessage
-            error={error}
+            error={error ?? (payosCancelled ? t("payos.cancelled") : null)}
             data-testid="payment-method-error-message"
           />
 

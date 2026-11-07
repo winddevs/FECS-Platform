@@ -2,6 +2,7 @@
 const PROVIDER_TITLE_KEYS = {
   pp_stripe_stripe: "creditCard",
   pp_system_default: "manual",
+  pp_payos_payos: "payos",
 } as const;
 
 export type PaymentProviderTitleKey =

@@ -2,6 +2,7 @@ import { defineRouteConfig } from "@medusajs/admin-sdk";
 
 import { OperationsIcon } from "../../lib/erp/icons";
 import { TabbedPage } from "../../lib/erp/page-shell";
+import { AccessTab } from "../../screens/operations/access-tab";
 import { AnalyticsTab } from "../../screens/operations/analytics-tab";
 import { CountryProfilesTab } from "../../screens/operations/country-profiles-tab";
 import { OpsSummary } from "../../screens/operations/ops-summary";
@@ -25,6 +26,7 @@ const OperationsPage = () => (
         content: <CountryProfilesTab />,
       },
       { value: "analytics", label: "Analytics", content: <AnalyticsTab /> },
+      { value: "access", label: "Staff access", content: <AccessTab /> },
     ]}
     title="Operations"
   />

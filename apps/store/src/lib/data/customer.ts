@@ -53,7 +53,11 @@ export const retrieveCustomer =
   async (): Promise<HttpTypes.StoreCustomer | null> => {
     const authHeaders = await getAuthHeaders();
 
-    if (!authHeaders) return null;
+    // getAuthHeaders() returns {} (truthy) for visitors who are not signed in,
+    // so test for the token itself. Otherwise every anonymous page view called
+    // the cached customer lookup without credentials, which breaks rendering
+    // in a production build ("Connection closed" / React error #441).
+    if (!("authorization" in authHeaders)) return null;
 
     return fetchCachedCustomer(authHeaders);
   };

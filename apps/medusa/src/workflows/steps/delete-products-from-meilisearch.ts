@@ -1,21 +1,23 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk";
 
-import { ALGOLIA_MODULE } from "../../modules/algolia";
+import { MEILISEARCH_MODULE } from "../../modules/meilisearch";
+import MeilisearchModuleService from "../../modules/meilisearch/service";
 
-export type DeleteProductsFromAlgoliaWorkflow = {
+export type DeleteProductsFromMeilisearchWorkflow = {
   ids: string[];
 };
 
-export const deleteProductsFromAlgoliaStep = createStep(
-  "delete-products-from-algolia-step",
-  async ({ ids }: DeleteProductsFromAlgoliaWorkflow, { container }) => {
-    const algoliaModuleService = container.resolve(ALGOLIA_MODULE);
+export const deleteProductsFromMeilisearchStep = createStep(
+  "delete-products-from-meilisearch-step",
+  async ({ ids }: DeleteProductsFromMeilisearchWorkflow, { container }) => {
+    const searchService: MeilisearchModuleService =
+      container.resolve(MEILISEARCH_MODULE);
 
-    const existingRecords = await algoliaModuleService.retrieveFromIndex(
+    const existingRecords = await searchService.retrieveFromIndex(
       ids,
       "product"
     );
-    await algoliaModuleService.deleteFromIndex(ids, "product");
+    await searchService.deleteFromIndex(ids, "product");
 
     return new StepResponse(undefined, existingRecords);
   },
@@ -23,11 +25,9 @@ export const deleteProductsFromAlgoliaStep = createStep(
     if (!existingRecords) {
       return;
     }
-    const algoliaModuleService = container.resolve(ALGOLIA_MODULE);
+    const searchService: MeilisearchModuleService =
+      container.resolve(MEILISEARCH_MODULE);
 
-    await algoliaModuleService.indexData(
-      existingRecords as unknown as Record<string, unknown>[],
-      "product"
-    );
+    await searchService.indexData(existingRecords, "product");
   }
 );

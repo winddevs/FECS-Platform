@@ -13,6 +13,7 @@ import {
 import { MedusaError } from "@medusajs/framework/utils";
 import * as Sentry from "@sentry/node";
 
+import { coreAdminGuard } from "../lib/authz/core-admin-guard";
 import { protectRoleMetadata } from "../lib/authz/protect-role-metadata";
 import { requirePermission } from "../lib/authz/require-permission";
 import {
@@ -106,7 +107,7 @@ const roleMetadataGuards: MiddlewareRoute[] = [
 
 /** Legacy commerce-admin routes: every one needs an explicit permission. */
 const legacyAdminGuards: MiddlewareRoute[] = [
-  adminOnly("/admin/algolia/sync", ["POST"], "commerce:admin"),
+  adminOnly("/admin/meilisearch/sync", ["POST"], "commerce:admin"),
   adminOnly("/admin/payload/sync/:collection", ["POST"], "commerce:admin"),
   adminOnly("/admin/analytics", ["GET", "POST"], "commerce:admin"),
   adminOnly("/admin/custom", ["GET"], "commerce:admin"),
@@ -143,12 +144,10 @@ export default defineMiddlewares({
   routes: [
     // Route-level error bodies (`res.status(404).json({ message })`) are
     // translated when the request asks for Vietnamese.
-    ...["/admin/*", "/store/*", "/auth/*"].map(
-      (matcher): MiddlewareRoute => ({
-        matcher,
-        middlewares: [localizeErrorResponses],
-      })
-    ),
+    ...["/admin/*", "/store/*", "/auth/*"].map((matcher): MiddlewareRoute => ({
+      matcher,
+      middlewares: [localizeErrorResponses],
+    })),
     // Latency histogram for every API call (SLO alerts are computed from it).
     ...["/admin/*", "/store/*", "/webhooks/*", "/auth/*"].map(
       (matcher): MiddlewareRoute => ({
@@ -156,6 +155,13 @@ export default defineMiddlewares({
         middlewares: [httpMetricsMiddleware],
       })
     ),
+    // Medusa's own admin routes (orders, products, customers, store setup)
+    // need a fashion role like the ERP routes do. The ERP routes keep their
+    // own guards and are skipped by this one.
+    {
+      matcher: "/admin/*",
+      middlewares: [coreAdminGuard] as never,
+    },
     ...fashionMiddlewares,
     ...opsMiddlewares,
     ...webhookMiddlewares,

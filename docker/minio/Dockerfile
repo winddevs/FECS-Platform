@@ -3,7 +3,11 @@
 # commit and compile it here.
 ARG GO_VERSION=1.24
 
-FROM golang:${GO_VERSION}-alpine AS build
+# Build on the host's own architecture and cross-compile: Go does not need emulation,
+# and the pure-Go binary (CGO off) runs on the target platform unchanged.
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
 ARG MINIO_REF=7aac2a2c5b7c882e68c1ce017d8256be2feea27f
 RUN apk add --no-cache git
 WORKDIR /src
@@ -11,7 +15,7 @@ RUN git init . \
   && git remote add origin https://github.com/minio/minio.git \
   && git fetch --depth 1 origin "${MINIO_REF}" \
   && git checkout FETCH_HEAD
-RUN CGO_ENABLED=0 GOFLAGS=-trimpath go build -ldflags "-s -w" -o /out/minio .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOFLAGS=-trimpath go build -ldflags "-s -w" -o /out/minio .
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates curl

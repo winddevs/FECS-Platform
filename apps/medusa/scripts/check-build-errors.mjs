@@ -1,5 +1,5 @@
 // `medusa build` type-checks the whole project and exits 1 on any error. The
-// original template code (Payload/Algolia/Resend/analytics wiring) predates the
+// original template code (Payload/search/Resend/analytics wiring) predates the
 // current Medusa/TypeScript versions and still has type-only errors; it emits
 // working JavaScript regardless. Instead of switching the check off, this
 // script keeps it as a gate: the build may only report errors in that known
@@ -13,7 +13,7 @@ const LEGACY = [
   /^src\/modules\/payload\//,
   /^src\/subscribers\/(order-placed|product-(created|deleted|updated))\.ts$/,
   /^src\/workflows\/[a-z-]+\.ts$/, // template workflows (fashion ones are listed below)
-  /^src\/workflows\/steps\/(create-payload-items|delete-payload-items|delete-products-from-algolia|generate-invoice-pdf|get-order-invoice|retrieve-payload-items|send-notification|sync-products|track-event|update-invoice-config|update-invoices|update-payload-items)\.ts$/,
+  /^src\/workflows\/steps\/(create-payload-items|delete-payload-items|delete-products-from-meilisearch|generate-invoice-pdf|get-order-invoice|retrieve-payload-items|send-notification|sync-products|track-event|update-invoice-config|update-invoices|update-payload-items)\.ts$/,
   /^\.\.\/\.\.\/packages\/email\//,
 ];
 // Workflow files written for the fashion platform: never legacy.

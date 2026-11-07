@@ -65,8 +65,21 @@
     },
     "providers": {
       "creditCard": "Credit card",
-      "manual": "Manual payment"
+      "manual": "Manual payment",
+      "payos": "Bank transfer by QR (payOS)"
     }
+  },
+  "payos": {
+    "payButton": "Pay with payOS",
+    "redirecting": "Taking you to the payOS payment page…",
+    "hint": "You will be sent to payOS to scan a VietQR code with your banking app, then brought back here.",
+    "confirming": "Confirming your payment…",
+    "confirmingHint": "Please keep this page open. This takes a few seconds.",
+    "failedTitle": "We could not confirm your payment yet",
+    "failedText": "If your bank already took the money, do not pay again: your order is confirmed automatically within a few minutes and you will get an email. Otherwise return to checkout and try again.",
+    "backToCheckout": "Back to checkout",
+    "cancelled": "The payOS payment was cancelled. Choose a payment method to try again.",
+    "linkFailed": "Could not open the payOS payment page. Please try again."
   },
   "review": {
     "title": "Review",

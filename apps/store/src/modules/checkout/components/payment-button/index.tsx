@@ -1,7 +1,8 @@
 "use client";
 
-import { isManual, isStripe } from "@lib/constants";
-import { placeOrder } from "@lib/data/cart";
+import { isManual, isPayos, isStripe } from "@lib/constants";
+import { initiatePaymentSession, placeOrder } from "@lib/data/cart";
+import { isPayosCheckoutUrl } from "@lib/util/payos";
 import { HttpTypes } from "@medusajs/types";
 import { Button } from "@medusajs/ui";
 import { useElements, useStripe } from "@stripe/react-stripe-js";
@@ -21,7 +22,10 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   "data-testid": dataTestId,
 }) => {
   const t = useTranslations("checkout.review");
-  const { locale } = useParams<{ locale: string }>();
+  const { locale, countryCode } = useParams<{
+    locale: string;
+    countryCode: string;
+  }>();
   const notReady =
     !cart ||
     !cart.shipping_address ||
@@ -41,6 +45,16 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
           locale={locale}
         />
       );
+    case isPayos(paymentSession?.provider_id):
+      return (
+        <PayosPaymentButton
+          cart={cart}
+          notReady={notReady}
+          providerId={paymentSession?.provider_id ?? ""}
+          locale={locale}
+          countryCode={countryCode}
+        />
+      );
     case isManual(paymentSession?.provider_id):
       return (
         <ManualTestPaymentButton
@@ -52,6 +66,75 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
     default:
       return <Button disabled>{t("selectPaymentMethod")}</Button>;
   }
+};
+
+/**
+ * Sends the customer to the hosted payOS page. The order is not placed here:
+ * payOS returns the customer to /checkout/payos, which completes the cart once
+ * payOS confirms the transfer.
+ */
+const PayosPaymentButton = ({
+  cart,
+  notReady,
+  providerId,
+  locale,
+  countryCode,
+}: {
+  cart: HttpTypes.StoreCart;
+  notReady: boolean;
+  providerId: string;
+  locale: string;
+  countryCode: string;
+}) => {
+  const t = useTranslations("checkout.payos");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handlePayment = async () => {
+    setSubmitting(true);
+    setErrorMessage(null);
+    try {
+      // A new session gives a new link for the current cart total, so a link
+      // that expired or went stale while the customer browsed is never used.
+      const { payment_collection: collection } = await initiatePaymentSession(
+        cart,
+        {
+          provider_id: providerId,
+          data: { locale, country_code: countryCode },
+        }
+      );
+      const checkoutUrl = collection.payment_sessions?.find(
+        (session) => session.provider_id === providerId
+      )?.data?.checkout_url;
+      if (!isPayosCheckoutUrl(checkoutUrl)) {
+        throw new Error(t("linkFailed"));
+      }
+      // Stay in the loading state: the browser is leaving this page.
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : t("linkFailed"));
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        disabled={notReady}
+        isLoading={submitting}
+        onClick={handlePayment}
+        size="large"
+        data-testid="submit-payos-button"
+      >
+        {t("payButton")}
+      </Button>
+      <p className="mt-2 txt-small text-ui-fg-subtle">{t("hint")}</p>
+      <ErrorMessage
+        error={errorMessage}
+        data-testid="payos-payment-error-message"
+      />
+    </>
+  );
 };
 
 const StripePaymentButton = ({

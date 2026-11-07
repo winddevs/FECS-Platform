@@ -34,6 +34,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Product search. Medusa indexes products here and the storefront search box
+  # queries it through Medusa. apps/medusa/.env:
+  #   MEILISEARCH_HOST=http://localhost:7700  MEILISEARCH_MASTER_KEY=dev-master-key-change-me
+  meilisearch:
+    image: getmeili/meilisearch:v1.56.1
+    container_name: ecommerce-meilisearch
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: dev-master-key-change-me
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "127.0.0.1:7700:7700"
+    volumes:
+      - ecommerce_meili_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # S3-compatible object storage for Payload media (images and videos).
   # Built from source, see ./minio/Dockerfile.
   minio:
@@ -153,3 +174,4 @@ volumes:
   ecommerce_postgres_data:
   ecommerce_redis_data:
   ecommerce_minio_data:
+  ecommerce_meili_data:

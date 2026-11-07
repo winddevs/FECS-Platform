@@ -49,6 +49,9 @@ cd "$ROOT_DIR/apps/medusa"
 npx medusa db:migrate
 node --run seed || echo -e "${YELLOW}Medusa seeding skipped or already completed.${NC}"
 npx medusa user -e admin@medusajs.com -p "$MEDUSA_ADMIN_PASSWORD" || echo -e "${YELLOW}Medusa admin user might already exist.${NC}"
+# A user without a role is refused by every admin route, including the
+# Medusa dashboard screens (orders, products...). The first admin needs ERP_ADMIN.
+npx medusa exec ./src/scripts/grant-fashion-role.ts admin@medusajs.com ERP_ADMIN || echo -e "${YELLOW}Could not grant ERP_ADMIN to admin@medusajs.com.${NC}"
 
 echo ""
 echo -e "${BLUE}Setting up CMS (ecommerce_cms)...${NC}"

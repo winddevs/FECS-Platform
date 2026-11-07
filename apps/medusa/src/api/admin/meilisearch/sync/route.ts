@@ -4,10 +4,10 @@ import { Modules } from "@medusajs/framework/utils";
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const eventModuleService = req.scope.resolve(Modules.EVENT_BUS);
   await eventModuleService.emit({
-    name: "algolia.sync",
+    name: "meilisearch.sync",
     data: {},
   });
   res.send({
-    message: "Syncing data to Algolia",
+    message: "Syncing data to Meilisearch",
   });
 }

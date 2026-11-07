@@ -1,0 +1,27 @@
+# Copy to infra/deploy/deploy.conf (git-ignored) and fill in.
+# Read by scripts/deploy.sh. No secrets belong here: those are generated on the
+# servers (/opt/fecs/*/.env) by `scripts/deploy.sh setup`.
+
+# ---- domains -----------------------------------------------------------------
+DOMAIN=bibaestudios.com                # storefront + CMS admin (www redirects here)
+API_DOMAIN=ecom.bibaestudios.com        # Medusa API + admin (/app)
+S3_DOMAIN=s3.bibaestudios.com          # MinIO S3 API (media uploads and reads)
+CAPTCHA_DOMAIN=captcha.bibaestudios.com
+ADMIN_DOMAIN=admin.bibaestudios.com    # CMS entry point: redirects to https://$DOMAIN/admin
+LETSENCRYPT_EMAIL=                     # expiry notices from Let's Encrypt
+
+# ---- backend droplet: Medusa, Postgres, Redis, MinIO -------------------------
+# BACKEND_SSH is an ssh host alias (~/.ssh/config) or user@host.
+BACKEND_SSH=bibaestudios-backend
+BACKEND_PUBLIC_IP=165.232.166.136
+BACKEND_PRIVATE_IP=10.104.0.5          # VPC 10.104.0.0/20, same as the store droplet
+
+# ---- store droplet: Next.js storefront, Payload CMS admin, FCaptcha ----------
+STORE_SSH=bibaestudios-store
+STORE_PUBLIC_IP=188.166.238.43
+STORE_PRIVATE_IP=10.104.0.3
+
+# ---- build -------------------------------------------------------------------
+PLATFORM=linux/amd64                   # the droplets are x86_64; the Mac is arm64
+REMOTE_DIR=/opt/fecs
+KEEP_RELEASES=3                        # old image tags kept on each server

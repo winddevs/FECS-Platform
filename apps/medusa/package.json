@@ -48,6 +48,7 @@
     "@mikro-orm/postgresql": "6.6.14",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.221.0",
+    "@payos/node": "^2.0.5",
     "@sentry/node": "^10.69.0",
     "@sentry/opentelemetry-node": "^7.114.0",
     "@tanstack/react-query": "^5.101.4",

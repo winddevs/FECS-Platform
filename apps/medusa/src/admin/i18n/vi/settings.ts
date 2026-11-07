@@ -2,7 +2,7 @@
 const dictionary: Record<string, string> = {
   // Sidebar labels (static route config, kept for reference and QA)
   Payload: "Payload",
-  Algolia: "Algolia",
+  Meilisearch: "Meilisearch",
   "Default Invoice Config": "Cấu hình hóa đơn mặc định",
 
   // Payload
@@ -14,12 +14,13 @@ const dictionary: Record<string, string> = {
     "Đã kích hoạt đồng bộ dữ liệu bộ sưu tập với Payload",
   "Failed to sync data with Payload": "Đồng bộ dữ liệu với Payload thất bại",
 
-  // Algolia
-  "Algolia Sync": "Đồng bộ Algolia",
-  "Sync Data to Algolia": "Đồng bộ dữ liệu sang Algolia",
-  "Successfully triggered data sync to Algolia":
-    "Đã kích hoạt đồng bộ dữ liệu sang Algolia",
-  "Failed to sync data to Algolia": "Đồng bộ dữ liệu sang Algolia thất bại",
+  // Meilisearch
+  "Meilisearch Sync": "Đồng bộ Meilisearch",
+  "Sync Data to Meilisearch": "Đồng bộ dữ liệu sang Meilisearch",
+  "Successfully triggered data sync to Meilisearch":
+    "Đã kích hoạt đồng bộ dữ liệu sang Meilisearch",
+  "Failed to sync data to Meilisearch":
+    "Đồng bộ dữ liệu sang Meilisearch thất bại",
 
   // Invoice config
   "Invoice Config": "Cấu hình hóa đơn",

@@ -131,7 +131,7 @@ assert(
   "an ERP_ADMIN may manage roles"
 );
 for (const [method, path, body] of [
-  ["POST", "/admin/algolia/sync", {}],
+  ["POST", "/admin/meilisearch/sync", {}],
   ["POST", "/admin/payload/sync/products", {}],
   ["GET", "/admin/analytics", undefined],
   ["GET", "/admin/invoice-config", undefined],

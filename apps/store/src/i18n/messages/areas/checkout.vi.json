@@ -65,8 +65,21 @@
     },
     "providers": {
       "creditCard": "Thẻ tín dụng",
-      "manual": "Thanh toán thủ công"
+      "manual": "Thanh toán thủ công",
+      "payos": "Chuyển khoản quét mã QR (payOS)"
     }
+  },
+  "payos": {
+    "payButton": "Thanh toán qua payOS",
+    "redirecting": "Đang chuyển bạn đến trang thanh toán payOS…",
+    "hint": "Bạn sẽ được chuyển sang payOS để quét mã VietQR bằng ứng dụng ngân hàng, sau đó quay lại trang này.",
+    "confirming": "Đang xác nhận thanh toán của bạn…",
+    "confirmingHint": "Vui lòng giữ trang này mở. Việc này mất vài giây.",
+    "failedTitle": "Chúng tôi chưa xác nhận được thanh toán",
+    "failedText": "Nếu ngân hàng đã trừ tiền, bạn không cần thanh toán lại: đơn hàng sẽ được xác nhận tự động trong vài phút và bạn sẽ nhận email. Nếu chưa trừ tiền, hãy quay lại trang thanh toán và thử lại.",
+    "backToCheckout": "Quay lại thanh toán",
+    "cancelled": "Thanh toán payOS đã bị hủy. Hãy chọn phương thức thanh toán để thử lại.",
+    "linkFailed": "Không mở được trang thanh toán payOS. Vui lòng thử lại."
   },
   "review": {
     "title": "Xem lại đơn hàng",

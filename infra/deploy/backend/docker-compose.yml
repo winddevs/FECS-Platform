@@ -1,0 +1,199 @@
+# Backend droplet: Postgres (Medusa + CMS databases), Redis, MinIO, Meilisearch, Medusa.
+# Lives at /opt/fecs/backend on the server. Run through scripts/deploy.sh.
+#
+# Values come from two files that scripts/deploy.sh manages:
+#   .env          secrets and settings (generated once on `setup`, edit by hand)
+#   release.env   IMAGE_TAG / PREVIOUS_TAG (written on every release)
+#
+# Ports: everything is published on the PRIVATE VPC address or on loopback.
+# Docker bypasses ufw for published ports, so never publish on 0.0.0.0 here.
+name: fecs-backend
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+x-medusa: &medusa
+  image: fecs-medusa:${IMAGE_TAG:?run scripts/deploy.sh release backend}
+  env_file: [.env]
+  environment: &medusa-env
+    NODE_ENV: production
+    DATABASE_URL: postgresql://ecommerce_admin:${POSTGRES_PASSWORD:?}@postgres:5432/ecommerce_medusa
+    REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
+    # 2 GiB droplet (demo). On a 4 GiB droplet use 1280 here and a 1536m limit below.
+    NODE_OPTIONS: --max-old-space-size=900
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ecommerce_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    # Sized for a 2 GiB droplet shared with Medusa, Redis, MinIO and Meilisearch.
+    # On 4 GiB: shared_buffers=256MB, effective_cache_size=768MB, max_connections=60.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=40
+    ports: ["${BACKEND_PRIVATE_IP:?}:5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Runs only when the data volume is empty (first start).
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce_admin -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # BullMQ (Medusa events and workflows) needs noeviction.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?}
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - noeviction
+    ports: ["${BACKEND_PRIVATE_IP:?}:6379:6379"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    logging: *logging
+
+  # S3-compatible storage, compiled from source (docker/minio/Dockerfile).
+  # The upstream project is archived: see docs/deploy-digitalocean.md.
+  minio:
+    image: ${MINIO_IMAGE:-fecs-minio:1}
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+      # Browser uploads from the Payload admin (presigned URLs) need CORS.
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_CORS_ORIGINS:?}
+    # S3 API only, on loopback: nginx publishes it as https://${S3_DOMAIN}.
+    # The console (9001) is not published; reach it with an SSH tunnel.
+    ports:
+      - "127.0.0.1:9002:9000"
+      - "127.0.0.1:9003:9001"
+    volumes: [minio_data:/data]
+    logging: *logging
+
+  # Product search. Reachable only inside the compose network (no published
+  # port): Medusa queries it and the storefront goes through Medusa. The index is
+  # derived data: if the volume is lost, rebuild it from Medusa Admin >
+  # Settings > Meilisearch > Sync.
+  meilisearch:
+    image: getmeili/meilisearch:v1.56.1
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:?}
+      MEILI_NO_ANALYTICS: "true"
+      # Keep indexing from using all the RAM of a shared droplet.
+      MEILI_MAX_INDEXING_MEMORY: 128Mb
+    volumes: [meili_data:/meili_data]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    deploy:
+      resources:
+        limits: { memory: 384m }
+    logging: *logging
+
+  # One-shot: creates the two buckets and sets their public-read policies.
+  minio-init:
+    image: amazon/aws-cli:2.27.50
+    profiles: [tools]
+    depends_on:
+      minio: { condition: service_healthy }
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?}
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./minio:/policies:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        for b in ecommerce-media ecommerce-medusa; do
+          aws --endpoint-url http://minio:9000 s3api head-bucket --bucket $$b 2>/dev/null \
+            || aws --endpoint-url http://minio:9000 s3 mb s3://$$b
+        done
+        aws --endpoint-url http://minio:9000 s3api put-bucket-policy \
+          --bucket ecommerce-media --policy file:///policies/public-read-media.json
+        aws --endpoint-url http://minio:9000 s3api put-bucket-policy \
+          --bucket ecommerce-medusa --policy file:///policies/public-read-medusa.json
+        echo "buckets ready"
+    logging: *logging
+
+  # Medusa API + admin + subscribers and jobs in ONE process (worker mode
+  # "shared"). Split into server/worker only when the droplet is larger.
+  medusa:
+    <<: *medusa
+    restart: unless-stopped
+    environment:
+      <<: *medusa-env
+      MEDUSA_WORKER_MODE: shared
+      PORT: "9000"
+    # The store droplet calls Medusa on this private address (not through
+    # nginx), so per-IP rate limits in nginx do not lump all customers together.
+    ports: ["${BACKEND_PRIVATE_IP:?}:9000:9000"]
+    deploy:
+      resources:
+        limits: { memory: 1100m }
+
+  # ---- one-shot jobs: docker compose run --rm <name> -------------------------
+  migrate:
+    <<: *medusa
+    profiles: [tools]
+    command: ["npx", "medusa", "db:migrate"]
+    restart: "no"
+
+  # Demo data + the publishable API key. Opt-in: scripts/deploy.sh seed
+  seed:
+    <<: *medusa
+    profiles: [tools]
+    command: ["npx", "medusa", "exec", "./src/scripts/seed.js"]
+    restart: "no"
+
+  # scripts/deploy.sh admin-user <email>
+  cli:
+    <<: *medusa
+    profiles: [tools]
+    entrypoint: ["npx", "medusa"]
+    restart: "no"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  meili_data:

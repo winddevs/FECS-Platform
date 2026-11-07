@@ -4,19 +4,27 @@ import type { MetadataRoute } from "next";
 
 import { routing } from "@/i18n/routing"; // Import your routing configuration
 
-// Get all app folders excluding special Next.js folders
-const appFolders = fs.readdirSync("www", { withFileTypes: true });
+// Top-level route folders to list in the sitemap. The folder is a leftover of
+// the template this app started from and does not exist here: reading it at
+// import time crashed `next build`, so a missing folder now means "no extra pages".
+const readAppFolders = () => {
+  try {
+    return fs.readdirSync("www", { withFileTypes: true });
+  } catch {
+    return [];
+  }
+};
+const appFolders = readAppFolders();
 const pages = appFolders
   .filter((file) => file.isDirectory())
   .filter((folder) => !folder.name.startsWith("_"))
   .filter((folder) => !folder.name.startsWith("("))
   .map((folder) => folder.name);
 
-// Determine the URL base
-const protocol = process.env.NEXT_PUBLIC_WWW_URL?.startsWith("https")
-  ? "https"
-  : "http";
-const url = new URL(`${protocol}://${process.env.NEXT_PUBLIC_WWW_URL}`);
+// Determine the URL base. NEXT_PUBLIC_WWW_URL may be a full URL
+// (https://example.com) or a bare host (example.com).
+const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL ?? "localhost:3000";
+const url = new URL(/^https?:\/\//.test(wwwUrl) ? wwwUrl : `http://${wwwUrl}`);
 
 // Define async function to fetch any dynamic content (like blog posts)
 // Example for blog posts if you have them

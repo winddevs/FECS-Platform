@@ -1,6 +1,7 @@
 import { CreditCard } from "@medusajs/icons";
 import Bancontact from "@modules/common/icons/bancontact";
 import Ideal from "@modules/common/icons/ideal";
+import Payos from "@modules/common/icons/payos";
 import PayPal from "@modules/common/icons/paypal";
 import React from "react";
 
@@ -25,6 +26,10 @@ export const paymentInfoMap: Record<
     title: "PayPal",
     icon: <PayPal />,
   },
+  pp_payos_payos: {
+    title: "Bank transfer by QR (payOS)",
+    icon: <Payos />,
+  },
   pp_system_default: {
     title: "Manual Payment",
     icon: <CreditCard />,
@@ -38,6 +43,9 @@ export const isStripe = (providerId?: string) => {
 };
 export const isPaypal = (providerId?: string) => {
   return providerId?.startsWith("pp_paypal");
+};
+export const isPayos = (providerId?: string) => {
+  return providerId?.startsWith("pp_payos");
 };
 export const isManual = (providerId?: string) => {
   return providerId?.startsWith("pp_system_default");

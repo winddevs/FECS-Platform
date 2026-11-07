@@ -1,11 +1,11 @@
 import { Module } from "@medusajs/framework/utils";
 
-import AlgoliaModuleService from "./service";
+import MeilisearchModuleService from "./service";
 
-export const ALGOLIA_MODULE = "algolia";
+export const MEILISEARCH_MODULE = "meilisearch";
 
-export default Module(ALGOLIA_MODULE, {
-  service: AlgoliaModuleService,
+export default Module(MEILISEARCH_MODULE, {
+  service: MeilisearchModuleService,
 });
 
 export * from "./service";

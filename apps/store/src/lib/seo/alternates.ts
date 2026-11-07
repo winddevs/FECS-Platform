@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { DEFAULT_LOCALE, localization } from "@/i18n/localization";
+import { DEFAULT_LOCALE, storefrontLocales } from "@/i18n/localization";
 
 /**
  * Canonical + hreflang alternates for a storefront path.
@@ -25,7 +25,7 @@ export const localizedAlternates = ({
     canonical: build(locale),
     languages: {
       ...Object.fromEntries(
-        localization.locales.map((l) => [l.code, build(l.code)])
+        storefrontLocales.map((l) => [l.code, build(l.code)])
       ),
       "x-default": build(DEFAULT_LOCALE),
     },

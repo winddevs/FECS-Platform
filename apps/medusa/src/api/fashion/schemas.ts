@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { FASHION_ROLES } from "../../lib/authz/permissions";
 import { hasValidPrecision } from "../../lib/quantity";
 import {
   ALLOCATION_POLICIES,
@@ -605,6 +606,17 @@ export const SettingValueSchema = z.object({
   scope_id: z.string().trim().max(50).default(""),
 });
 export type SettingValueBody = z.infer<typeof SettingValueSchema>;
+
+// ---- staff access (roles on admin users) ------------------------------------
+
+/** The full role list of one staff member. An empty list removes all access. */
+export const SetUserRolesSchema = z.object({
+  roles: z
+    .array(z.enum(FASHION_ROLES))
+    .max(FASHION_ROLES.length)
+    .refine((roles) => new Set(roles).size === roles.length, "Duplicate role"),
+});
+export type SetUserRolesBody = z.infer<typeof SetUserRolesSchema>;
 
 const codeList = z.array(z.string().trim().min(1).max(50)).max(50);
 export const CountryProfileSchema = z.object({

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Button } from "@ecommerce/ui/components/button";
+import { Button } from "@ecommerce/ui/components/button";
 import type { Media } from "@payload-types";
 import type { DefaultTypedEditorState } from "@payloadcms/richtext-lexical";
 import { useTranslations } from "next-intl";

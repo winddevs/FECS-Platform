@@ -1,8 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { z } from "zod";
 
-import { ALGOLIA_MODULE } from "../../../../modules/algolia";
-import AlgoliaModuleService from "../../../../modules/algolia/service";
+import { MEILISEARCH_MODULE } from "../../../../modules/meilisearch";
+import MeilisearchModuleService from "../../../../modules/meilisearch/service";
 
 export const SearchSchema = z.object({
   query: z.string(),
@@ -14,12 +14,12 @@ export async function POST(
   req: MedusaRequest<SearchRequest>,
   res: MedusaResponse
 ) {
-  const algoliaModuleService: AlgoliaModuleService =
-    req.scope.resolve(ALGOLIA_MODULE);
+  const searchService: MeilisearchModuleService =
+    req.scope.resolve(MEILISEARCH_MODULE);
 
   const { query } = req.validatedBody;
 
-  const results = await algoliaModuleService.search(query as string);
+  const results = await searchService.search(query as string);
 
   res.json(results);
 }

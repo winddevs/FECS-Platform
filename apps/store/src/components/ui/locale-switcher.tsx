@@ -10,7 +10,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-import { localization } from "@/i18n/localization";
+import { storefrontLocales } from "@/i18n/localization";
 
 /** Each language is shown in its own language, whatever the current one is. */
 const NATIVE_NAMES: Record<string, string> = {
@@ -38,8 +38,8 @@ export default function LocaleSwitcher() {
   const [, startTransition] = useTransition();
   const pathname = usePathname();
 
-  // Vietnamese first: the order of `localization.locales` is kept on purpose.
-  const options = localization.locales.map(({ code, label }) => ({
+  // Vietnamese first: the order of `storefrontLocales` is kept on purpose.
+  const options = storefrontLocales.map(({ code, label }) => ({
     value: code,
     label: NATIVE_NAMES[code] ?? label,
   }));
@@ -63,7 +63,12 @@ export default function LocaleSwitcher() {
       >
         <SelectValue placeholder={t("label")} />
       </SelectTrigger>
-      <SelectContent>
+      {/*
+        Open below the button, always. With the default alignment the list is
+        positioned so the selected language sits over the button: when English
+        is selected, "Tiếng Việt" is drawn above it, behind the header.
+      */}
+      <SelectContent alignItemWithTrigger={false} align="end" side="bottom">
         {options.map(({ value, label }) => (
           <SelectItem value={value} key={value}>
             {label}

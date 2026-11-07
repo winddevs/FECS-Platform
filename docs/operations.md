@@ -52,6 +52,42 @@ Switch on one at a time, watching `/admin/ops/summary` and the alerts:
 Rolling back = flip the flag and restart; data stays consistent because every
 side effect is idempotent and retried from durable state.
 
+### Online payment with payOS (VietQR bank transfer)
+
+Cash on delivery stays on Medusa's built-in provider (`pp_system_default`).
+payOS (`pp_payos_payos`) is added next to it and is registered only when
+`PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` and `STOREFRONT_URL`
+are all set. VND only.
+
+Set up:
+
+1. Create a payment channel at https://my.payos.vn and put its three keys in the
+   environment (see `.env.template`).
+2. Register the webhook URL `<BACKEND_URL>/webhooks/payos` in payOS.
+3. In the Medusa admin, add `payOS` to the payment providers of the Vietnam
+   region. Until then the storefront does not offer it.
+
+How it works:
+
+- The customer is sent to payOS and returns to
+  `/<locale>/<country>/checkout/payos`. That page completes the cart; the
+  backend asks payOS whether the link is paid, so the return URL itself proves
+  nothing.
+- If the customer pays and never returns, the signed webhook is stored in the
+  durable inbox (`provider = payos`) and the inbox worker completes the order.
+- A bank transfer settles at once, so the payment is captured on authorize.
+  `MTO_PAYMENT_GATE=captured` therefore works for payOS orders without change.
+- A transfer that matches no payment session, or is smaller than the session
+  amount, fails in the inbox, retries, and ends in the DLQ. Treat a payOS entry
+  in the DLQ as "money received that no order claims": find the customer and
+  refund or fix the order by hand.
+
+Refunds are manual. payOS has no refund API for collected payments. Send the
+money back from the bank, then record it with `POST /admin/returns/:id/refund`
+(put the bank transaction reference in `note`). That call books the refund in
+Medusa and does not move money. Moving to automatic payouts later only changes
+`refundPayment` in `src/modules/payos/service.ts`.
+
 ### Stock projection and Medusa fulfillment
 
 `finishedGoods` is the source of truth for finished stock. With
@@ -106,10 +142,40 @@ needs the `roles:manage` permission (ERP_ADMIN only). Other metadata stays
 editable by everyone.
 
 Users with no role cannot call any fashion endpoint, and also not the legacy
-commerce admin routes: Algolia/Payload sync, analytics, invoice config and
+commerce admin routes: Meilisearch/Payload sync, analytics, invoice config and
 invoice PDFs need `commerce:admin` (ERP_ADMIN, COMMERCE_ADMIN) or `order:read`.
 Existing admins who used those screens need a role granted first.
 Roles and permissions: `src/lib/authz/permissions.ts`.
+
+**Medusa's own admin screens are role-gated too.** One middleware on `/admin/*`
+(`src/lib/authz/core-admin-guard.ts`) maps every Medusa admin route to a
+permission (`src/lib/authz/core-admin-policy.ts`): orders and payments, catalog
+and pricing, customers, store setup, staff and API keys. Reads need the `read`
+permission of the area, changes need the `write` one (for example
+`order:manage`, `payment:manage`, `catalog:write`, `store:manage`). A route that
+is not in the policy needs `config:manage` (ERP_ADMIN), so a route added by a
+Medusa upgrade is closed by default. Open to every signed-in admin user: the
+dashboard shell (`GET /admin/users/me`, `/admin/stores`, `/admin/locales`),
+saved table views, and the user's own profile.
+
+Secret API keys have no fashion roles, so they are refused on these routes.
+Use an admin user with a role for any integration (for example the account in
+`MEDUSA_ADMIN_EMAIL`).
+
+**The dashboard sidebar still lists Orders, Products and the other core
+entries to everyone.** Medusa cannot hide them per role; a user without the
+permission gets a "permission denied" message when opening one.
+
+**Assigning roles.** ERP_ADMIN opens Operations > Staff access, ticks the roles
+of each user and saves (`GET /admin/access`, `PUT /admin/access/users/:id`).
+Each change is written to the audit trail (`access.roles.set`). The last
+ERP_ADMIN cannot be removed. The CLI stays as the way in when no ERP_ADMIN
+exists.
+
+**Before deploying this change**, give your own account ERP_ADMIN, or you lock
+yourself out of the dashboard:
+`scripts/deploy.sh grant-role you@example.com ERP_ADMIN`. Then give each staff
+member their role from the Staff access tab.
 
 ### Sandbox providers
 

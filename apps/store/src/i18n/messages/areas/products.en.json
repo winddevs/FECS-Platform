@@ -5,6 +5,9 @@
     "selectOption": "Select {title}",
     "outOfStock": "Out of stock",
     "addToCart": "Add to cart",
+    "addedToCart": "Added to your cart",
+    "viewCart": "View cart",
+    "addError": "Could not add this item to your cart. Please try again.",
     "close": "Close"
   },
   "price": {

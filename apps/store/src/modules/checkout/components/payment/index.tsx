@@ -197,7 +197,7 @@ const Payment = ({
           )}
 
           {paidByGiftcard && (
-            <div className="flex flex-col w-1/3">
+            <div className="flex flex-col w-full xsmall:w-1/3 min-w-0 break-words">
               <Text className="txt-medium-plus text-ui-fg-base mb-1">
                 {t("payment.method")}
               </Text>
@@ -234,8 +234,8 @@ const Payment = ({
 
         <div className={isOpen ? "hidden" : "block"}>
           {cart && paymentReady && activeSession ? (
-            <div className="flex items-start gap-x-1 w-full">
-              <div className="flex flex-col w-1/3">
+            <div className="flex flex-col xsmall:flex-row items-start gap-y-4 xsmall:gap-x-1 w-full">
+              <div className="flex flex-col w-full xsmall:w-1/3 min-w-0 break-words">
                 <Text className="txt-medium-plus text-ui-fg-base mb-1">
                   {t("payment.method")}
                 </Text>
@@ -246,7 +246,7 @@ const Payment = ({
                   {providerTitle(activeSession?.provider_id)}
                 </Text>
               </div>
-              <div className="flex flex-col w-1/3">
+              <div className="flex flex-col w-full xsmall:w-1/3 min-w-0 break-words">
                 <Text className="txt-medium-plus text-ui-fg-base mb-1">
                   {t("payment.details")}
                 </Text>
@@ -268,7 +268,7 @@ const Payment = ({
               </div>
             </div>
           ) : paidByGiftcard ? (
-            <div className="flex flex-col w-1/3">
+            <div className="flex flex-col w-full xsmall:w-1/3 min-w-0 break-words">
               <Text className="txt-medium-plus text-ui-fg-base mb-1">
                 {t("payment.method")}
               </Text>

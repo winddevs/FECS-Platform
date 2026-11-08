@@ -83,7 +83,15 @@ export const listProducts = async ({
           queryParams,
         };
       });
-  } catch {
+  } catch (error) {
+    // Keep the page rendering with an empty list, but leave a trace: an empty
+    // catalogue caused by an API failure is otherwise impossible to tell apart
+    // from a genuinely empty one.
+    console.error(
+      `Failed to list products: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
     return {
       response: { products: [], count: 0 },
       nextPage: null,

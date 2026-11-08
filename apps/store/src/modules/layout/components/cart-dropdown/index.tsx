@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Popover,
-  PopoverButton,
-  PopoverPanel,
-  Transition,
-} from "@headlessui/react";
+import { Popover, PopoverPanel, Transition } from "@headlessui/react";
 import { convertToLocale } from "@lib/util/money";
 import { HttpTypes } from "@medusajs/types";
 import DeleteButton from "@modules/common/components/delete-button";
@@ -39,7 +34,8 @@ const CartDropdown = ({
       return acc + item.quantity;
     }, 0) || 0;
 
-  const subtotal = cartState?.subtotal ?? 0;
+  // `subtotal` already includes shipping in Medusa v2; the panel says "excluding".
+  const subtotal = cartState?.item_subtotal ?? 0;
   const itemRef = useRef<number>(totalItems || 0);
 
   const timedOpen = () => {
@@ -84,28 +80,32 @@ const CartDropdown = ({
       onMouseLeave={close}
     >
       <Popover className="relative flex h-full items-center">
-        <PopoverButton as={Fragment}>
-          <LocalizedClientLink
-            className="sf-icon-btn"
-            href="/cart"
-            data-testid="nav-cart-link"
+        {/*
+          A plain link, not a PopoverButton: the panel below is `static` and
+          driven by `cartDropdownOpen`, and PopoverButton calls preventDefault
+          on click, which stopped this link from ever opening /cart (and the
+          panel is hidden on phones, so they had no other way in).
+        */}
+        <LocalizedClientLink
+          className="sf-icon-btn"
+          href="/cart"
+          data-testid="nav-cart-link"
+        >
+          <ShoppingBag aria-hidden="true" />
+          <span
+            className={`sf-cart-count${totalItems > 0 ? " has-items" : ""}`}
+            aria-hidden="true"
           >
-            <ShoppingBag aria-hidden="true" />
-            <span
-              className={`sf-cart-count${totalItems > 0 ? " has-items" : ""}`}
-              aria-hidden="true"
-            >
-              {totalItems}
-            </span>
-            <span
-              className="sf-visually-hidden"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {tNav("cart", { count: totalItems })}
-            </span>
-          </LocalizedClientLink>
-        </PopoverButton>
+            {totalItems}
+          </span>
+          <span
+            className="sf-visually-hidden"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {tNav("cart", { count: totalItems })}
+          </span>
+        </LocalizedClientLink>
         <Transition
           show={cartDropdownOpen}
           as={Fragment}

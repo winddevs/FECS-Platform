@@ -5,6 +5,9 @@
     "selectOption": "Chọn {title}",
     "outOfStock": "Hết hàng",
     "addToCart": "Thêm vào giỏ",
+    "addedToCart": "Đã thêm vào giỏ hàng",
+    "viewCart": "Xem giỏ hàng",
+    "addError": "Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại.",
     "close": "Đóng"
   },
   "price": {

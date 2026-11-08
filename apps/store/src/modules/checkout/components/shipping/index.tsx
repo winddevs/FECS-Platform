@@ -382,7 +382,7 @@ const Shipping: React.FC<ShippingProps> = ({
         <div>
           <div className="text-small-regular">
             {cart && (cart.shipping_methods?.length ?? 0) > 0 && (
-              <div className="flex flex-col w-1/3">
+              <div className="flex flex-col w-full xsmall:w-1/3 min-w-0 break-words">
                 <Text className="txt-medium-plus text-ui-fg-base mb-1">
                   {t("delivery.method")}
                 </Text>

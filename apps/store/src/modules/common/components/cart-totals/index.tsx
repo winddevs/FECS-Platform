@@ -7,7 +7,8 @@ import React from "react";
 type CartTotalsProps = {
   totals: {
     total?: number | null;
-    subtotal?: number | null;
+    /** Goods only. `subtotal` in Medusa v2 already includes shipping. */
+    item_subtotal?: number | null;
     tax_total?: number | null;
     shipping_total?: number | null;
     discount_total?: number | null;
@@ -21,7 +22,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
   const {
     currency_code,
     total,
-    subtotal,
+    item_subtotal: subtotal,
     tax_total,
     discount_total,
     gift_card_total,

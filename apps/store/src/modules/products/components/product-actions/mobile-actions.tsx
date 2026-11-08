@@ -10,9 +10,13 @@ import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import React, { Fragment, useMemo } from "react";
 
+import AddToCartStatusMessage, {
+  type AddToCartStatus,
+} from "./add-to-cart-status";
 import OptionSelect from "./option-select";
 
 type MobileActionsProps = {
+  addStatus: AddToCartStatus;
   product: HttpTypes.StoreProduct;
   variant?: HttpTypes.StoreProductVariant;
   options: Record<string, string | undefined>;
@@ -25,6 +29,7 @@ type MobileActionsProps = {
 };
 
 const MobileActions: React.FC<MobileActionsProps> = ({
+  addStatus,
   product,
   variant,
   options,
@@ -101,6 +106,8 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                 <div></div>
               )}
             </div>
+            {/* The in-page button is out of view while this bar shows. */}
+            <AddToCartStatusMessage status={addStatus} className="w-full" />
             <div
               className={clx("grid grid-cols-2 w-full gap-x-4", {
                 "!grid-cols-1": isSimple,

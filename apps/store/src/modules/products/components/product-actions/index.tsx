@@ -12,6 +12,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { StoreProductWithPayload } from "../../../../types/global";
 import ProductPrice from "../product-price";
+import AddToCartStatusMessage, {
+  type AddToCartStatus,
+} from "./add-to-cart-status";
 import MobileActions from "./mobile-actions";
 
 type ProductActionsProps = {
@@ -42,6 +45,7 @@ export default function ProductActions({
   );
   const t = useTranslations("products.actions");
   const [isAdding, setIsAdding] = useState(false);
+  const [addStatus, setAddStatus] = useState<AddToCartStatus>("idle");
   const countryCode = useParams().countryCode as string;
 
   // If there is only 1 variant, preselect the options
@@ -71,6 +75,7 @@ export default function ProductActions({
 
   // update the options when a variant is selected
   const setOptionValue = (optionId: string, value: string) => {
+    setAddStatus("idle");
     setOptions((prev) => ({
       ...prev,
       [optionId]: value,
@@ -121,6 +126,7 @@ export default function ProductActions({
     if (!selectedVariant?.id) return null;
 
     setIsAdding(true);
+    setAddStatus("idle");
 
     try {
       await addToCart({
@@ -128,6 +134,11 @@ export default function ProductActions({
         quantity: 1,
         countryCode,
       });
+      setAddStatus("added");
+    } catch {
+      // Server action errors are masked in production, so show a localized
+      // message instead of the raw one.
+      setAddStatus("error");
     } finally {
       // Always release the button, even when the request fails.
       setIsAdding(false);
@@ -189,7 +200,9 @@ export default function ProductActions({
           )}
           {addToCartLabel}
         </button>
+        <AddToCartStatusMessage status={addStatus} />
         <MobileActions
+          addStatus={addStatus}
           product={product}
           variant={selectedVariant}
           options={options}

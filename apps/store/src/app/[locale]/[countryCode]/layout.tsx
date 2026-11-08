@@ -8,7 +8,7 @@ import {
   setRequestLocale,
 } from "next-intl/server";
 // import { getBaseURL } from '@lib/util/env';
-import { Be_Vietnam_Pro, Cormorant_Garamond, Jost } from "next/font/google";
+import { Archivo, Cormorant_Garamond } from "next/font/google";
 import { notFound } from "next/navigation";
 import type { TypedLocale } from "payload";
 
@@ -30,19 +30,13 @@ const fontSerif = Cormorant_Garamond({
   display: "swap",
 });
 
-// Body sans. Jost has no Vietnamese subset, so Be Vietnam Pro covers the
-// missing diacritics through the font-family fallback chain.
-const fontSans = Jost({
-  subsets: ["latin", "latin-ext"],
-  weight: ["300", "400", "500"],
+// Primary sans. Archivo is a variable font with a width axis; the "Expanded"
+// style is the widest instance (wdth 125), applied through `font-stretch` in
+// storefront.css. It also ships a Vietnamese subset.
+const fontSans = Archivo({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  axes: ["wdth"],
   variable: "--font-sans",
-  display: "swap",
-});
-
-const fontSansVi = Be_Vietnam_Pro({
-  subsets: ["latin", "vietnamese"],
-  weight: ["300", "400", "500"],
-  variable: "--font-sans-vi",
   display: "swap",
 });
 
@@ -85,7 +79,7 @@ export default async function RootLayout({ children, params }: Args) {
       data-mode="light"
       lang={locale}
       dir={direction}
-      className={`${fontSerif.variable} ${fontSans.variable} ${fontSansVi.variable}`}
+      className={`${fontSerif.variable} ${fontSans.variable}`}
       suppressHydrationWarning
     >
       <head>

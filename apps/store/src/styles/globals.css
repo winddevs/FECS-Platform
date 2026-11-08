@@ -58,6 +58,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--sf-sans);
+    font-stretch: var(--sf-sans-stretch);
     -webkit-font-smoothing: antialiased;
   }
 

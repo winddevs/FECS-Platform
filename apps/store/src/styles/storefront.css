@@ -16,8 +16,9 @@
   --sf-accent: #a4142f;
   --sf-on-ink: #f5efe6;
   --sf-serif: var(--font-serif), "Cormorant Garamond", Georgia, serif;
-  --sf-sans:
-    var(--font-sans), var(--font-sans-vi), "Helvetica Neue", Arial, sans-serif;
+  --sf-sans: var(--font-sans), "Helvetica Neue", Arial, sans-serif;
+  /* Archivo Expanded = Archivo at its widest width (wdth axis 62-125). */
+  --sf-sans-stretch: 125%;
   --sf-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --sf-header-h: 64px;
   --sf-ann-h: 38px;

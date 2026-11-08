@@ -22,7 +22,15 @@ type ShippingProps = {
   availableShippingMethods: HttpTypes.StoreCartShippingOption[] | null;
 };
 
-function formatAddress(address) {
+type PickupAddress = {
+  address_1?: string | null;
+  address_2?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  country_code?: string | null;
+};
+
+function formatAddress(address?: PickupAddress | null) {
   if (!address) {
     return "";
   }
@@ -94,9 +102,17 @@ const Shipping: React.FC<ShippingProps> = ({
       if (promises.length) {
         Promise.allSettled(promises).then((res) => {
           const pricesMap: Record<string, number> = {};
-          res
-            .filter((r) => r.status === "fulfilled")
-            .forEach((p) => (pricesMap[p.value?.id || ""] = p.value?.amount!));
+          for (const result of res) {
+            // A failed calculation resolves to null: leave that option without
+            // a price so it stays disabled.
+            if (result.status !== "fulfilled") {
+              continue;
+            }
+            const { id, amount } = result.value ?? {};
+            if (id && typeof amount === "number") {
+              pricesMap[id] = amount;
+            }
+          }
 
           setCalculatedPricesMap(pricesMap);
           setIsLoadingPrices(false);
@@ -200,7 +216,7 @@ const Shipping: React.FC<ShippingProps> = ({
                 {hasPickupOptions && (
                   <RadioGroup
                     value={showPickupOptions}
-                    onChange={(value) => {
+                    onChange={() => {
                       const id = _pickupMethods.find(
                         (option) => !option.insufficient_inventory
                       )?.id;
@@ -237,7 +253,11 @@ const Shipping: React.FC<ShippingProps> = ({
                 )}
                 <RadioGroup
                   value={shippingMethodId}
-                  onChange={(v) => handleSetShippingMethod(v, "shipping")}
+                  onChange={(v) => {
+                    if (v) {
+                      handleSetShippingMethod(v, "shipping");
+                    }
+                  }}
                 >
                   {_shippingMethods?.map((option) => {
                     const isDisabled =
@@ -310,7 +330,11 @@ const Shipping: React.FC<ShippingProps> = ({
                 <div className="pb-8 md:pt-0 pt-2">
                   <RadioGroup
                     value={shippingMethodId}
-                    onChange={(v) => handleSetShippingMethod(v, "pickup")}
+                    onChange={(v) => {
+                      if (v) {
+                        handleSetShippingMethod(v, "pickup");
+                      }
+                    }}
                   >
                     {_pickupMethods?.map((option) => {
                       return (
@@ -389,7 +413,7 @@ const Shipping: React.FC<ShippingProps> = ({
                 <Text className="txt-medium text-ui-fg-subtle">
                   {cart.shipping_methods?.at(-1)?.name}{" "}
                   {convertToLocale({
-                    amount: cart.shipping_methods.at(-1)?.amount!,
+                    amount: cart.shipping_methods?.at(-1)?.amount ?? 0,
                     currency_code: cart?.currency_code,
                     locale,
                   })}

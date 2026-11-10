@@ -331,7 +331,7 @@ setup_nginx() {
   mkdir -p "$tmp/snippets"
 
   CERT_NAME="$cert_name" render "$DEPLOY_DIR/nginx/tls.conf.tpl" >"$tmp/snippets/tls.conf"
-  cp "$ROOT"/infra/nginx/snippets/{proxy-common,security-headers,internal-only,cloudflare-only}.conf "$tmp/snippets/"
+  cp "$ROOT"/infra/nginx/snippets/{proxy-common,security-headers,internal-only}.conf "$tmp/snippets/"
   cp "$DEPLOY_DIR"/nginx/snippets/*.conf "$tmp/snippets/"
   CERT_NAME="$cert_name" render "$DEPLOY_DIR/nginx/$template" >"$tmp/$conf_name"
 

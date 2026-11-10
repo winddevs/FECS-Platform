@@ -11,6 +11,7 @@
 
 # Visitors behind the Cloudflare proxy: use their real address for rate limits and logs.
 include snippets/cloudflare-realip.conf;
+include snippets/cloudflare-geo.conf;
 
 map $http_upgrade $connection_upgrade {
     default upgrade;
@@ -203,7 +204,7 @@ server {
 # The storefront builds /<version>/w<width>/<base64url key>.webp. imgproxy
 # accepts only the widths in presets.txt and reads only ecommerce-media/cms/media/,
 # so everything else is refused here before it reaches it. Only Cloudflare may
-# connect (snippets/cloudflare-only.conf): its rate limit, hotlink and bot rules
+# connect ($from_cloudflare, snippets/cloudflare-geo.conf): its rate limit, hotlink and bot rules
 # in front of this host are what keep scrapers off, and a direct request would
 # skip them. If the DNS record is "DNS only" (grey cloud) this host answers 403.
 
@@ -213,7 +214,10 @@ server {
     server_name __IMG_DOMAIN__;
 
     include snippets/tls.conf;
-    include snippets/cloudflare-only.conf;
+
+    if ($from_cloudflare = 0) {
+        return 403;
+    }
 
     location ~ "^/[A-Za-z0-9_-]{1,32}/w[0-9]{2,4}/[A-Za-z0-9_-]{8,1024}\.webp$" {
         limit_except GET HEAD {

@@ -344,7 +344,7 @@ What is in place once it is on:
   fetched again. imgproxy accepts only the 14 widths of `docker/imgproxy/presets.txt`
   (the widest is 2048) and reads only `ecommerce-media/cms/media/`; any other
   size, path or format is a 404. EXIF (GPS, camera) is removed from every copy.
-- The `img` host answers only Cloudflare (`snippets/cloudflare-only.conf`), so
+- The `img` host answers only Cloudflare (`snippets/cloudflare-geo.conf`), so
   the Cloudflare rules below cannot be skipped by going to the droplet directly.
   nginx also limits a visitor to 20 cache misses a second (`zone=img`).
 - Payload media shown through `Media`/`PayloadImage` and the product cards and

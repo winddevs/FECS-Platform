@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FECS Platform – Kiến trúc as-built (live diagram)</title>
+<style>
+:root{
+  --bg:#0d1117; --bg2:#11161d; --panel:#151b23; --line:#2d333b; --text:#e6edf3; --muted:#9aa4b2;
+  --accent:#58a6ff; --danger:#f85149; --warn:#d29922; --ok:#3fb950;
+  --c-http:#58a6ff; --c-event:#bc8cff; --c-webhook:#f0883e; --c-data:#3fb9a8; --c-ops:#8b949e; --c-trans:#79c0ff;
+  --t-actor:#a371f7; --t-edge:#d29922; --t-app:#58a6ff; --t-cms:#f778ba; --t-mod:#3fb950;
+  --t-data:#2ea6a6; --t-ext:#8b949e; --t-ops:#f0883e; --t-state:#58a6ff; --t-note:#6e7681;
+  --fill-mix:14%; --zone:#ffffff08; --zone-line:#3a424d; --label-bg:#0d1117;
+}
+[data-theme="light"]{
+  --bg:#f6f8fa; --bg2:#eef1f5; --panel:#ffffff; --line:#d0d7de; --text:#1f2328; --muted:#59636e;
+  --accent:#0969da; --danger:#cf222e; --warn:#9a6700; --ok:#1a7f37;
+  --c-http:#0969da; --c-event:#8250df; --c-webhook:#bc4c00; --c-data:#116e63; --c-ops:#57606a; --c-trans:#0550ae;
+  --t-actor:#8250df; --t-edge:#9a6700; --t-app:#0969da; --t-cms:#bf3989; --t-mod:#1a7f37;
+  --t-data:#0f766e; --t-ext:#57606a; --t-ops:#bc4c00; --t-state:#0969da; --t-note:#6e7781;
+  --fill-mix:12%; --zone:#00000005; --zone-line:#c4ccd4; --label-bg:#f6f8fa;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);
+  display:grid;grid-template-rows:auto auto auto minmax(0,1fr)}
+button,select,input{font:inherit;color:inherit}
+header{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--bg2)}
+header h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.2px}
+header h1 small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.spacer{flex:1}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 22%,var(--panel));border-color:var(--accent)}
+.btn:focus-visible,.tab:focus-visible,.chip:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=search]{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;width:190px}
+select{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+nav.tabs{display:flex;gap:2px;padding:0 12px;border-bottom:1px solid var(--line);overflow-x:auto;background:var(--bg2)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 14px;cursor:pointer;color:var(--muted);white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.sub{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);min-height:44px}
+.sub .intro{color:var(--muted);font-size:13px;flex:1;min-width:260px}
+.legend{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:2px 10px 2px 8px;font-size:12px;cursor:pointer}
+.chip i{display:inline-block;width:18px;height:0;border-top:2px solid currentColor}
+.chip.off{opacity:.4;text-decoration:line-through}
+main{display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0}
+#stage{position:relative;min-height:0;overflow:hidden;background:
+  radial-gradient(circle at 1px 1px,var(--line) 1px,transparent 0) 0 0/26px 26px}
+#stage svg{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#stage svg.dragging{cursor:grabbing}
+#stage .risks-view{position:absolute;inset:0;overflow:auto;padding:16px 20px;background:var(--bg)}
+aside{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:16px 18px;min-height:0}
+aside h2{font-size:16px;margin:0 0 2px}
+aside h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:16px 0 4px}
+aside p{margin:4px 0}
+aside ul{margin:4px 0;padding-left:18px}
+aside code,.mono{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:color-mix(in srgb,var(--line) 55%,transparent);padding:1px 5px;border-radius:4px;word-break:break-all}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 6px;margin:2px 4px 2px 0;color:var(--muted)}
+.sev{font-size:11px;font-weight:700;border-radius:4px;padding:0 6px;margin-right:6px;color:#fff}
+.sev.High{background:var(--danger)} .sev.Medium{background:#b08800} .sev.Low{background:#57606a}
+.riskrow{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0;cursor:pointer;background:var(--bg2)}
+.riskrow:hover{border-color:var(--accent)}
+.hint{color:var(--muted);font-size:12px}
+.stepbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+table.rt{border-collapse:collapse;width:100%;font-size:13px}
+table.rt th,table.rt td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+table.rt th{position:sticky;top:-16px;background:var(--bg);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+table.rt tr:hover td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+/* ---- svg ---- */
+.zone rect{fill:var(--zone);stroke:var(--zone-line);stroke-dasharray:6 5;rx:14}
+.zone text{fill:var(--muted);font-size:12px;font-weight:600}
+.zone rect.zl{fill:var(--label-bg);stroke:none;stroke-dasharray:none;opacity:.92}
+.node{cursor:pointer;outline:none}
+.node rect.body{fill:color-mix(in srgb,var(--tc) var(--fill-mix),var(--bg));stroke:var(--tc);stroke-width:1.5;rx:10;transition:stroke-width .12s}
+.node:hover rect.body,.node:focus-visible rect.body,.node.sel rect.body{stroke-width:3}
+.node.dashed rect.body{stroke-dasharray:6 4}
+.node text{fill:var(--text);pointer-events:none}
+.node .nt{font-size:13px;font-weight:650}
+.node .ns{font-size:11px;fill:var(--muted)}
+.node .stripe{fill:var(--tc);opacity:.9}
+.node .go{fill:var(--tc);font-size:12px}
+.t-actor{--tc:var(--t-actor)} .t-edge{--tc:var(--t-edge)} .t-app{--tc:var(--t-app)} .t-cms{--tc:var(--t-cms)}
+.t-mod{--tc:var(--t-mod)} .t-data{--tc:var(--t-data)} .t-ext{--tc:var(--t-ext)} .t-ops{--tc:var(--t-ops)}
+.t-state{--tc:var(--t-state)} .t-note{--tc:var(--t-note)}
+.badge circle{fill:var(--danger);stroke:var(--bg);stroke-width:2}
+.badge.m circle{fill:#b08800}.badge.l circle{fill:#57606a}
+.badge text{fill:#fff;font-size:11px;font-weight:700;text-anchor:middle;pointer-events:none}
+.risks-off .badge{display:none}
+.edge path.base{fill:none;stroke:var(--ec);stroke-width:1.8;stroke-linejoin:round}
+.edge path.hit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}
+.edge path.pulse{fill:none;stroke:var(--ec);stroke-width:4.5;stroke-linecap:round;stroke-dasharray:1 26;opacity:0;pointer-events:none}
+.anim .edge path.pulse{opacity:.95;animation:flow 1.1s linear infinite}
+.edge.rev path.pulse{animation-direction:reverse}
+@keyframes flow{to{stroke-dashoffset:-27}}
+@media (prefers-reduced-motion:reduce){.anim .edge path.pulse{animation:none;opacity:0}}
+.edge .lbl rect{fill:var(--label-bg);stroke:var(--ec);stroke-width:1;rx:5;opacity:.97}
+.edge .lbl text{fill:var(--text);font-size:11px;text-anchor:middle;pointer-events:none}
+.edge{--ec:var(--c-http)}
+.k-http{--ec:var(--c-http)} .k-event{--ec:var(--c-event)} .k-webhook{--ec:var(--c-webhook)}
+.k-data{--ec:var(--c-data)} .k-ops{--ec:var(--c-ops)} .k-trans{--ec:var(--c-trans)}
+.k-event path.base{stroke-dasharray:8 5} .k-webhook path.base{stroke-dasharray:2 5;stroke-width:2.4;stroke-linecap:round}
+.k-data path.base{stroke-width:1.6} .k-ops path.base{stroke-dasharray:3 4;stroke-width:1.3}
+.edge.sel path.base{stroke-width:3.4}
+.m-fill{fill:var(--ec)}
+.mk-http{fill:var(--c-http)} .mk-event{fill:var(--c-event)} .mk-webhook{fill:var(--c-webhook)}
+.mk-data{fill:var(--c-data)} .mk-ops{fill:var(--c-ops)} .mk-trans{fill:var(--c-trans)}
+.has-focus .node:not(.hl){opacity:.22}
+.has-focus .edge:not(.hl){opacity:.1}
+.has-focus .zone{opacity:.6}
+.node.dim{opacity:.15}
+.edge.dim{opacity:.08}
+.seq-life{stroke:var(--line);stroke-dasharray:4 6}
+.seq-msg{cursor:pointer}
+.seq-msg.dim{opacity:.22}
+.seq-msg .line{stroke:var(--ec);stroke-width:1.8;fill:none}
+.seq-msg.k-event .line{stroke-dasharray:8 5}
+.seq-msg.k-webhook .line{stroke-dasharray:2 5;stroke-linecap:round}
+.seq-msg .no circle{fill:var(--ec)} .seq-msg .no text{fill:#fff;font-size:11px;font-weight:700;text-anchor:middle}
+.seq-msg .t{fill:var(--text);font-size:12px}
+.seq-msg .tb{fill:var(--label-bg);opacity:.92}
+.seq-msg.cur .line{stroke-width:3.2}
+.seq-note text{fill:var(--muted);font-size:11px}
+.state .node rect.body{rx:18}
+.edge.faded{opacity:.28}
+.state .edge{opacity:.55}
+.state .edge.hl{opacity:1}
+.state .edge.hl path.base{stroke-width:2.6}
+.chip.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 20%,var(--panel))}
+@media (max-width:1000px){main{grid-template-columns:1fr;grid-template-rows:minmax(380px,60vh) auto}aside{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>FECS Platform – kiến trúc as-built<small>Dựng từ source code (commit <span class="mono">5138517</span>) · xem kèm <span class="mono">Fashion_Platform_Technical_Design_Document_v2.0_as-built.md</span></small></h1>
+  <div class="spacer"></div>
+  <div class="ctl">
+    <input id="q" type="search" placeholder="Tìm node (vd. outbox, J&amp;T)…" aria-label="Tìm node">
+    <button class="btn" id="b-anim" aria-pressed="false" title="Hiện dòng chảy dữ liệu trên các cạnh">Dòng chảy</button>
+    <button class="btn" id="b-risk" aria-pressed="false" title="Hiện huy hiệu rủi ro trên node">Rủi ro</button>
+    <button class="btn" id="b-fit" title="Về khung nhìn ban đầu">Reset zoom</button>
+    <button class="btn" id="b-theme" title="Đổi giao diện sáng/tối">Sáng/Tối</button>
+  </div>
+</header>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Các góc nhìn kiến trúc"></nav>
+<div class="sub">
+  <div class="intro" id="intro"></div>
+  <select id="variant" aria-label="Biến thể" hidden></select>
+  <div class="legend" id="legend" aria-label="Chú giải (bấm để ẩn/hiện)"></div>
+</div>
+<main>
+  <section id="stage" aria-label="Diagram"></section>
+  <aside id="panel" aria-live="polite"></aside>
+</main>
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   DỮ LIỆU – mọi con số/đường dẫn lấy từ source (commit 5138517).
+   ===================================================================== */
+const KINDS = {
+  http:   { label: 'HTTP / SDK (đồng bộ)' },
+  event:  { label: 'Sự kiện / queue (bất đồng bộ)' },
+  webhook:{ label: 'Webhook / callback' },
+  data:   { label: 'Dữ liệu / lưu trữ' },
+  ops:    { label: 'Telemetry / vận hành' },
+  trans:  { label: 'Chuyển trạng thái' },
+};
+
+const RISKS = {
+  'R-01': { sev: 'High', t: '[ĐÃ SỬA trong code, chưa deploy] Payload `products`: create/delete/update field chỉ cần query `?is_from_medusa`',
+    d: 'access.create/delete của collection Products trả true nếu request có query `is_from_medusa` (giá trị do client tự đặt), không kiểm tra user hay API key. Bất kỳ ai gọi REST /api/products?is_from_medusa=1 đều tạo/xoá được sản phẩm trong CMS.',
+    fix: 'Đã thêm `access/isMedusaRequest.ts`: yêu cầu cờ và `req.user` có role admin (Medusa gửi API key của user admin). Đã test local: code gốc 6/11 kịch bản thất bại, bản vá 11/11 đạt. Cần đảm bảo user giữ PAYLOAD_API_KEY là admin trước khi deploy.',
+    src: ['apps/store/src/collections/Products.ts:24,129,177,195,208,334-335'] },
+  'R-02': { sev: 'Medium', t: '[ĐÃ SỬA trong code, chưa deploy] Payload admin mở cho mọi user đã đăng nhập',
+    d: '`Users.access.admin = authenticated` và `read = authenticated`: user role `public` vẫn vào được /admin và đọc danh sách user. Chỉ `create` bị chặn bằng isAdmin.',
+    fix: 'Đã sửa: `admin` chỉ role admin, `read` = isAdminOrSelf. Test hồi quy: `pnpm --filter store check:access` (18 kịch bản, code gốc 9 thất bại, bản vá đạt hết).',
+    src: ['apps/store/src/collections/Users/index.ts:11-16'] },
+  'R-03': { sev: 'Medium', t: 'Toàn bộ `lib/data/*` đánh dấu "use server"',
+    d: 'Mỗi hàm export trở thành Server Action gọi được từ client (kể cả các hàm chỉ đọc như listProducts). Bề mặt tấn công rộng hơn cần thiết, khó kiểm soát input.',
+    fix: 'Tách hàm đọc sang module `server-only`; chỉ giữ "use server" cho mutation và validate input bằng zod.',
+    src: ['apps/store/src/lib/data/*.ts'] },
+  'R-04': { sev: 'Medium', t: 'Cache/hiệu năng storefront: layout chặn 3 lời gọi Medusa, tag `customers` lệch',
+    d: '`(main)/layout.tsx` await customer + cart + shipping options cho mọi trang (không Suspense) nên trang nào cũng dynamic. `fetchCachedCustomer` gắn `cacheTag("customers")` nhưng revalidate dùng `customers-<cacheId>` nên không trúng. `retrieveCart` dùng force-cache kèm auth header.',
+    fix: 'Đưa fetch vào Suspense/streaming; thống nhất tên tag; xem lại force-cache cho dữ liệu theo user.',
+    src: ['apps/store/src/app/[locale]/[countryCode]/(main)/layout.tsx', 'apps/store/src/lib/data/customer.ts:34-62,110-111'] },
+  'R-05': { sev: 'Low', t: '`proxy.ts` export `proxyConfig` thay vì `config`',
+    d: 'Next chỉ đọc `export const config`. Matcher bị bỏ qua nên proxy chạy trên mọi đường dẫn; hiện chỉ nhờ các early-return đầu hàm mà /admin, /api, static không bị xử lý.',
+    fix: 'Đổi tên thành `config`.', src: ['apps/store/src/proxy.ts:274'] },
+  'R-06': { sev: 'Medium', t: 'Phụ thuộc không tái lập được',
+    d: 'Next 16.3.0-canary.95 ghim canary; `@medusajs/js-sdk|ui|types|icons|ui-preset` ở `latest`; override `undici@5.20.0` (cũ). Docker build đặt `NEXT_IGNORE_TYPE_ERRORS=true` để che ~150 lỗi type (SDK drift).',
+    fix: 'Ghim phiên bản Medusa store packages = 2.18.0, chuyển Next sang bản stable, sửa dần lỗi type rồi bỏ cờ.',
+    src: ['apps/store/package.json', 'apps/store/next.config.mjs', 'infra/docker/store.Dockerfile'] },
+  'R-07': { sev: 'Medium', t: 'CI không phủ storefront; lint không chặn; không có bước deploy',
+    d: 'ci.yml chỉ build/test Medusa. Storefront không được build/lint/test trong CI; Playwright e2e không chạy trong CI. `ultracite check` chạy `continue-on-error` vì oxlint config lỗi khi load. Deploy hoàn toàn thủ công qua scripts/deploy.sh.',
+    fix: 'Thêm job build storefront + Playwright; sửa oxlint config rồi bỏ continue-on-error; thêm workflow release.',
+    src: ['.github/workflows/ci.yml', 'scripts/deploy.sh'] },
+  'R-08': { sev: 'Medium', t: 'Đồng bộ Payload ↔ Medusa best-effort',
+    d: '`Products.afterChange` cập nhật Medusa qua `@ecommerce/medusa` và chỉ `console.error` khi lỗi; chiều ngược lại dựa vào workflow Payload sync. Không có retry hay job đối soát nên hai hệ thống có thể lệch im lặng.',
+    fix: 'Đưa vào hàng đợi bền (outbox) hoặc thêm job reconcile + metric lệch.',
+    src: ['apps/store/src/collections/Products.ts:292-330', 'packages/medusa/src'] },
+  'R-09': { sev: 'Medium', t: 'Kafka chỉ qua REST proxy và chưa có broker ở môi trường thật',
+    d: 'Relay nói giao thức REST proxy (không phải Kafka native). Repo chỉ có Redpanda trong compose e2e; không có Kafka trong K8s lẫn droplet. Outbox publish chạy bên trong DB transaction nên bus chậm sẽ giữ row lock; giao nhận at-least-once nên mọi subscriber phải tự khử trùng lặp (mới xác nhận ở fg-sellable-changed và notify-customer-events).',
+    fix: 'Quyết định có dùng Kafka thật không; kiểm toán dedupe của 23 subscriber; cân nhắc claim → publish ngoài transaction.',
+    src: ['apps/medusa/src/lib/outbox/outbox.ts', 'apps/medusa/src/lib/outbox/kafka-rest.ts', 'docker/docker-compose.e2e.yml'] },
+  'R-10': { sev: 'Medium', t: 'Một event lỗi chặn cả aggregate',
+    d: 'claimRound chỉ cho phép event sớm nhất còn PENDING của mỗi aggregate. Event lỗi giữ backoff (tối đa 300s) và chặn các event sau; alert chỉ nổ khi ≥10 lần thử. FAILED chỉ do operator đặt tay.',
+    fix: 'Thêm alert theo tuổi event theo aggregate; công cụ "park event" có audit.',
+    src: ['apps/medusa/src/lib/outbox/outbox.ts:92-110', 'infra/observability/alerts.yaml'] },
+  'R-11': { sev: 'Medium', t: 'Saga ít bù trừ, dựa vào idempotency + job đối soát',
+    d: 'Hầu hết step dùng `wrapStep` không có compensation. Chỉ reserve vật tư, reserve MO, issue vật tư, goods receipt và upload media có bù trừ. Tính nhất quán dựa vào idempotency key, state machine và job reconcile/settle (chỉ đọc + gauge).',
+    fix: 'Liệt kê các workflow nhiều bước có side-effect ngoài; bổ sung compensation hoặc runbook sửa tay có audit.',
+    src: ['apps/medusa/src/workflows/steps/wrap.ts', 'apps/medusa/src/workflows/steps/manufacturing.ts:163-421'] },
+  'R-12': { sev: 'Medium', t: 'Production hiện tại là 1 droplet backend (SPOF) chạy `shared` mode',
+    d: 'Postgres, Redis, MinIO, Meilisearch và Medusa (server+worker một process) cùng một droplet. Không có deployment webhook tách riêng nên mất cách ly "webhook storm không làm đói checkout" như thiết kế. Redis kiêm event bus, cache, workflow engine, session.',
+    fix: 'Tách Postgres (managed) và chạy server/worker riêng ít nhất ở mức 2 container.',
+    src: ['infra/deploy/backend/docker-compose.yml:165', 'docs/deploy-digitalocean.md'] },
+  'R-13': { sev: 'High', t: 'Sao lưu: không có PITR ở droplet, MinIO không được backup',
+    d: '`deploy.sh backup` chỉ pg_dump hai database (thủ công, không lịch). MinIO (ảnh/video CMS, file Medusa) không nằm trong backup. docs/operations.md nói "Postgres PITR" nhưng điều đó chỉ đúng với managed Postgres (K8s), không đúng với droplet.',
+    fix: 'Bật backup/snapshot droplet hoặc chuyển Postgres sang managed; cron pg_dump + đẩy off-host; sao chép bucket MinIO; diễn tập restore.',
+    src: ['scripts/deploy.sh:987-999', 'docs/deploy-digitalocean.md §Backups', 'docs/operations.md §Backup'] },
+  'R-14': { sev: 'Medium', t: 'Quan sát được còn thiếu: không collector/Grafana/Loki/Alertmanager; storefront không đo',
+    d: 'Repo chỉ có PrometheusRule + ServiceMonitor. Không có OTel Collector, dashboard, log shipping, định tuyến alert. Storefront không có Sentry/OTel/metrics. Medusa: @sentry/node ^10 trộn @sentry/opentelemetry-node ^7, tracesSampleRate 1.0, có `@ts-ignore`.',
+    fix: 'Bổ sung collector + dashboard + Alertmanager; thêm instrumentation cho storefront; hạ sampling production.',
+    src: ['apps/medusa/instrumentation.ts', 'infra/observability/', 'apps/medusa/package.json:52-53'] },
+  'R-15': { sev: 'Medium', t: 'Khả năng bảo trì: service quá lớn, ép kiểu `as never`, không có unit test',
+    d: 'materialInventory/service.ts 2.343 dòng, manufacturing 2.198, finishedGoods 1.221. Zod schema/middleware cast `as never` vì tsc tràn bộ nhớ; typecheck cần heap 8 GB (tsconfig.fashion.json). Test chỉ là integration (cần Postgres) và e2e; không có unit test trong src.',
+    fix: 'Tách service theo use-case; thêm unit test cho lib thuần (allocation, mrp, state machines).',
+    src: ['apps/medusa/src/modules/*/service.ts', 'apps/medusa/src/api/middlewares.ts'] },
+  'R-16': { sev: 'Low', t: 'Không có ràng buộc tham chiếu giữa module tuỳ biến và Medusa',
+    d: 'Chỉ có 1 link (product ↔ Payload). order_id, customer_id, sku… là cột text; toàn vẹn dựa vào job reconcile (ví dụ phát hiện raw-material leak).',
+    fix: 'Chấp nhận có chủ đích, hoặc thêm defineLink read-only cho order/customer để dùng query.graph.',
+    src: ['apps/medusa/src/links/product-payload.ts'] },
+  'R-17': { sev: 'Medium', t: 'Build storefront chạy `payload migrate` trên DB CMS thật',
+    d: 'Stage `migrate` của store.Dockerfile migrate database đang chạy ngay lúc build image (deploy.sh mở SSH tunnel để build). Build có tác dụng phụ lên production và không thể tái lập offline.',
+    fix: 'Tách migrate thành bước release riêng (như Job migrate của Medusa).',
+    src: ['infra/docker/store.Dockerfile', 'scripts/deploy.sh'] },
+  'R-18': { sev: 'Low', t: 'Mã chết, trùng lặp và tài liệu cũ',
+    d: 'Hai file workflow `mark-invoice-state.ts` và `mark-invoices-stale.ts` trùng nội dung (id "mark-invoices-stale"); `algoliasearch`/`react-instantsearch` không được dùng; `@ecommerce/env` không có importer; code Stripe ở storefront nhưng backend không đăng ký provider; block bị dán thành collection trong payload.config; `console.log` trong Providers; README nhắc packages/db không tồn tại; docker/README lỗi thời.',
+    fix: 'Dọn dẹp; chạy `ultracite fix`.',
+    src: ['apps/medusa/src/workflows/mark-invoice-state.ts', 'apps/store/src/providers/index.tsx', 'README.md'] },
+  'R-19': { sev: 'Medium', t: 'Storefront chưa có UI đổi trả, theo dõi vận đơn, widget chat',
+    d: 'API đã sẵn (`/store/fashion/returns`, `/store/fashion/orders/:id/shipments`, `/production-status`) nhưng storefront chỉ có danh sách đơn và trang xác nhận; thiếu FR-RET/FR-FUL phía khách.',
+    fix: 'Bổ sung trang return request, tracking timeline, production status cho đơn MTO.',
+    src: ['apps/medusa/src/api/store/fashion/**', 'apps/store/src/app/[locale]/[countryCode]/(main)/account'] },
+  'R-20': { sev: 'Low', t: 'Biên storefront: chưa có CSP, `/api/search` không giới hạn và lộ thông báo lỗi backend',
+    d: 'CSP cố ý chưa đặt (Stripe + script theme). Route search không rate limit và trả nguyên lỗi từ Medusa.',
+    fix: 'Thêm CSP report-only trước; rate limit + che lỗi.', src: ['apps/store/src/app/api/search/route.ts', 'apps/store/next.config.mjs'] },
+};
+
+const N = (id, type, x, y, w, h, t, s, p = {}) => ({ id, type, x, y, w, h, t, s: s || [], ...p });
+// Trong `o`, khoá `to` là offset cổng phía node đích (đổi tên nội bộ thành tOff để không đè node đích).
+const E = (from, to, kind, label, o = {}) => {
+  const { to: tOff, ...rest } = o;
+  return { from, to, kind, label, ...rest, ...(tOff !== undefined ? { tOff } : {}) };
+};
+const Z = (x, y, w, h, l) => ({ x, y, w, h, l });
+
+/* ---------------------------------------------------------------------
+   VIEW 1 – Containers
+   --------------------------------------------------------------------- */
+const containers = {
+  vb: [1900, 900],
+  zones: [
+    Z(290, 252, 590, 262, 'Droplet STORE · apps/store (Docker, 127.0.0.1:8000)'),
+    Z(900, 252, 560, 304, 'Droplet BACKEND · apps/medusa (1 image · 3 role)'),
+    Z(290, 640, 1290, 150, 'Dữ liệu & lưu trữ (droplet BACKEND, private network)'),
+    Z(1572, 100, 320, 560, 'Dịch vụ ngoài'),
+  ],
+  nodes: [
+    N('u-cust', 'actor', 60, 28, 220, 56, 'Khách hàng', ['Web / mobile'], { d: 'Mua hàng trên storefront `/{vi|en}/{country}/…`. Đăng nhập emailpass, JWT lưu cookie httpOnly `_medusa_jwt` (7 ngày).', src: ['apps/store/src/lib/data/cookies.ts'] }),
+    N('u-editor', 'actor', 320, 28, 220, 56, 'Biên tập nội dung', ['Payload /admin'], { d: 'Quản lý Pages, Posts, Header/Footer, Categories, nội dung Products trong Payload. Giao diện admin tiếng Việt (fallback vi), nội dung hỗ trợ vi/en/fr/ar.' }),
+    N('u-staff', 'actor', 930, 28, 220, 56, 'Nhân sự vận hành', ['15 vai trò RBAC'], { d: 'Dùng Medusa Admin + extension ERP tại `/app`: ERP_ADMIN, PROCUREMENT, WAREHOUSE_OPERATOR/MANAGER, PRODUCTION_PLANNER, CUTTING/SEWING_OPERATOR, SEWING_SUPERVISOR, QC, PACKING_OPERATOR, COMMERCE_ADMIN, CUSTOMER_SUPPORT, FINANCE, SRE, AUDITOR. Vai trò lưu ở `user.metadata.fashion_roles`.', src: ['apps/medusa/src/lib/authz/permissions.ts', 'docs/backoffice.md'] }),
+    N('u-msg', 'actor', 1615, 28, 240, 56, 'Khách hàng Messenger', ['Facebook Page'], { d: 'Chat với Page. Tin nhắn đi qua Meta, không đi qua storefront; link checkout do bot gửi quay về `/checkout/social?token=`.' }),
+
+    N('cf', 'edge', 40, 108, 1420, 34, 'Cloudflare – DNS · CDN · WAF', [], { d: 'Đứng trước các domain. Bắt buộc với `img.*` (nginx dùng `cloudflare-only.conf` chỉ cho dải IP Cloudflare); các droplet khôi phục real-IP bằng snippet `cloudflare-realip.conf`.', src: ['infra/nginx/snippets/cloudflare-only.conf', 'infra/deploy/nginx/cloudflare-realip.conf'] }),
+    N('nginx-store', 'edge', 300, 174, 560, 52, 'nginx (droplet STORE)', ['TLS 1.2/1.3 · HSTS · rate-limit đăng nhập CMS 10 r/m'], { d: 'Apex domain → storefront 127.0.0.1:8000. `/admin/login` và `/api/users/login` bị giới hạn (zone `cms_login`). Cache `/_next/static/`. Vhost `captcha.*` → FCaptcha 127.0.0.1:3100.', src: ['infra/deploy/nginx/store.conf.tpl', 'infra/deploy/nginx/tls.conf.tpl'] }),
+    N('nginx-backend', 'edge', 900, 174, 540, 52, 'nginx (droplet BACKEND)', ['/webhooks 50 r/s · /auth 10 r/m · /internal chỉ nội bộ'], { d: 'Vhost `api.*`: `/health`, `/internal/` (internal-only), `/webhooks/` (body 512k, 50 r/s), `/auth/user|customer` (10 r/m), `/(app|admin)`, còn lại → Medusa :9000. Vhost `s3.*` → MinIO.', src: ['infra/deploy/nginx/backend.conf.tpl'] }),
+
+    N('payload', 'cms', 310, 292, 250, 108, 'Payload CMS 3.86', ['Nhúng trong app Next: /admin, /api, GraphQL', 'Postgres adapter · S3 storage (presigned) · SMTP Resend'], { d: 'Collections: Pages, Posts, Products (nội dung), Media, Categories, Users, ReusableContent; plugin redirects, nested-docs, seo, form-builder (có captcha), search (posts). Header/Footer là globals. Migration trong `src/migrations`.', tech: ['payload 3.86', '@payloadcms/db-postgres', '@payloadcms/storage-s3 (clientUploads)', 'lexical editor', 'nodemailer'], src: ['apps/store/src/payload.config.ts', 'apps/store/src/plugins/index.ts'], risks: ['R-01', 'R-02', 'R-08'] }),
+    N('sf', 'app', 620, 292, 240, 108, 'Storefront – Next.js 16 (canary)', ['App Router · cacheComponents · next-intl vi/en', '24 page.tsx · Server Actions · Medusa JS SDK'], { d: 'Route `/[locale]/[countryCode]/…`: home, store, categories, collections, products, search, cart, checkout (+payos, +social), account (parallel routes), order confirmed/transfer, posts, CMS slug, sitemaps. `proxy.ts` xử lý locale + region (cache region 1h) và đặt cookie `_medusa_cache_id`.', tech: ['next 16.3.0-canary.95', 'react 19.2', 'next-intl 4', 'ioredis (rate-limit)', '@medusajs/js-sdk'], src: ['apps/store/src/app', 'apps/store/src/proxy.ts', 'apps/store/src/lib/data'], risks: ['R-03', 'R-04', 'R-05', 'R-06', 'R-19', 'R-20'] }),
+    N('fcap', 'app', 310, 430, 130, 60, 'FCaptcha', ['v1.46.1'], { d: 'Captcha tự host. Server xác thực ở hook `requireCaptcha` của form-submissions và trên form auth.', src: ['apps/store/src/lib/captcha/verify.ts', 'apps/store/src/hooks/requireCaptcha.ts'] }),
+
+    N('api', 'app', 920, 292, 250, 108, 'Medusa 2.18 – HTTP (role server)', ['/store · /admin · /auth · /webhooks · /internal', '138 route · RBAC · Admin ERP UI tại /app'], { d: 'Một image, role chọn bởi `MEDUSA_WORKER_MODE` (server | worker | shared). Middleware: correlation-id, Sentry (non-4xx), dịch lỗi vi, histogram latency, `coreAdminGuard`, `requirePermission`. Lệnh ERP bắt buộc header `Idempotency-Key`.', tech: ['@medusajs/medusa 2.18.0', 'MikroORM 6.6', 'Node ≥ 20 (image: node:22)'], src: ['apps/medusa/medusa-config.ts', 'apps/medusa/src/api/middlewares.ts', 'apps/medusa/src/api/fashion/'], risks: ['R-12'] }),
+    N('worker', 'app', 1190, 292, 250, 108, 'Medusa – worker (jobs + subscribers)', ['11 scheduled job · 23 subscriber', 'outbox · inbox · kafka relay · MTO · poll J&T'], { d: 'publish-outbox 2s, process-inbox 2s, publish-kafka-relay 2s, process-production-requests 30s, poll-carrier-tracking 1m, retry-carrier-shipments 1m, settle-pending-receipts 10m, reconcile-material 15m, reconcile-FG 5m, flush-deferred-notifications 5m, prune-operational-tables hằng ngày 03:30. Nhân bản an toàn nhờ `FOR UPDATE SKIP LOCKED` + idempotency.', src: ['apps/medusa/src/jobs', 'apps/medusa/src/subscribers'], risks: ['R-10', 'R-11'] }),
+    N('mods', 'mod', 920, 430, 250, 108, 'Domain: 9 module fashion', ['integration · materialInventory · procurement · manufacturing · quality · finishedGoods · fashionFulfillment · socialCommerce · returns', '≈15k LOC'], { d: 'Modular monolith: mỗi module sở hữu bảng riêng, tự có outbox + idempotency. Nhấp để mở sơ đồ chi tiết.', go: 'modules', src: ['apps/medusa/src/modules'], risks: ['R-11', 'R-15', 'R-16'] }),
+    N('adapters', 'mod', 1190, 430, 250, 108, 'Adapters & providers', ['carrier J&T · channel Meta · agent LLM', 'payOS · SMTP · Payload · Meilisearch'], { d: '`src/integrations` (carrier/jt, channel/meta, agent/openai-compatible) là class + registry (không phải Medusa provider). Provider thật của Medusa: payos (payment), smtp (notification), payload, meilisearch, invoice-generator (pdfmake).', src: ['apps/medusa/src/integrations', 'apps/medusa/src/modules/{payos,smtp,payload,meilisearch}'] }),
+
+    N('pg', 'data', 310, 690, 250, 80, 'PostgreSQL 17', ['2 database: medusa · cms', 'schema analytics (14 view)'], { d: 'DB `medusa`: bảng core + bảng của 9 module + 14 view báo cáo trong schema `analytics` (tạo lại khi khởi động). DB `cms`: Payload. Pool Medusa 2–10/replica, Payload max 10. Sổ cái (material_stock_movement, fg_movement, audit_log) append-only bằng trigger.', src: ['apps/medusa/src/lib/analytics/marts.ts', 'docker/initdb'], risks: ['R-13'] }),
+    N('minio', 'data', 590, 690, 170, 80, 'MinIO (S3)', ['media CMS · file Medusa'], { d: 'Build từ commit ghim. Bucket media public-read chỉ `cms/media/*`. Payload upload thẳng từ trình duyệt bằng presigned URL (`clientUploads`).', src: ['docker/minio', 'apps/store/src/plugins/index.ts'], risks: ['R-13'] }),
+    N('imgp', 'data', 790, 690, 150, 80, 'imgproxy', ['v4.0.17 · presets-only'], { dashed: true, d: 'Tuỳ chọn (có trong docker dev và tài liệu single-server nginx, không có trong compose droplet). 15 preset chiều rộng phải khớp `imgproxyLoader.ts`. Luồng: Browser → Cloudflare → nginx → imgproxy → MinIO.', src: ['docker/imgproxy/presets.txt', 'apps/store/src/utilities/imgproxy.ts'] }),
+    N('redis', 'data', 980, 690, 180, 80, 'Redis 7 (AOF)', ['event bus · cache · workflow · session'], { d: 'Medusa: event-bus-redis, cache-redis, workflow-engine-redis, session store, locking-redis (đã đăng ký nhưng code tuỳ biến không gọi). Storefront: bộ đếm rate-limit đăng nhập/đăng ký.', risks: ['R-12'] }),
+    N('meili', 'data', 1190, 690, 150, 80, 'Meilisearch', ['v1.56.1'], { d: 'Index sản phẩm (dữ liệu dẫn xuất, dựng lại được). Storefront gọi `/store/products/search` của Medusa, không gọi thẳng Meilisearch.', src: ['apps/medusa/src/modules/meilisearch'] }),
+    N('kafka', 'data', 1370, 690, 190, 80, 'Kafka (REST proxy)', ['tuỳ chọn · KAFKA_RELAY_ENABLED'], { dashed: true, d: 'Relay gọi Confluent REST Proxy / Redpanda HTTP Proxy / Strimzi bridge, không dùng giao thức Kafka native. Topic phải tạo sẵn. Chỉ có Redpanda trong compose e2e.', src: ['apps/medusa/src/lib/outbox/kafka-rest.ts'], risks: ['R-09'] }),
+
+    N('meta', 'ext', 1590, 124, 290, 46, 'Meta Graph / Messenger', [], { d: 'Webhook `/webhooks/meta` (GET handshake `hub.verify_token`, POST xác thực `X-Hub-Signature-256`) và Graph API gửi tin.', src: ['apps/medusa/src/integrations/meta/messenger.ts', 'apps/medusa/src/api/webhooks/meta'] }),
+    N('jt', 'ext', 1590, 190, 290, 46, 'J&T Express', [], { d: 'Tạo vận đơn (ký HMAC bằng private key), webhook tracking `/webhooks/jt/tracking`, và polling bù khi mất webhook. Bảng ánh xạ trạng thái `JT_STATUS_MAP_JSON` cần đối chiếu với tài liệu thật của J&T trước khi go-live.', src: ['apps/medusa/src/integrations/jt/provider.ts'] }),
+    N('payos', 'ext', 1590, 256, 290, 46, 'payOS (VietQR)', [], { d: 'Provider `pp_payos_payos` (chỉ VND), webhook `/webhooks/payos`. COD giữ nguyên `pp_system_default`.', src: ['apps/medusa/src/modules/payos', 'apps/medusa/src/api/webhooks/payos'] }),
+    N('smtp', 'ext', 1590, 322, 290, 46, 'Resend SMTP (465)', [], { d: 'Medusa: provider thông báo `smtp` (nodemailer + template react-email vi/en). Payload: nodemailer adapter. Ở LOCAL_STACK chỉ ghi log nếu không có SMTP_PASSWORD.', src: ['apps/medusa/src/modules/smtp', 'packages/email'] }),
+    N('llm', 'ext', 1590, 388, 290, 46, 'LLM (OpenAI-compatible)', [], { dashed: true, d: 'Chỉ khi `AGENT_LLM_ENABLED` và luật không nhận ra ý định. Mô hình chỉ chọn 1 hành động đọc (trạng thái đơn, tracking, tiến độ sản xuất, chính sách đổi trả); đầu ra kiểm schema chặt; PII được che trước khi gửi đi.', src: ['apps/medusa/src/integrations/agent/openai-compatible.ts', 'apps/medusa/src/lib/social/agent.ts'] }),
+    N('posthog', 'ext', 1590, 454, 290, 46, 'PostHog', [], { dashed: true, d: 'Qua module analytics của Medusa (workflow track-cart/order/user events). Không có key → provider local (không gửi).' }),
+    N('stripe', 'ext', 1590, 520, 290, 46, 'Stripe (chỉ UI)', [], { dashed: true, d: 'Storefront có `@stripe/react-stripe-js` và hằng số `pp_stripe_*`, nhưng medusa-config không đăng ký provider Stripe nên nhánh này không hoạt động ở backend.', risks: ['R-18'] }),
+    N('obs', 'ops', 1590, 586, 290, 46, 'Sentry · OTLP · Prometheus', [], { d: 'Sentry (lỗi non-4xx), OpenTelemetry traces qua OTLP gRPC (`OTEL_EXPORTER_OTLP_ENDPOINT`), Prometheus scrape `/internal/metrics` (bearer METRICS_TOKEN), 23 alert trong `infra/observability/alerts.yaml`. Repo không có collector/Grafana/Loki/Alertmanager.', src: ['apps/medusa/instrumentation.ts', 'infra/observability/alerts.yaml'], risks: ['R-14'] }),
+  ],
+  edges: [
+    E('u-cust', 'cf', 'http', 'HTTPS'),
+    E('u-editor', 'cf', 'http', '/admin (CMS)', { fo: 0, to: 0 }),
+    E('u-staff', 'cf', 'http', '/app (ERP)'),
+    E('cf', 'nginx-store', 'http', '', { fs: 'b', ts: 't', fo: -170 }),
+    E('cf', 'nginx-backend', 'http', '', { fs: 'b', ts: 't', fo: 420 }),
+    E('nginx-store', 'payload', 'http', '', { d: '`/admin`, `/api`, GraphQL của Payload.', fs: 'b', ts: 't', fo: -190, to: -30 }),
+    E('nginx-store', 'sf', 'http', '', { d: 'Apex domain → storefront.', fs: 'b', ts: 't', fo: 110, to: 0 }),
+    E('payload', 'sf', 'data', 'Local API', { fs: 'r', ts: 'l', bi: true }),
+    E('nginx-backend', 'api', 'http', '', { d: 'Vhost `api.*`: /store, /admin, /auth, /app (Admin ERP), /webhooks, /internal (giới hạn).', fs: 'b', ts: 't', fo: -245, to: 0 }),
+    E('sf', 'api', 'http', 'SDK', { fs: 'r', ts: 'l', d: 'Medusa JS SDK phía server: `sdk.client.fetch` với `fields` tường minh, `Authorization: Bearer` lấy từ cookie `_medusa_jwt`, header `x-publishable-api-key`.' }),
+    E('api', 'worker', 'event', '', { fs: 'r', ts: 'l', d: 'Sự kiện Medusa đi qua event bus Redis; worker chạy subscriber.' }),
+    E('api', 'mods', 'http', '', { fs: 'b', ts: 't' }),
+    E('worker', 'adapters', 'http', '', { fs: 'b', ts: 't' }),
+    E('mods', 'adapters', 'http', '', { fs: 'r', ts: 'l' }),
+
+    E('payload', 'pg', 'data', 'DB cms', { fs: 'b', ts: 't', fo: 100, to: 75, mid: 600 }),
+    E('payload', 'minio', 'data', 'presigned upload', { fs: 'b', ts: 't', fo: 40, to: 0, mid: 560 }),
+    E('fcap', 'sf', 'http', 'verify', { fs: 'r', ts: 'b', fo: 0, to: -70 }),
+    E('sf', 'redis', 'data', 'rate-limit', { fs: 'b', ts: 't', fo: 90, to: -40, mid: 612 }),
+    E('mods', 'pg', 'data', 'schema medusa', { fs: 'b', ts: 't', fo: -100, to: 40, mid: 590 }),
+    E('mods', 'minio', 'data', 'file-s3', { fs: 'b', ts: 't', fo: -60, to: 30, mid: 604 }),
+    E('mods', 'redis', 'data', 'bus · cache · session', { fs: 'b', ts: 't', fo: 10, to: -30, mid: 620 }),
+    E('mods', 'meili', 'data', 'index', { fs: 'b', ts: 't', fo: 60, to: 10, mid: 634 }),
+    E('imgp', 'minio', 'data', '', { fs: 'l', ts: 'r', d: 'imgproxy đọc ảnh gốc từ bucket media (prefix cms/media/).' }),
+    E('adapters', 'kafka', 'event', 'REST relay', { fs: 'b', ts: 't', fo: 80, to: -30, mid: 650 }),
+
+    E('u-msg', 'meta', 'http', 'chat', { fs: 'b', ts: 't' }),
+    E('meta', 'nginx-backend', 'webhook', '', { fs: 'l', ts: 'r', fo: 0, to: -8, line: true }),
+    E('jt', 'nginx-backend', 'webhook', '', { fs: 'l', ts: 'r', fo: -6, to: 0, line: true }),
+    E('payos', 'nginx-backend', 'webhook', '', { fs: 'l', ts: 'r', fo: -6, to: 8, line: true }),
+    E('adapters', 'jt', 'http', 'tạo vận đơn · poll', { fs: 'r', ts: 'l', to: 8, line: true, lp: [1535, 318] }),
+    E('adapters', 'meta', 'http', 'Graph API', { fs: 'r', ts: 'l', to: 8, line: true, lp: [1535, 276] }),
+    E('adapters', 'payos', 'http', 'tạo link thanh toán', { fs: 'r', ts: 'l', to: 8, line: true, lp: [1535, 360] }),
+    E('adapters', 'smtp', 'http', 'SMTP', { fs: 'r', ts: 'l', line: true, lp: [1535, 396] }),
+    E('adapters', 'llm', 'http', 'chat completions', { fs: 'r', ts: 'l', line: true, lp: [1535, 440] }),
+    E('adapters', 'posthog', 'http', 'events', { fs: 'r', ts: 'l', line: true, lp: [1535, 481] }),
+    E('worker', 'obs', 'ops', 'traces · metrics', { fs: 'r', ts: 'l', line: true, fo: -30, lp: [1500, 520] }),
+  ],
+};
+
+/* ---------------------------------------------------------------------
+   VIEW 2 – Modules (bounded contexts)
+   --------------------------------------------------------------------- */
+const modules = {
+  vb: [1900, 960],
+  zones: [],
+  nodes: [
+    N('procurement', 'mod', 15, 100, 270, 130, 'procurement', ['supplier · purchase_order(+line) · goods_receipt(+line)', '≈1,1k LOC'], { d: 'Nhà cung cấp, PO (DRAFT→APPROVED→SENT→PARTIALLY_RECEIVED/RECEIVED→CLOSED|CANCELLED) và phiếu nhập. Nhập kho hai pha: PENDING_INVENTORY → POSTED, có VOID bù trừ và job `settle-pending-receipts` xử lý phiếu kẹt.', tech: ['PO over-receipt mặc định 5%', 'bucket GOOD / QC_HOLD / DAMAGED'], src: ['apps/medusa/src/modules/procurement', 'apps/medusa/src/workflows/procurement.ts'] }),
+    N('materialInventory', 'mod', 415, 100, 270, 130, 'materialInventory', ['material · lot · dye lot · roll · balance · stock_movement (sổ cái) · reservation · transfer · cycle_count', '≈3,5k LOC'], { d: 'Tồn kho nguyên phụ liệu, tách khỏi tồn thương mại (BR-002). Số dư là hình chiếu của sổ cái bất biến. Giữ chỗ chọn cuộn/lot theo chính sách SAME_DYE_LOT_FIFO, tối đa `max_dye_lots`, cần planner duyệt khi vượt. Khoá: advisory lock theo vật tư + `FOR UPDATE` theo thứ tự id + kiểm lại sau khi khoá.', tech: ['available = on_hand − reserved − qc_hold − damaged', 'version trên balance', 'cycle count maker-checker'], src: ['apps/medusa/src/modules/materialInventory/service.ts', 'apps/medusa/src/modules/materialInventory/lib/allocation.ts'], risks: ['R-15'] }),
+    N('manufacturing', 'mod', 815, 100, 270, 130, 'manufacturing', ['bom · routing · work_center · manufacturing_order · cut_plan · bundle · operation_execution · production_request · mrp_run', '≈4,0k LOC'], { d: 'BOM/Routing có version (DRAFT→RELEASED), MO pin phiên bản. MRP: nhu cầu − tồn − hàng về đã xác nhận + đệm an toàn → gợi ý, planner duyệt thì tạo MO. Hàng đợi MTO `production_request` (unique theo dòng đơn). MO state machine 13 trạng thái.', tech: ['MRP_DEMAND_WAREHOUSE', 'overproduction cần manufacturing:approve'], src: ['apps/medusa/src/modules/manufacturing', 'apps/medusa/src/modules/manufacturing/lib/mo-state.ts', 'apps/medusa/src/modules/manufacturing/lib/mrp.ts'], risks: ['R-15'] }),
+    N('quality', 'mod', 1215, 100, 270, 130, 'quality', ['quality_inspection', '≈0,3k LOC'], { d: 'Ghi kết quả kiểm (pass/rework/reject/hold, lỗi). Workflow `inspect-bundle` ghi inspection ở Quality rồi áp kết quả vào Manufacturing (hai bước idempotent `:quality`, `:apply`).', src: ['apps/medusa/src/modules/quality'] }),
+    N('finishedGoods', 'mod', 1615, 100, 270, 130, 'finishedGoods', ['fg_location · fg_batch · fg_balance · fg_movement (sổ cái) · fg_allocation · fg_transfer · commerce_sync_state', '≈1,8k LOC'], { d: 'Cầu nối giữa sản xuất và thương mại (ADR-003). Phát `finished-goods.sellable_changed.v1` có version; subscriber đồng bộ sang tồn kho Medusa và bỏ qua bản cũ/trùng. Truy vết lô qua `traceBatch`.', src: ['apps/medusa/src/modules/finishedGoods', 'apps/medusa/src/subscribers/fg-sellable-changed.ts', 'apps/medusa/src/modules/finishedGoods/lib/projection.ts'] }),
+
+    N('returns', 'mod', 415, 340, 270, 130, 'returns', ['return_authorization · rma_item', '≈0,9k LOC'], { d: 'RMA RETURN/EXCHANGE: kiểm điều kiện trong `RETURN_WINDOW_DAYS` (hoặc country_profile), override cần lý do + audit; phiếu trả hàng qua carrier; kiểm từng item → disposition A_GRADE/B_GRADE/REWORK/DAMAGED/SCRAP; hoàn tiền có trần (`refund-cap`); đổi hàng giữ chỗ FG + giao hàng thay thế.', src: ['apps/medusa/src/modules/returns', 'apps/medusa/src/workflows/returns.ts'] }),
+    N('fashionFulfillment', 'mod', 815, 340, 270, 130, 'fashionFulfillment', ['carrier_shipment · tracking_event · shipment_exception', '≈1,4k LOC'], { d: 'Vận đơn J&T tách khỏi fulfillment mặc định của Medusa. Tạo vận đơn theo kiểu "claim → gọi → ghi kết quả"; lỗi mạng ra trạng thái PENDING/RETRYABLE/UNKNOWN thay vì ném lỗi, UNKNOWN được đối chiếu với carrier (`confirmAbsentAtCarrier`) để không tạo trùng. Tracking bị lọc theo thứ hạng để sự kiện đến muộn không kéo lùi trạng thái.', tech: ['create_state: PENDING | SUCCEEDED | FAILED_RETRYABLE | FAILED_FINAL | UNKNOWN', '12 trạng thái canonical'], src: ['apps/medusa/src/modules/fulfillment', 'apps/medusa/src/modules/fulfillment/lib/shipment-state.ts'] }),
+    N('core', 'app', 1215, 340, 670, 130, 'Medusa 2.18 core commerce', ['product · cart · order · payment · inventory/stock location · region · customer · auth (emailpass) · file · notification · analytics · draft-order'], { d: 'Medusa sở hữu catalogue, giá, giỏ, đơn, thanh toán và tồn thương mại (ADR-001). Tồn thương mại là hình chiếu của FG. Sự kiện lõi (`order.placed`, `order.fulfillment_created`, …) không có envelope; subscriber nối vào các module fashion.', src: ['apps/medusa/medusa-config.ts', 'apps/medusa/src/subscribers'] }),
+
+    N('social', 'mod', 1215, 600, 270, 130, 'socialCommerce', ['customer_channel_identity · channel_link_code · conversation_message · notification_log', '≈1,3k LOC'], { d: 'Định danh Messenger ↔ customer, consent, handoff bot/người, khoá link theo code, log thông báo có `dedupe_key` và trần số tin/giờ (`social.notifications_per_hour`). Luật ý định trước, LLM chỉ là dự phòng.', src: ['apps/medusa/src/modules/socialCommerce', 'apps/medusa/src/lib/social'] }),
+    N('payosn', 'ext', 1515, 600, 170, 70, 'payOS + COD', ['pp_payos_payos · pp_system_default'], { d: 'Provider thanh toán. payOS chuyển khoản tức thời nên capture ngay khi authorize; vì vậy `MTO_PAYMENT_GATE=captured` hoạt động với đơn payOS.' }),
+    N('cmsn', 'ext', 1715, 600, 170, 70, 'Payload · Meilisearch', ['modules payload, meilisearch'], { d: 'Module `payload` (HTTP client) + link read-only product↔payload_product; module `meilisearch` đánh index sản phẩm qua workflow sync.', src: ['apps/medusa/src/links/product-payload.ts'] }),
+    N('jtn', 'ext', 815, 700, 270, 60, 'J&T Express', [], { d: 'API tạo vận đơn + webhook tracking + polling.' }),
+    N('metan', 'ext', 1215, 800, 270, 46, 'Meta Messenger', [], { d: 'Webhook inbound + Graph API gửi tin.' }),
+
+    N('integration', 'ops', 15, 868, 1870, 62, 'integration (shared kernel) + src/lib', ['audit_log · platform_setting · country_profile · ops_gauge · inbox_event (webhook inbox) · kafka_relay_event · 14 analytics mart  |  outbox ×8 · idempotency · RBAC · feature flags · event envelope · i18n lỗi'], { d: 'Module `integration` + thư viện dùng chung. Mỗi module nghiệp vụ có bảng outbox và idempotency riêng; `integration` giữ inbox webhook, audit, cấu hình theo scope GLOBAL/COUNTRY/WAREHOUSE, country profile, queue relay Kafka, và loader tạo view `analytics.*` + kiểm tra secret production khi khởi động.', src: ['apps/medusa/src/modules/integration', 'apps/medusa/src/lib'] }),
+  ],
+  edges: [
+    E('procurement', 'materialInventory', 'http', 'GR → nhập kho', { fs: 'r', ts: 'l', d: 'Workflow `procurement-receive-goods`: postGoodsReceipt (PENDING_INVENTORY) → receiveMaterial vào sổ cái → markGoodsReceiptPosted. Lỗi giữa chừng: step bù trừ VOID, hoặc job settle-pending-receipts roll-forward.' }),
+    E('manufacturing', 'materialInventory', 'http', 'reserve · issue', { fs: 'l', ts: 'r', d: 'Saga `reserve-mo-materials` (có compensation giải phóng giữ chỗ, idempotent) và `issue-material` (compensation đảo dòng xuất). Hủy MO: validate trước, chỉ giải phóng giữ chỗ sau khi hủy hợp lệ.' }),
+    E('manufacturing', 'procurement', 'http', 'MRP: hàng về', { fs: 't', ts: 't', via: [[890, 60], [150, 60]], fo: -60, to: 0, d: '`runMrp` đọc `procurement.confirmedIncoming` để trừ hàng sắp về.' }),
+    E('manufacturing', 'quality', 'http', 'inspect-bundle', { fs: 'r', ts: 'l', bi: true, d: 'Ghi inspection (quality) rồi áp kết quả vào bundle (manufacturing). Chỉ PASS đi tiếp; rework quay lại QC.' }),
+    E('manufacturing', 'finishedGoods', 'http', 'pack → nhận FG', { fs: 't', ts: 't', via: [[1010, 66], [1650, 66]], fo: 60, to: -100, d: '`packAndReceiveFinishedGoodsWorkflow`: packing_record → fg_batch + fg_balance + fg_movement.' }),
+    E('finishedGoods', 'core', 'event', 'sellable_changed.v1', { fs: 'b', ts: 't', fo: -100, to: 100, d: 'Subscriber `fg-sellable-changed` chạy `syncSellableToMedusaWorkflow`; `commerce_sync_state` chặn bản cũ/trùng. Backfill: POST /admin/finished-goods/projection/republish.' }),
+    E('core', 'finishedGoods', 'event', 'ship FG', { fs: 't', ts: 'b', fo: 240, to: 40, d: '`order.fulfillment_created` → `shipFinishedGoodsForFulfillmentStep` (cờ MANUFACTURING_ENABLED). Lỗi từng SKU được ghi log, không chặn giao hàng; đối soát FG lo phần còn lại.' }),
+    E('core', 'manufacturing', 'event', 'order.placed → MTO', { fs: 't', ts: 'b', fo: -290, to: 90, via: [[1260, 290], [1040, 290]], d: 'Subscriber `mto-order-placed` lọc dòng có metadata `fulfillment_mode=MTO` + `style_sku`, tạo `production_request` (unique theo dòng đơn nên replay vô hại).' }),
+    E('core', 'fashionFulfillment', 'event', 'fulfillment_created', { fs: 'l', ts: 'r', d: '`onFulfillmentCreatedWorkflow` tạo vận đơn khi `JT_FULFILLMENT_ENABLED` + `JT_AUTO_CREATE_SHIPMENT`.' }),
+    E('returns', 'fashionFulfillment', 'http', 'phiếu trả · hàng thay', { fs: 'r', ts: 'l', d: 'Return shipment (pickup) và replacement shipment dùng cùng module vận đơn; shipment cũ được giữ làm lịch sử khi thay.' }),
+    E('returns', 'core', 'http', 'hoàn tiền', { fs: 't', ts: 't', via: [[590, 298], [1500, 298]], fo: 40, to: -50, d: '`requestRefund` / `completeRefund` qua payment của Medusa, giới hạn bởi refund-cap.' }),
+    E('returns', 'finishedGoods', 'http', 'disposition → tồn', { fs: 't', ts: 'b', via: [[490, 322], [1720, 322]], fo: -60, to: -30, d: 'Hàng trả kiểm xong mới đẩy vào FG theo disposition (BR-006: hàng trả không bán lại ngay). Đổi hàng giữ chỗ FG cho hàng thay.' }),
+    E('fashionFulfillment', 'jtn', 'http', 'API · webhook', { fs: 'b', ts: 't', bi: true, fo: -80, to: -80, d: 'POST tạo đơn (ký HMAC), polling, và webhook `/webhooks/jt/tracking` đi qua inbox → `ingestCarrierEventsWorkflow`.' }),
+    E('fashionFulfillment', 'social', 'event', 'shipment_status → thông báo', { fs: 'b', ts: 'l', fo: 100, d: 'Subscriber `notify-customer-events` (NOTIFYING_EVENTS) gửi tin Messenger, có dedupe_key và trần/giờ.' }),
+    E('core', 'social', 'http', 'checkout-link · trạng thái đơn', { fs: 'b', ts: 't', fo: -250, to: -50, bi: true, d: 'Link checkout `/store/fashion/social/checkout-link`, đọc trạng thái đơn/tracking/tiến độ sản xuất làm công cụ cho agent.' }),
+    E('core', 'payosn', 'http', '', { fs: 'b', ts: 't', fo: 40, to: -10 }),
+    E('core', 'cmsn', 'http', '', { fs: 'b', ts: 't', fo: 290, to: 40 }),
+    E('social', 'metan', 'http', 'Graph API · webhook', { fs: 'b', ts: 't', bi: true }),
+  ],
+};
+
+/* ---------------------------------------------------------------------
+   VIEW 3 – Event backbone
+   --------------------------------------------------------------------- */
+const events = {
+  vb: [1900, 900],
+  zones: [
+    Z(15, 70, 1870, 350, 'Phát sự kiện – transactional outbox (ADR-006)'),
+    Z(15, 450, 1870, 230, 'Nhận webhook – durable inbox'),
+    Z(15, 705, 1870, 180, 'Idempotency · đối soát · quan sát'),
+  ],
+  nodes: [
+    N('a1', 'app', 35, 110, 230, 100, 'Lệnh nghiệp vụ', ['POST /admin/… + header Idempotency-Key, hoặc subscriber/job'], { d: '`commandRoute(workflow)` validate body (zod), lấy actor + correlation id và bắt buộc `Idempotency-Key` (≤200 ký tự), rồi chạy workflow.', src: ['apps/medusa/src/api/fashion/command-route.ts'] }),
+    N('a2', 'mod', 305, 110, 260, 100, 'Service method (1 transaction)', ['khoá balance → ghi sổ cái → cập nhật balance → INSERT outbox'], { d: 'Ghi thay đổi miền và dòng outbox cùng transaction (ADR-006). Sự kiện dùng `EventEnvelope`: event_id, event_type `x.y.v1`, aggregate_type/id, occurred_at, correlation/causation.', src: ['apps/medusa/src/lib/events/envelope.ts', 'apps/medusa/src/lib/outbox/outbox.ts'] }),
+    N('a3', 'data', 605, 110, 250, 100, '8 bảng outbox', ['materialInventory · procurement · manufacturing · quality · finishedGoods · fashionFulfillment · socialCommerce · returns'], { d: 'Mỗi module một bảng outbox. Trạng thái PENDING → PUBLISHED; FAILED chỉ do operator đặt để "park" event độc.', src: ['apps/medusa/src/lib/outbox/drainers.ts'] }),
+    N('a4', 'app', 895, 110, 270, 100, 'Job publish-outbox (2s)', ['batch 100 · FOR UPDATE SKIP LOCKED', 'mỗi aggregate chỉ nhả event sớm nhất'], { d: 'Claim theo lô, publish rồi đánh dấu PUBLISHED trong cùng transaction (tối đa 20 vòng/lần). Lỗi: giữ PENDING, backoff 2s×2ⁿ trần 300s, full jitter; ≥10 lần thì bật alert. Có thể chạy nhiều worker.', src: ['apps/medusa/src/jobs/publish-outbox.ts', 'apps/medusa/src/lib/outbox/outbox.ts'], risks: ['R-09', 'R-10'] }),
+    N('a5', 'data', 1205, 110, 230, 100, 'Medusa Event Bus', ['Redis · metadata {topic, partition_key, event_id}'], { d: '`createEventBusPublisher` phát qua `Modules.EVENT_BUS` (event-bus-redis).', src: ['apps/medusa/src/lib/outbox/publisher.ts'] }),
+    N('a6', 'app', 1475, 110, 395, 100, 'Subscribers (23 file)', ['fg-sellable-changed → đồng bộ tồn Medusa', 'notify-customer-events → Messenger', 'attach-tracking-label · analytics · Payload/Meili sync…'], { d: 'At-least-once nên subscriber phải tự khử trùng lặp: fg-sellable-changed dùng version guard, notify-customer-events dùng dedupe_key. Các subscriber còn lại cần kiểm toán.', src: ['apps/medusa/src/subscribers'], risks: ['R-09'] }),
+
+    N('a7', 'data', 895, 250, 270, 90, 'kafka_relay_event', ['bảng queue thuộc module integration'], { d: 'Khi `KAFKA_RELAY_ENABLED` và có `KAFKA_REST_URL`, publisher ghi thêm bản ghi vào queue này; Kafka không phải nguồn sự thật.', src: ['apps/medusa/src/modules/integration/models/config.ts'] }),
+    N('a8', 'app', 1205, 250, 230, 90, 'Job publish-kafka-relay (2s)', ['batch 200 · nhóm theo topic'], { d: '`drainOutboxBatched`: gửi mỗi topic một request, các topic song song; vòng nào có lỗi thì dừng. Cờ `running` chỉ theo process.', src: ['apps/medusa/src/jobs/publish-kafka-relay.ts'] }),
+    N('a9', 'data', 1475, 250, 395, 90, 'Kafka REST proxy', ['Confluent / Redpanda HTTP proxy / Strimzi bridge', 'application/vnd.kafka.json.v2+json · key = aggregate_id'], { dashed: true, d: 'Client không dùng thư viện Kafka; lỗi từng record (error_code) tính là thất bại. Topic phải tạo trước.', src: ['apps/medusa/src/lib/outbox/kafka-rest.ts'], risks: ['R-09'] }),
+    N('a10', 'note', 1475, 355, 395, 56, 'Topic: fashion.<ctx>.events.v1 (+ KAFKA_TOPIC_PREFIX)', ['7 topic đang dùng: inventory · procurement · manufacturing · quality · finished-goods · fulfillment · notification'], { d: 'Ánh xạ thực tế (lib/events/envelope.ts): returns phát vào topic `fulfillment`, social vào `notification`. Topic `commerce` được định nghĩa nhưng chưa module nào dùng. Docs nói "một topic mỗi bounded context" nên chưa chính xác với returns/social. Catalog 51 sự kiện trong docs/events/catalog.json, CI chặn thay đổi phá vỡ (`events:check`).', src: ['apps/medusa/src/lib/events/envelope.ts:60-69', 'docs/events/catalog.json'] }),
+
+    N('b1', 'ext', 35, 490, 230, 80, 'J&T · Meta · payOS', ['gọi webhook về api.*'], { d: 'Retry của nhà cung cấp có thể tạo trùng; vì vậy chỉ ACK sau khi đã ghi inbox.' }),
+    N('b2', 'app', 305, 490, 260, 80, 'Route /webhooks/*', ['raw body + HMAC · ACK 200 nhanh'], { d: 'J&T và Meta giữ raw body (giới hạn 256 KB và 512 KB) để xác thực HMAC; payOS xác thực bằng SDK trên field đã parse (đúng cách ký của payOS). Route không nghiệp vụ, chỉ ghi inbox rồi trả 200 (SLO ACK p95 < 500 ms).', src: ['apps/medusa/src/api/webhooks', 'apps/medusa/src/api/middlewares.ts:34-45'] }),
+    N('b3', 'data', 605, 490, 250, 80, 'inbox_event', ['unique (provider, external_event_id)'], { d: 'external_event_id: Meta = message_id, J&T = sha256 của raw body, payOS = `orderCode:reference` (mã tham chiếu ngân hàng, duy nhất mỗi lần chuyển khoản). Trạng thái RECEIVED → PROCESSING → PROCESSED | RETRY → DLQ.', src: ['apps/medusa/src/modules/integration/models/inbox-event.ts'] }),
+    N('b4', 'app', 895, 490, 270, 80, 'Job process-inbox (2s)', ['batch 50 · backoff · DLQ sau 8 lần'], { d: '`claimInboxBatch` (SKIP LOCKED), chạy handler trong `withCausation`, lỗi → RETRY với backoff mũ; quá 8 lần hoặc worker chết giữa chừng → DLQ.', src: ['apps/medusa/src/jobs/process-inbox.ts', 'apps/medusa/src/modules/integration/service.ts:48,190-210'] }),
+    N('b5', 'app', 1205, 490, 270, 80, 'Handlers jt · meta · payos', ['→ ingestCarrierEvents · handle-inbound · hoàn tất đơn'], { d: 'jt: `ingestCarrierEventsWorkflow` (ném lỗi nếu tracking chưa biết để thử lại — J&T có thể đẩy scan trước khi ta kịp lưu mã). meta: định danh + ý định + trả lời. payos: hoàn tất đơn khi khách không quay lại.', src: ['apps/medusa/src/lib/inbox/handlers'] }),
+    N('b6', 'data', 1515, 490, 355, 80, 'DLQ', ['alert InboxDeadLetters (ticket)'], { d: 'Một payOS nằm trong DLQ nghĩa là "đã nhận tiền mà không đơn nào nhận" — cần tìm khách và đối chiếu thủ công (docs/operations.md).', src: ['infra/observability/alerts.yaml'] }),
+    N('b7', 'note', 35, 600, 1835, 56, 'Kiểm chứng mô hình', ['Webhook storm chỉ làm đầy inbox, không chạm DB nghiệp vụ; checkout không bị đói nếu deployment webhook tách riêng (K8s có, droplet hiện tại thì không – xem R-12).'], { d: 'Cách ly webhook chỉ được hiện thực trong infra/k8s (Deployment `medusa-webhook`). Ở droplet, một container `shared` xử lý tất cả.', risks: ['R-12'] }),
+
+    N('c1', 'mod', 35, 745, 330, 110, 'beginIdempotent', ['INSERT … ON CONFLICT (scope, key) DO NOTHING trong transaction của lệnh', 'cùng key + khác payload hash → CONFLICT IDEMPOTENCY_KEY_REUSED'], { d: 'Request trùng sẽ chờ trên unique index tới khi transaction đầu commit rồi trả lại response đã lưu. Tạo vận đơn theo kiểu reconcile-first; MTO unique theo dòng đơn.', src: ['apps/medusa/src/lib/idempotency/guard.ts'] }),
+    N('c2', 'app', 405, 745, 340, 110, 'Reconcile & settle jobs', ['material 15m · FG 5m · receipts 10m', 'chỉ đọc + ghi ops_gauge; sửa lỗi luôn có chủ đích và audit'], { d: 'So khớp sổ cái ↔ balance ↔ reservation ↔ roll; FG ↔ tồn Medusa; phát hiện raw material rò vào tồn thương mại (BR-002).', src: ['apps/medusa/src/jobs/reconcile-material-inventory.ts', 'apps/medusa/src/jobs/reconcile-finished-goods.ts'] }),
+    N('c3', 'ops', 785, 745, 360, 110, '/internal/metrics → Prometheus → 23 alert', ['bearer METRICS_TOKEN', 'fashion_outbox_* · fashion_inbox_events · fashion_reconciliation_issues · fashion_http_request_duration_ms'], { d: 'PrometheusRule có runbook cho từng alert (docs/runbooks). `/admin/ops/summary` (role SRE) là trang một cái nhìn cho on-call.', src: ['infra/observability/alerts.yaml', 'apps/medusa/src/lib/observability/http-metrics.ts'], risks: ['R-14'] }),
+    N('c4', 'mod', 1185, 745, 340, 110, 'Retention (prune-operational-tables)', ['03:30 hằng ngày · batch 5000', 'outbox 14d · idempotency 30d · inbox 30d · chat 90d'], { d: 'Sổ cái và audit_log không bao giờ bị xoá. Chỉnh bằng `RETENTION_*`. Khi bảng sổ cái vượt ~50 triệu dòng: phân vùng theo tháng trên created_at.', src: ['apps/medusa/src/jobs/prune-operational-tables.ts'] }),
+    N('c5', 'ops', 1565, 745, 305, 110, 'Ghi chú dedupe', ['at-least-once end-to-end', 'consumer dedupe theo event_id'], { d: 'Outbox → bus: có thể gửi lại nếu commit thất bại sau khi publish. Kafka: at-least-once, consumer ngoài hệ thống phải dedupe theo `event_id` của envelope.' }),
+  ],
+  edges: [
+    E('a1', 'a2', 'http', '', { d: 'Route gọi workflow; workflow gọi service method.' }),
+    E('a2', 'a3', 'data', '', { d: 'Dòng outbox được INSERT cùng transaction với thay đổi miền.' }),
+    E('a3', 'a4', 'event', '', { d: 'Job claim các dòng PENDING bằng FOR UPDATE SKIP LOCKED.' }),
+    E('a4', 'a5', 'event', '', { d: 'Phát lên Medusa event bus kèm metadata {topic, partition_key, event_id}.' }),
+    E('a5', 'a6', 'event', '', { d: 'Bus Redis giao cho subscriber.' }),
+    E('a4', 'a7', 'data', 'nếu relay bật', { fs: 'b', ts: 't', d: 'Khi KAFKA_RELAY_ENABLED và có KAFKA_REST_URL, publisher ghi thêm một dòng vào queue relay.' }),
+    E('a7', 'a8', 'event', '', { d: 'Job publish-kafka-relay claim theo lô (200).' }),
+    E('a8', 'a9', 'http', '', { d: 'POST theo topic, content-type application/vnd.kafka.json.v2+json, key = aggregate_id.' }),
+    E('b1', 'b2', 'webhook', '', { d: 'Nhà cung cấp gọi webhook tới api.*.' }),
+    E('b2', 'b3', 'data', '', { d: 'Ghi inbox_event rồi trả 200 ngay.' }),
+    E('b3', 'b4', 'event', '', { d: 'Job process-inbox claim RECEIVED/RETRY đến hạn.' }),
+    E('b4', 'b5', 'event', '', { d: 'Chọn handler theo provider; chạy trong withCausation.' }),
+    E('b5', 'b6', 'data', '', { d: 'Quá 8 lần thất bại (hoặc worker chết giữa chừng) thì vào DLQ.' }),
+  ],
+};
+
+/* ---------------------------------------------------------------------
+   VIEW 4 – Luồng nghiệp vụ (sequence)
+   --------------------------------------------------------------------- */
+const P = (id, type, t, s) => ({ id, type, t, s });
+const S = (from, to, label, kind, d, src) => ({ from, to, label, kind, d, src: src || [] });
+const flows = [
+  { id: 'mts', label: 'Mua hàng có sẵn (MTS) → giao hàng',
+    intro: 'Đặt hàng, trừ FG, tạo vận đơn J&T, nhận tracking và đồng bộ lại tồn thương mại.',
+    participants: [
+      P('cust', 'actor', 'Khách hàng'), P('sf', 'app', 'Storefront'), P('api', 'app', 'Medusa API'), P('staff', 'actor', 'Nhân sự kho'),
+      P('worker', 'app', 'Worker / bus'), P('fg', 'mod', 'finishedGoods'), P('ful', 'mod', 'fashionFulfillment'), P('jt', 'ext', 'J&T'), P('notify', 'ext', 'Email / Messenger'),
+    ],
+    steps: [
+      S('cust', 'sf', 'Chọn SKU, checkout (địa chỉ, ship, thanh toán)', 'http', 'Các bước: address → delivery → payment → review. Phương thức thanh toán: COD (`pp_system_default`) hoặc payOS. Stripe chưa có provider backend.', ['apps/store/src/modules/checkout']),
+      S('sf', 'api', 'cart.complete (Bearer JWT)', 'http', 'Với payOS, khách được chuyển sang payOS rồi quay lại `/checkout/payos`; trang này hoàn tất giỏ và backend hỏi payOS xem đã trả chưa (URL trả về không tự chứng minh gì). Nếu khách không quay lại, webhook payOS → inbox → worker hoàn tất đơn.', ['apps/store/src/lib/data/cart.ts:451', 'apps/store/src/app/[locale]/[countryCode]/(checkout)/checkout/payos']),
+      S('api', 'api', 'Tạo order, giữ tồn Medusa', 'http', 'Tồn thương mại của Medusa là hình chiếu của FG (đã được đồng bộ trước đó qua `sellable_changed`).'),
+      S('api', 'worker', 'order.placed', 'event', 'Có 4 handler: order-placed (analytics, hoá đơn PDF, email), mto-order-placed (chỉ khi dòng là MTO), notify-order-confirmed (Messenger nếu đã link), và analytics.', ['apps/medusa/src/subscribers/order-placed.ts', 'apps/medusa/src/subscribers/notify-order-confirmed.ts']),
+      S('worker', 'notify', 'Email xác nhận + PDF hoá đơn', 'event', 'Hoá đơn tạo bằng pdfmake (module invoice-generator), email render bằng react-email (vi mặc định) và gửi qua SMTP Resend.', ['apps/medusa/src/workflows/send-order-confirmation.ts', 'packages/email']),
+      S('staff', 'api', 'Tạo fulfillment (Medusa Admin)', 'http', 'Người dùng cần quyền theo `coreAdminGuard`/RBAC. Fulfillment mặc định của Medusa vẫn là manual; J&T được xử lý ở module riêng.'),
+      S('api', 'worker', 'order.fulfillment_created', 'event', 'Subscriber chạy `onFulfillmentCreatedWorkflow` với hai cờ độc lập: MANUFACTURING_ENABLED (trừ FG) và JT_FULFILLMENT_ENABLED + JT_AUTO_CREATE_SHIPMENT (tạo vận đơn).', ['apps/medusa/src/subscribers/order-fulfillment-created.ts', 'apps/medusa/src/workflows/fulfillment-created.ts']),
+      S('worker', 'fg', 'shipFinishedGoods (idempotent)', 'http', 'Key `ful:<fulfillmentId>:<sku>`; giảm on_hand, ghi fg_movement, outbox `finished-goods.sellable_changed.v1`. Lỗi từng SKU chỉ ghi log và để đối soát xử lý, không chặn giao hàng.', ['apps/medusa/src/workflows/steps/fulfillment-created.ts']),
+      S('fg', 'api', 'sellable_changed.v1 → đồng bộ tồn Medusa', 'event', 'Qua outbox → bus → subscriber `fg-sellable-changed` → `syncSellableToMedusaWorkflow`; version guard loại bản cũ/trùng.', ['apps/medusa/src/subscribers/fg-sellable-changed.ts']),
+      S('worker', 'ful', 'createCarrierShipment', 'http', 'claimShipment → gọi carrier → recordCreateOutcome. COD chỉ thu nếu đơn chưa thanh toán (tránh thu hai lần với thẻ đã authorize). Carrier của nước giao lấy từ country_profile.', ['apps/medusa/src/workflows/steps/fulfillment-created.ts']),
+      S('ful', 'jt', 'POST tạo vận đơn (ký HMAC)', 'http', 'Timeout/lỗi mạng → create_state UNKNOWN hoặc FAILED_RETRYABLE (không rollback đơn). Job `retry-carrier-shipments` (1 phút) và `confirmAbsentAtCarrier` đối chiếu để không tạo trùng.', ['apps/medusa/src/integrations/jt/provider.ts', 'apps/medusa/src/jobs/retry-carrier-shipments.ts']),
+      S('jt', 'api', 'Webhook tracking → inbox → ACK 200', 'webhook', 'HMAC trên raw body; external_event_id = sha256 body. Mất webhook thì job `poll-carrier-tracking` (1 phút, stale sau 15 phút) bù.', ['apps/medusa/src/api/webhooks/jt/tracking/route.ts']),
+      S('api', 'worker', 'process-inbox → ingestCarrierEvents', 'event', 'Trạng thái chỉ tiến theo thứ hạng; sự kiện đến muộn/trùng bị IGNORED (lưu tracking_event để truy vết). Giao thất bại mở `shipment_exception`.', ['apps/medusa/src/modules/fulfillment/lib/shipment-state.ts']),
+      S('ful', 'notify', 'shipment_status_changed → Messenger', 'event', 'Cần META_MESSENGER_ENABLED + META_SHIPMENT_NOTIFICATION_ENABLED; dedupe_key và trần số tin/giờ; khách chưa link Messenger thì bỏ qua.', ['apps/medusa/src/subscribers/notify-customer-events.ts']),
+    ] },
+  { id: 'mto', label: 'Đặt may (MTO) → sản xuất → giao',
+    intro: 'Từ đơn hàng tới lệnh sản xuất, giữ vải theo dye lot, QC theo bundle và nhập FG.',
+    participants: [
+      P('cust', 'actor', 'Khách hàng'), P('api', 'app', 'Medusa API'), P('worker', 'app', 'Worker (jobs)'), P('mfg', 'mod', 'manufacturing'), P('mat', 'mod', 'materialInventory'),
+      P('staff', 'actor', 'Xưởng / planner'), P('qc', 'mod', 'quality'), P('fg', 'mod', 'finishedGoods'),
+    ],
+    steps: [
+      S('cust', 'api', 'Checkout SKU có fulfillment_mode=MTO', 'http', 'Dòng MTO nhận biết qua metadata của variant/product (`fulfillment_mode="MTO"`, `style_sku`).'),
+      S('api', 'worker', 'order.placed', 'event', 'Subscriber `mto-order-placed` (cần MTO_ENABLED + MANUFACTURING_ENABLED).', ['apps/medusa/src/subscribers/mto-order-placed.ts']),
+      S('worker', 'mfg', 'enqueueProductionRequests', 'http', 'Mỗi dòng đơn một `production_request` (unique), nên replay của order.placed không tạo sản xuất đôi.', ['apps/medusa/src/modules/manufacturing/models/manufacturing-order.ts:120-150']),
+      S('worker', 'worker', 'process-production-requests (30s): cổng thanh toán', 'event', 'MTO_PAYMENT_GATE = captured | authorized | none (cấu hình `mto.payment_gate`). Chưa đạt thì hẹn lại; payOS capture ngay khi authorize nên hợp với `captured`.', ['apps/medusa/src/jobs/process-production-requests.ts', 'apps/medusa/src/lib/mto/process-request.ts']),
+      S('worker', 'mfg', 'createManufacturingOrder', 'http', 'MO pin `bom_version` và `routing_version` đã RELEASED.'),
+      S('mfg', 'mat', 'reserveMoMaterials (saga)', 'http', 'Advisory lock theo vật tư + FOR UPDATE theo id + kiểm lại; chính sách SAME_DYE_LOT_FIFO. Thiếu vải: request vào WAITING_MATERIAL và thử lại (alert sau 4 giờ). Vượt max_dye_lots cần planner duyệt. Có compensation giải phóng giữ chỗ.', ['apps/medusa/src/modules/materialInventory/service.ts:379-520', 'apps/medusa/src/workflows/steps/manufacturing.ts']),
+      S('worker', 'mfg', 'releaseManufacturingOrder', 'http', 'MO: DRAFT → PLANNED → MATERIAL_CHECK → MATERIAL_RESERVED → RELEASED. Request chuyển MO_CREATED.'),
+      S('staff', 'mfg', 'Xuất vải · cut plan · cắt → bundle', 'http', 'issue-material (có compensation), create-cut-plan, complete-cut (overproduction cần manufacturing:approve + audit). Cuộn/vải dùng nhãn Code 128 và `/scan/:code`.', ['apps/medusa/src/api/admin/manufacturing']),
+      S('staff', 'mfg', 'execute-operation theo routing', 'http', 'Mỗi operation có idempotency_key; QC gate theo routing_operation.qc_gate.'),
+      S('mfg', 'qc', 'inspect-bundle (ghi → áp)', 'http', 'Hai bước `:quality` và `:apply`. Rework quay lại QC; reject và hold ghi vào bundle.', ['apps/medusa/src/workflows/manufacturing.ts']),
+      S('mfg', 'fg', 'pack → nhận FG', 'http', '`packAndReceiveFinishedGoodsWorkflow`: tạo fg_batch + balance + movement; batch lưu truy vết mo_id, production_batch_id, packing_record_id.'),
+      S('fg', 'api', 'sellable_changed.v1', 'event', 'Sau đó đơn đi tiếp như luồng MTS (fulfillment → vận đơn).'),
+      S('api', 'cust', 'GET /store/fashion/orders/:id/production-status', 'http', 'API đã có (xác thực customer, chỉ thấy đơn của mình) nhưng storefront chưa có UI hiển thị – xem R-19.', ['apps/medusa/src/api/store/fashion/orders/[id]/production-status/route.ts']),
+    ] },
+  { id: 'ret', label: 'Đổi / trả hàng (RMA)',
+    intro: 'Từ yêu cầu của khách tới kiểm hàng, nhập kho theo disposition và hoàn tiền / giao hàng thay.',
+    participants: [
+      P('cust', 'actor', 'Khách hàng'), P('api', 'app', 'Medusa API'), P('staff', 'actor', 'CS / kho'), P('ful', 'mod', 'fashionFulfillment'), P('jt', 'ext', 'J&T'),
+      P('fg', 'mod', 'finishedGoods'), P('pay', 'app', 'Medusa payment'),
+    ],
+    steps: [
+      S('cust', 'api', 'POST /store/fashion/returns', 'http', 'Cần đăng nhập customer; quyền sở hữu đơn được kiểm trong query của workflow. Storefront chưa có UI (R-19).', ['apps/medusa/src/api/store/fashion/returns/route.ts']),
+      S('staff', 'api', 'authorize / reject', 'http', 'Kiểm điều kiện trong RETURN_WINDOW_DAYS (mặc định 14, hoặc country_profile). Ngoài hạn cần `override_reason` và có audit.', ['apps/medusa/src/modules/returns/lib/eligibility.ts']),
+      S('api', 'ful', 'Tạo phiếu trả (pickup)', 'http', 'Khi có địa chỉ lấy hàng; dùng lại module vận đơn với `return_id`.'),
+      S('ful', 'jt', 'Tạo vận đơn chiều về', 'http', 'Cùng cơ chế claim → gọi → reconcile như vận đơn đi.'),
+      S('jt', 'api', 'Tracking → IN_TRANSIT', 'webhook', 'Qua inbox như luồng MTS.'),
+      S('staff', 'api', 'Nhận hàng trả (RECEIVED)', 'http', 'RMA: REQUESTED → AUTHORIZED → IN_TRANSIT → RECEIVED → INSPECTED → CLOSED (hoặc REJECTED/CANCELLED).'),
+      S('staff', 'api', 'Kiểm từng item → disposition', 'http', 'A_GRADE, B_GRADE, REWORK, DAMAGED, SCRAP + vị trí đích. Item được đánh dấu `stock_posted` khi đã ghi kho.'),
+      S('api', 'fg', 'Đưa vào tồn theo disposition', 'http', 'BR-006: hàng trả không được bán lại ngay. Tồn đích phụ thuộc disposition và vị trí đích người kiểm chọn (mã `inspectAndPostStep`).'),
+      S('api', 'pay', 'requestRefund → completeRefund (có trần)', 'http', 'Số tiền bị giới hạn bởi refund-cap; hoàn tiền có trạng thái NONE | REQUESTED | COMPLETED | FAILED.', ['apps/medusa/src/modules/returns/lib/refund-cap.ts']),
+      S('api', 'fg', 'EXCHANGE: giữ chỗ hàng thay', 'http', 'Authorize có `exchange_location_id` thì giữ chỗ FG cho hàng thay, rồi giao `ship-replacement`.'),
+      S('staff', 'api', 'close', 'http', 'Đóng RMA, phát `returns.return_closed.v1`.'),
+    ] },
+  { id: 'msg', label: 'Messenger → bot → checkout link',
+    intro: 'Tin nhắn vào qua webhook, luật ý định trước, LLM là dự phòng chỉ đọc, và link checkout cho khách đăng nhập.',
+    participants: [
+      P('cust', 'actor', 'Khách (Messenger)'), P('meta', 'ext', 'Meta'), P('api', 'app', 'Medusa API'), P('worker', 'app', 'Worker'), P('social', 'mod', 'socialCommerce'),
+      P('llm', 'ext', 'LLM (tuỳ chọn)'), P('sf', 'app', 'Storefront'),
+    ],
+    steps: [
+      S('cust', 'meta', 'Nhắn tin tới Page', 'http'),
+      S('meta', 'api', 'POST /webhooks/meta', 'webhook', 'Xác thực `X-Hub-Signature-256` trên raw body (≤512 KB). GET cùng route phục vụ handshake `hub.verify_token`.', ['apps/medusa/src/api/webhooks/meta/route.ts']),
+      S('api', 'api', 'Ghi inbox_event (message_id) → ACK 200', 'data', 'Trùng message_id bị bỏ qua nhờ unique (provider, external_event_id).'),
+      S('api', 'worker', 'process-inbox → handle-inbound', 'event', 'Handler `meta` trong `lib/inbox/handlers`.', ['apps/medusa/src/lib/inbox/handlers/meta.ts', 'apps/medusa/src/lib/social/handle-inbound.ts']),
+      S('worker', 'social', 'touchIdentity · recordInbound · luật ý định', 'http', 'Định danh theo (channel, account_id, external_user_id); consent; handoff BOT/người (khi người tiếp quản, bot im lặng).', ['apps/medusa/src/modules/socialCommerce/lib/intent.ts']),
+      S('social', 'llm', 'Chỉ khi luật không ra ý định', 'http', 'AGENT_LLM_ENABLED. Mô hình chỉ chọn 1 công cụ đọc (trạng thái đơn, tracking, tiến độ sản xuất, chính sách đổi trả); đầu ra kiểm schema; PII được che. Checkout, link, stop, mute không bao giờ do mô hình chọn.', ['apps/medusa/src/lib/social/agent.ts', 'apps/medusa/src/lib/social/tools.ts']),
+      S('social', 'meta', 'Trả lời qua Graph API', 'http', 'Policy: consent, trần số tin/giờ (`social.notifications_per_hour`), dedupe_key; tin hoãn được `flush-deferred-notifications` (5 phút) gửi lại.', ['apps/medusa/src/modules/socialCommerce/lib/policy.ts']),
+      S('cust', 'sf', 'Bấm link /checkout/social?token=…', 'http', 'Route handler yêu cầu cookie đăng nhập, nếu không chuyển về `/account`.', ['apps/store/src/app/[locale]/[countryCode]/(checkout)/checkout/social/route.ts']),
+      S('sf', 'api', 'GET /store/fashion/social/checkout-link', 'http', '400 nếu token sai, 403 nếu link của người khác; thành công đặt cookie cart và chuyển tới `checkout?step=address`.', ['apps/medusa/src/api/store/fashion/social/checkout-link/route.ts']),
+    ] },
+];
+
+/* ---------------------------------------------------------------------
+   VIEW 5 – Triển khai (3 hình thái)
+   --------------------------------------------------------------------- */
+const deployDO = {
+  label: 'Production hiện tại – 2 droplet DigitalOcean',
+  intro: 'Hình thái đang được tài liệu hoá cho bibaestudios.com: Docker Compose trên 2 droplet, nginx chạy trên host, image build ở máy vận hành rồi chuyển qua SSH.',
+  vb: [1900, 880],
+  zones: [Z(420, 36, 540, 800, 'Droplet STORE · /opt/fecs/store'), Z(1000, 36, 880, 800, 'Droplet BACKEND · /opt/fecs/backend (VPC 10.104.0.0/20)')],
+  nodes: [
+    N('op', 'ops', 30, 60, 350, 190, 'Máy vận hành · scripts/deploy.sh', ['setup · env · release backend|store|all · rollback · seed · admin-user · grant-role · backup', 'build linux/amd64 tại máy, gửi qua SSH; giữ 3 release; tự rollback nếu không healthy'], { d: 'Không có registry cho droplet: image build cục bộ rồi `docker load` qua SSH. `release` chờ healthy, không được thì quay lại bản trước. `setup` cài Docker, swap 2 GB, ufw, nginx, Let\'s Encrypt và sinh secret bằng `openssl rand -hex 32`.', src: ['scripts/deploy.sh', 'infra/deploy/deploy.conf.example'] }),
+    N('ci', 'ops', 30, 300, 350, 190, 'GitHub Actions · ci.yml', ['typecheck · i18n · events:check · integration (PG17) · migrations · kubeconform · gitleaks · CodeQL · Trivy', 'push GHCR fashion-medusa:<sha> (main). Không deploy. Không phủ storefront.'], { d: 'CI phục vụ luồng K8s/GHCR; luồng droplet không dùng image này. Lint (`ultracite check`) đang `continue-on-error`. perf.yml chạy hằng đêm với ~320k dòng sổ cái.', src: ['.github/workflows/ci.yml', '.github/workflows/perf.yml'], risks: ['R-07'] }),
+    N('cfdo', 'edge', 30, 540, 350, 120, 'Cloudflare · DO Cloud Firewall', ['DNS, proxy, `img.*` cloudflare-only', 'SSH / 80 / 443'], { d: 'Các domain: apex + www (storefront), `ecom.*`/api, `s3.*` (MinIO), `captcha.*`, `admin.*`. IP thật nằm trong deploy.conf.example (nên chuyển ra khỏi repo).', src: ['infra/deploy/deploy.conf.example', 'docs/deploy-digitalocean.md'] }),
+
+    N('ng-s', 'edge', 450, 80, 480, 60, 'nginx (host) – store.conf.tpl', ['apex → 127.0.0.1:8000 · captcha.* → :3100'], { src: ['infra/deploy/nginx/store.conf.tpl'] }),
+    N('c-store', 'app', 450, 190, 480, 130, 'Container fecs-store:<sha>', ['Next.js standalone + Payload · 127.0.0.1:8000→3000', 'env_file /opt/fecs/store/.env'], { d: 'Build bằng `infra/docker/store.Dockerfile`: stage `migrate` chạy `payload migrate` trên DB CMS thật trong lúc build (cần SSH tunnel 15432/19000), `NEXT_OUTPUT=standalone`, `NEXT_IGNORE_TYPE_ERRORS=true`, BuildKit secret `build_env`.', src: ['infra/docker/store.Dockerfile', 'infra/deploy/store/docker-compose.yml'], risks: ['R-06', 'R-17'] }),
+    N('c-fcap', 'app', 450, 370, 230, 80, 'fcaptcha:1.46.1', ['127.0.0.1:3100→3000'], { src: ['infra/deploy/store/docker-compose.yml'] }),
+    N('env-s', 'note', 700, 370, 230, 80, 'Secrets', ['file .env trên host; deploy.conf không chứa secret'], { d: 'ExternalSecret chỉ có ví dụ cho K8s. Với droplet, secret nằm trong `/opt/fecs/*/.env` do deploy.sh sinh/sửa.' }),
+    N('build', 'note', 450, 500, 480, 150, 'Lưu ý build storefront', ['Build cần Medusa API và DB CMS đang chạy (tunnel), nên build không tái lập offline và có tác dụng phụ lên production.', 'Storefront và Payload chia chung một image, một lần release.'], { d: 'Xem R-17.', risks: ['R-17'] }),
+
+    N('ng-b', 'edge', 1030, 80, 820, 60, 'nginx (host) – backend.conf.tpl', ['/health · /internal (nội bộ) · /webhooks 50 r/s · /auth · /app|admin · s3.* → MinIO'], { src: ['infra/deploy/nginx/backend.conf.tpl'] }),
+    N('c-medusa', 'app', 1030, 190, 420, 130, 'Container medusa:<sha>', ['MEDUSA_WORKER_MODE=shared (server + worker cùng process)', 'private IP :9000 · giới hạn 1100m'], { d: 'Một process làm cả HTTP lẫn job/subscriber. Không có Deployment webhook riêng, nên không có cách ly webhook như TDD v1.0 §5.', src: ['infra/deploy/backend/docker-compose.yml:165'], risks: ['R-12'] }),
+    N('c-one', 'app', 1480, 190, 370, 130, 'One-shot: migrate · seed · cli', ['profile tools · seed-vietnam.py (region VN, giá VND, shipping)'], { src: ['infra/deploy/backend/docker-compose.yml', 'infra/deploy/backend/seed-vietnam.py'] }),
+    N('c-pg', 'data', 1030, 380, 260, 100, 'postgres:17', ['private IP :5432 · volume postgres_data', 'DB medusa + cms (01-create-dbs.sh)'], { src: ['infra/deploy/backend/postgres-init/01-create-dbs.sh'], risks: ['R-12', 'R-13'] }),
+    N('c-redis', 'data', 1320, 380, 220, 100, 'redis:7 (AOF)', ['private IP :6379'], { risks: ['R-12'] }),
+    N('c-minio', 'data', 1570, 380, 280, 100, 'MinIO', ['127.0.0.1:9002 (S3) · 9003 (console)', 'qua s3.* (nginx)'], { risks: ['R-13'] }),
+    N('c-meili', 'data', 1030, 530, 260, 90, 'meilisearch:v1.56.1', ['giới hạn 384m'], {}),
+    N('vol', 'note', 1320, 530, 530, 120, 'Sao lưu (R-13)', ['deploy.sh backup = pg_dump hai DB, chạy tay', 'MinIO không có trong backup; khuyến nghị snapshot droplet hàng tuần', 'Không có PITR ở hình thái này'], { d: 'docs/operations.md nói "Postgres PITR" – đúng với managed Postgres (K8s) nhưng không đúng với droplet. Meilisearch là dữ liệu dẫn xuất, dựng lại được.', risks: ['R-13'] }),
+  ],
+  edges: [
+    E('op', 'c-store', 'ops', 'ssh · docker load', { fs: 'r', ts: 'l', fo: -50, to: -30, via: [[400, 110], [400, 235], [450, 235]] }),
+    E('op', 'c-medusa', 'ops', 'ssh · release', { fs: 'r', ts: 'l', via: [[390, 150], [390, 30], [990, 30], [990, 255], [1030, 255]], lp: [700, 30] }),
+    E('cfdo', 'ng-s', 'http', '', { fs: 'r', ts: 'l', via: [[400, 600], [400, 110], [450, 110]] }),
+    E('cfdo', 'ng-b', 'http', '', { fs: 'r', ts: 'l', fo: 20, via: [[410, 620], [410, 130], [990, 130], [990, 110], [1030, 110]] }),
+    E('ng-s', 'c-store', 'http', '', { fs: 'b', ts: 't' }),
+    E('c-store', 'c-medusa', 'http', 'API (private :9000)', { fs: 'r', ts: 'l', fo: -10, to: -10, lp: [980, 232] }),
+    E('ng-b', 'c-medusa', 'http', '', { fs: 'b', ts: 't', fo: -250, to: 0 }),
+    E('c-medusa', 'c-pg', 'data', '', { fs: 'b', ts: 't', fo: -100, to: 0 }),
+    E('c-medusa', 'c-redis', 'data', '', { fs: 'b', ts: 't', fo: 100, to: -30 }),
+    E('c-medusa', 'c-minio', 'data', 'S3', { fs: 'b', ts: 't', fo: 170, to: -60, mid: 350 }),
+    E('c-medusa', 'c-meili', 'data', '', { fs: 'l', ts: 'l', fo: 40, mid: 1010 }),
+    E('c-store', 'c-pg', 'data', 'DB cms :5432', { fs: 'r', ts: 'l', fo: 40, lp: [980, 400] }),
+    E('c-one', 'c-pg', 'ops', 'migrate', { fs: 'b', ts: 't', fo: -120, to: 120 }),
+  ],
+};
+
+const deployK8s = {
+  label: 'Kubernetes (Kustomize) – chỉ Medusa',
+  intro: 'Manifest tham chiếu cho Medusa: 3 role tách riêng, HPA, PDB, NetworkPolicy default-deny. Postgres/Redis/object storage là dịch vụ managed; storefront và Payload không nằm trong manifest.',
+  vb: [1900, 840],
+  zones: [Z(380, 36, 860, 770, 'Namespace fashion-production (overlay) · staging dùng 1 replica + CARRIER_SANDBOX / CHANNEL_SANDBOX')],
+  nodes: [
+    N('ing', 'edge', 40, 60, 300, 150, 'Ingress (class nginx)', ['api.example.com · TLS secret fashion-api-tls', '/ → server (body 10m) · /webhooks → webhook (512k, 50 rps)'], { d: 'Host và tag image trong overlay còn là placeholder (`api.example.com`, `REPLACE_WITH_RELEASE_TAG`, `ghcr.io/your-org/…`).', src: ['infra/k8s/base/ingress.yaml', 'infra/k8s/overlays/production'] }),
+    N('ghcr', 'ext', 40, 260, 300, 100, 'GHCR · fashion-medusa:<sha>', ['đẩy bởi ci.yml trên main, quét Trivy'], { src: ['.github/workflows/ci.yml'] }),
+    N('argo', 'ext', 40, 410, 300, 100, 'Argo CD / kubectl apply -k', ['thủ công; CI không deploy'], { dashed: true }),
+    N('nostore', 'note', 40, 560, 300, 200, 'Không nằm trong K8s', ['Storefront + Payload (store.Dockerfile)', 'Meilisearch, MinIO, imgproxy, FCaptcha', 'OTel Collector, Grafana, Loki, Alertmanager'], { d: 'Chỉ Medusa có manifest. Phần còn lại phải được cung cấp bên ngoài.', risks: ['R-14'] }),
+
+    N('srv', 'app', 410, 90, 260, 170, 'Deployment medusa-server', ['role server · 2 replica (production 3) · HPA 2–10 (production 3–20) @65% CPU', 'PDB minAvailable 1 · mem 1Gi · preStop sleep 10'], { d: 'Probe: startup `/health` (5s×36), readiness `/internal/ready` (kiểm Postgres), liveness `/health`. RollingUpdate maxUnavailable 0, topologySpread theo zone.', src: ['infra/k8s/base/medusa-server.yaml'] }),
+    N('wh', 'app', 700, 90, 260, 170, 'Deployment medusa-webhook', ['role server riêng cho /webhooks · HPA 2–8 @60%', 'DB_POOL_MAX 5 · mem 768Mi'], { d: 'Cùng image, cách ly để webhook storm không làm đói checkout/admin (TDD §5). Overlay production không patch nên giữ giá trị base.', src: ['infra/k8s/base/medusa-webhook.yaml'] }),
+    N('wk', 'app', 990, 90, 220, 170, 'Deployment medusa-worker', ['role worker · không có Service · HPA 2–8 @70%', 'probe tcpSocket'], { d: 'Chạy job + subscriber. Scale theo backlog bằng KEDA ScaledObject mẫu: `sum(fashion_outbox_pending)+sum(fashion_inbox_events{status="RECEIVED"})` > 200.', src: ['infra/k8s/base/medusa-worker.yaml', 'infra/k8s/examples/keda-worker-scaler.yaml'] }),
+    N('mig', 'app', 410, 310, 260, 100, 'Job medusa-migrate', ['npx medusa db:migrate · backoffLimit 0', 'Argo PreSync hook'], { d: 'Tách khỏi base vì pod template của Job bất biến. Chính sách: expand → deploy → contract; CI fail nếu model đổi mà thiếu migration.', src: ['infra/k8s/migrate/job.yaml'] }),
+    N('cfg', 'note', 700, 310, 260, 100, 'ConfigMap + Secret', ['fashion-platform-config / fashion-platform-secrets (envFrom)'], { d: 'Cờ rủi ro mặc định false (chỉ MANUFACTURING_ENABLED=true). Mọi pod nhận toàn bộ Secret qua envFrom, dù chú thích nói chỉ pod cần mới đọc.', src: ['infra/k8s/base/configmap.yaml'] }),
+    N('np', 'note', 990, 310, 220, 100, 'NetworkPolicy', ['default-deny ingress + egress', 'cho phép 53, 5432, 6379, 443, 4317/4318'], { d: 'Egress mở theo cổng tới mọi đích (chú thích khuyến nghị siết theo CIDR). Chưa có rule cho Prometheus scrape pod webhook.', src: ['infra/k8s/base/networkpolicy.yaml'] }),
+    N('sm', 'ops', 410, 460, 260, 100, 'ServiceMonitor', ['/internal/metrics · 30s · bearer METRICS_TOKEN'], { src: ['infra/observability/servicemonitor.yaml'] }),
+    N('rule', 'ops', 700, 460, 260, 100, 'PrometheusRule fashion-platform', ['23 alert + runbook'], { src: ['infra/observability/alerts.yaml'] }),
+    N('es', 'ext', 990, 460, 220, 100, 'ExternalSecret (ví dụ)', ['AWS Secrets Manager · refresh 1h'], { dashed: true, src: ['infra/k8s/examples/external-secret.yaml'] }),
+
+    N('pg', 'data', 1290, 90, 280, 90, 'PostgreSQL managed', ['PITR bật · PgBouncer khi > ~200 kết nối'], { d: 'Công thức: (server + webhook + worker replicas) × DB_POOL_MAX < max_connections. Khoá dùng transaction-scoped nên tương thích PgBouncer transaction pooling.', src: ['docs/operations.md'] }),
+    N('rd', 'data', 1290, 220, 280, 90, 'Redis managed', ['event bus · cache · workflow · session']),
+    N('ob', 'data', 1290, 350, 280, 90, 'Object storage (S3)', ['file Medusa; secret S3_*']),
+    N('kf', 'data', 1290, 480, 280, 90, 'Kafka + REST proxy', ['tuỳ chọn'], { dashed: true, risks: ['R-09'] }),
+    N('otlp', 'ops', 1290, 610, 280, 90, 'OTLP collector', ['4317/4318 – chưa có manifest'], { dashed: true, risks: ['R-14'] }),
+  ],
+  edges: [
+    E('ing', 'srv', 'http', '/', { fs: 'r', ts: 'l', via: [[370, 135], [370, 130], [410, 130]] }),
+    E('ing', 'wh', 'webhook', '/webhooks', { fs: 'r', ts: 't', via: [[360, 100], [360, 70], [830, 70], [830, 90]], lp: [600, 70] }),
+    E('ghcr', 'srv', 'ops', 'image', { fs: 'r', ts: 'l', via: [[360, 310], [360, 240], [410, 240]] }),
+    E('argo', 'mig', 'ops', 'PreSync', { fs: 'r', ts: 'l', via: [[360, 460], [360, 360], [410, 360]] }),
+    E('es', 'cfg', 'ops', '', { fs: 'l', ts: 'r', via: [[950, 510], [980, 510], [980, 380], [960, 380]] }),
+    E('sm', 'srv', 'ops', 'scrape server', { fs: 't', ts: 'b', fo: -80, to: -80 }),
+    E('wk', 'pg', 'data', 'mọi role', { fs: 'r', ts: 'l', lp: [1262, 135] }),
+    E('wk', 'rd', 'data', '', { fs: 'r', ts: 'l', fo: 20, to: 0, via: [[1230, 190], [1260, 190], [1260, 265], [1290, 265]] }),
+    E('wk', 'ob', 'data', '', { fs: 'r', ts: 'l', fo: 40, via: [[1240, 210], [1250, 210], [1250, 395], [1290, 395]] }),
+    E('wk', 'kf', 'event', 'REST relay', { fs: 'r', ts: 'l', fo: 55, via: [[1240, 225], [1245, 225], [1245, 525], [1290, 525]], lp: [1262, 560] }),
+    E('wk', 'otlp', 'ops', '', { fs: 'r', ts: 'l', fo: 70, via: [[1240, 240], [1240, 655], [1290, 655]] }),
+  ],
+};
+
+const deployE2E = {
+  label: 'Local / E2E (Docker Compose)',
+  intro: 'Stack hình dạng như production nhưng dùng mock cho J&T, Meta, Payload, Meilisearch và LLM; chạy hành trình nghiệp vụ và kịch bản chaos.',
+  vb: [1900, 760],
+  zones: [Z(300, 36, 1250, 520, 'docker-compose.e2e.yml · project fashion-e2e · LOCAL_STACK=true (file local, notification log, analytics local)')],
+  nodes: [
+    N('run', 'ops', 30, 70, 240, 150, 'docker/e2e/run.sh', ['up · test · chaos · logs · storefront · demo · down'], { src: ['docker/e2e/run.sh', 'docker/e2e/chaos.sh', 'docker/e2e/demo.mjs'] }),
+    N('dev', 'note', 30, 270, 240, 270, 'Compose khác', ['docker-compose.yml (dev): ecommerce-db 5555 · redis 6379 · meilisearch 7700 · minio 9000/9001 + minio-init · imgproxy 8081 · fcaptcha 3100 · pgadmin 5050', 'docker-compose.platform.yml: server + worker + migrate để diễn tập prod'], { d: '`docker/README.md` còn mô tả cũ (chỉ Postgres, pgAdmin, Redis).', risks: ['R-18'] }),
+
+    N('pg', 'data', 330, 90, 230, 90, 'postgres:17', ['host 5544 · user/db fashion']),
+    N('rd', 'data', 590, 90, 200, 90, 'redis:7 (AOF)', ['bus · cache · lock · workflow · session']),
+    N('rp', 'data', 820, 90, 260, 90, 'redpanda v24.3.7', ['Kafka 9092 + HTTP proxy (host 18082)'], { src: ['docker/docker-compose.e2e.yml'] }),
+    N('rpi', 'app', 1110, 90, 190, 90, 'redpanda-init', ['tạo 7 topic e2e.fashion.*']),
+    N('mock', 'ext', 1330, 90, 190, 110, 'mock-providers', ['J&T (HMAC, lỗi tiêm), Meta Graph, Payload, Meili, LLM · host 7070'], { src: ['docker/e2e/mock-providers.mjs'] }),
+    N('mig', 'app', 330, 260, 230, 90, 'migrate (one-shot)', ['medusa db:migrate (đồng bộ link)']),
+    N('boot', 'app', 590, 260, 230, 90, 'bootstrap (one-shot)', ['seed-demo-users (mỗi vai trò 1 user) + seed-fashion-demo (VN)']),
+    N('srv', 'app', 850, 260, 210, 110, 'medusa-server', ['host 9100 · MEDUSA_WORKER_MODE=server · /internal/ready']),
+    N('wk', 'app', 1090, 260, 210, 110, 'medusa-worker ×2', ['MEDUSA_WORKER_MODE=worker · scale được']),
+    N('e2e', 'app', 1330, 260, 190, 110, 'e2e runner', ['profile e2e · JOURNEYS: smoke, make-to-stock, made-to-order, social, returns, platform']),
+    N('jr', 'note', 330, 410, 730, 120, 'Hành trình & chaos', ['16 kịch bản integration (01…16) + HTTP/perf; e2e: smoke, make-to-stock, made-to-order, social, returns, platform', 'chaos: worker chết khi đang giao, Redis, carrier outage, webhook storm, Kafka outage'], { d: 'Kịch bản chaos #1 trong chaos.sh kiểm tra: tắt mọi worker khi đang fulfillment thì chưa có vận đơn; bật lại worker thì đúng 1 vận đơn. (Tài liệu này không chạy lại kịch bản đó.)', src: ['apps/medusa/integration-tests', 'docker/e2e/chaos.sh'] }),
+    N('pw', 'app', 1090, 410, 430, 120, 'Playwright e2e/storefront', ['desktop-chrome · mobile-chrome (Pixel 7) · mobile-safari (iPhone 14)', '1 spec: purchase-shipping · chạy tay, chưa có trong CI'], { dashed: true, d: 'Dự án độc lập (không thuộc workspace pnpm để tránh nhân đôi `next`). Báo cáo `playwright-report/` và `test-results/` đang nằm trong working tree.', src: ['e2e/storefront'], risks: ['R-07'] }),
+  ],
+  edges: [
+    E('mig', 'pg', 'data', '', { fs: 't', ts: 'b' }),
+    E('mig', 'boot', 'event', '', { fs: 'r', ts: 'l', d: 'depends_on: bootstrap chờ migrate hoàn tất.' }),
+    E('boot', 'srv', 'event', '', { fs: 'r', ts: 'l', d: 'medusa-server và worker chờ bootstrap hoàn tất.' }),
+    E('srv', 'mock', 'http', 'Payload · Meili · LLM', { fs: 't', ts: 'b', fo: 60, to: -60, mid: 215, d: 'Server gọi mock Payload/Meilisearch/LLM. Mock cũng gọi ngược webhook về `PLATFORM_URL` (J&T tracking, Meta).' }),
+    E('wk', 'mock', 'http', 'J&T · Meta', { fs: 't', ts: 'b', fo: 40, to: 30, mid: 240 }),
+    E('wk', 'rp', 'event', 'REST relay', { fs: 't', ts: 'b', fo: -60, to: 60, mid: 255 }),
+    E('rpi', 'rp', 'ops', '', { fs: 'l', ts: 'r' }),
+    E('e2e', 'srv', 'http', 'gọi API', { fs: 'b', ts: 'b', fo: 0, via: [[1425, 392], [955, 392]], lp: [1190, 392] }),
+  ],
+};
+
+/* ---------------------------------------------------------------------
+   VIEW 6 – State machines
+   --------------------------------------------------------------------- */
+const SN = (id, x, y, t, d, o = {}) => N(id, 'state', x, y, o.w || 190, 46, t, o.s || [], { d, ...o });
+const T = (a, b, label, o = {}) => E(a, b, 'trans', label || '', { arc: 0, ...o });
+
+const stMO = {
+  label: 'Manufacturing Order (13 trạng thái)',
+  intro: 'Bảng chuyển trạng thái trong `mo-state.ts`. Chỉ lệnh nghiệp vụ mới được đổi trạng thái; ON_HOLD nhớ `held_from_status` để resume.',
+  vb: [1560, 640], zones: [],
+  nodes: [
+    SN('DRAFT', 30, 70, 'DRAFT', 'MO mới tạo từ BOM/Routing đã RELEASED (hoặc từ gợi ý MRP được duyệt).'),
+    SN('PLANNED', 270, 70, 'PLANNED', '`planManufacturingOrder`: đã có kế hoạch.'),
+    SN('MATERIAL_CHECK', 510, 70, 'MATERIAL_CHECK', '`check-material`: so nhu cầu với tồn khả dụng.'),
+    SN('MATERIAL_RESERVED', 750, 70, 'MATERIAL_RESERVED', 'Saga `reserve-mo-materials` thành công, đã giữ vải theo dye lot.', { w: 210 }),
+    SN('RELEASED', 1010, 70, 'RELEASED', 'Cho phép xuất vật tư và cắt.'),
+    SN('IN_PROGRESS', 1270, 70, 'IN_PROGRESS', 'Đang xuất vật tư/cắt/may. `assertCanIssue` chặn xuất khi MO chưa ở trạng thái hợp lệ.'),
+    SN('QC_PENDING', 750, 260, 'QC_PENDING', 'Có bundle chờ QC (`inspect-bundle`).'),
+    SN('PACKING', 1010, 260, 'PACKING', 'Đóng gói bundle đã QC; `pack-bundle` → nhận FG.'),
+    SN('PARTIALLY_COMPLETED', 1270, 260, 'PARTIALLY_COMPLETED', 'Mới hoàn thành một phần số lượng; quay lại IN_PROGRESS hoặc COMPLETED.', { w: 230 }),
+    SN('COMPLETED', 1270, 450, 'COMPLETED', 'Kết thúc. Cũng đạt được bằng `shortClose` (short_closed = true).'),
+    SN('FAILED', 1010, 450, 'FAILED', 'Kết thúc lỗi.'),
+    SN('ON_HOLD', 510, 260, 'ON_HOLD', 'Tạm dừng; resume về trạng thái trước đó (`held_from_status`).'),
+    SN('CANCELLED', 270, 450, 'CANCELLED', 'Chỉ khi chưa vào sản xuất. Hủy: validate trước, giải phóng giữ chỗ sau; gọi lại để hoàn tất phần giải phóng dở.'),
+  ],
+  edges: [
+    T('DRAFT', 'PLANNED', ''), T('DRAFT', 'CANCELLED', '', { arc: 0.12 }),
+    T('PLANNED', 'MATERIAL_CHECK', ''), T('PLANNED', 'ON_HOLD', '', { arc: 0.1 }), T('PLANNED', 'CANCELLED', '', { arc: 0.1 }),
+    T('MATERIAL_CHECK', 'MATERIAL_RESERVED', ''), T('MATERIAL_CHECK', 'PLANNED', '', { arc: 0.3 }), T('MATERIAL_CHECK', 'ON_HOLD', '', { arc: 0.1 }), T('MATERIAL_CHECK', 'CANCELLED', '', { arc: 0.12 }),
+    T('MATERIAL_RESERVED', 'RELEASED', ''), T('MATERIAL_RESERVED', 'MATERIAL_CHECK', '', { arc: 0.3 }), T('MATERIAL_RESERVED', 'ON_HOLD', '', { arc: 0.12 }), T('MATERIAL_RESERVED', 'CANCELLED', '', { arc: 0.12 }),
+    T('RELEASED', 'IN_PROGRESS', ''), T('RELEASED', 'ON_HOLD', '', { arc: 0.12 }), T('RELEASED', 'CANCELLED', '', { arc: 0.08 }),
+    T('IN_PROGRESS', 'QC_PENDING', '', { arc: 0.1 }), T('IN_PROGRESS', 'PACKING', '', { arc: 0.1 }), T('IN_PROGRESS', 'PARTIALLY_COMPLETED', ''), T('IN_PROGRESS', 'COMPLETED', '', { arc: -0.2 }), T('IN_PROGRESS', 'FAILED', '', { arc: 0.18 }), T('IN_PROGRESS', 'ON_HOLD', '', { arc: -0.25 }),
+    T('QC_PENDING', 'IN_PROGRESS', '', { arc: 0.15 }), T('QC_PENDING', 'PACKING', ''), T('QC_PENDING', 'ON_HOLD', '', { arc: 0.15 }),
+    T('PACKING', 'IN_PROGRESS', '', { arc: 0.12 }), T('PACKING', 'QC_PENDING', '', { arc: 0.15 }), T('PACKING', 'COMPLETED', '', { arc: 0.1 }), T('PACKING', 'PARTIALLY_COMPLETED', ''), T('PACKING', 'ON_HOLD', '', { arc: 0.25 }),
+    T('PARTIALLY_COMPLETED', 'IN_PROGRESS', '', { arc: 0.3 }), T('PARTIALLY_COMPLETED', 'COMPLETED', ''),
+    T('ON_HOLD', 'CANCELLED', '', { arc: 0.1 }), T('ON_HOLD', 'MATERIAL_RESERVED', '', { arc: 0.2 }), T('ON_HOLD', 'RELEASED', '', { arc: 0.15 }), T('ON_HOLD', 'QC_PENDING', '', { arc: -0.12 }),
+  ],
+};
+
+const stShip = {
+  label: 'Vận đơn (12 trạng thái canonical)',
+  intro: 'Quy tắc `decideTransition`: chỉ tiến theo thứ hạng (sự kiện muộn bị IGNORED), terminal = DELIVERED | RETURNED | CANCELLED, EXCEPTION đi vào/ra từ mọi trạng thái chưa kết thúc.',
+  vb: [1700, 560], zones: [],
+  nodes: [
+    SN('CREATED', 30, 70, 'CREATED', 'Carrier đã nhận đơn. `create_state` riêng: PENDING | SUCCEEDED | FAILED_RETRYABLE | FAILED_FINAL | UNKNOWN.'),
+    SN('PICKUP_PENDING', 260, 70, 'PICKUP_PENDING', 'Chờ lấy hàng. Huỷ vận đơn chỉ được ở CREATED hoặc PICKUP_PENDING.'),
+    SN('PICKED_UP', 490, 70, 'PICKED_UP', 'Từ đây có thể sang DELIVERY_FAILED / RETURNING / RETURNED.'),
+    SN('IN_TRANSIT', 720, 70, 'IN_TRANSIT', 'Đang vận chuyển.'),
+    SN('ARRIVED_HUB', 950, 70, 'ARRIVED_HUB', 'Đã tới kho trung chuyển.'),
+    SN('OUT_FOR_DELIVERY', 1180, 70, 'OUT_FOR_DELIVERY', 'Đang giao.', { w: 210 }),
+    SN('DELIVERED', 1440, 70, 'DELIVERED', 'Terminal. Từ DELIVERY_FAILED vẫn có thể sang DELIVERED.'),
+    SN('CANCELLED', 30, 300, 'CANCELLED', 'Terminal.'),
+    SN('EXCEPTION', 490, 300, 'EXCEPTION', 'Mở `shipment_exception` cho hàng đợi hỗ trợ; một lần quét tốt sau đó sẽ giải quyết.'),
+    SN('RETURNED', 720, 300, 'RETURNED', 'Terminal. Có thể từ bất kỳ điểm nào sau PICKED_UP (đôi khi không có scan RETURNING). Có thể thay vận đơn (`replace`), cũ giữ làm lịch sử.'),
+    SN('RETURNING', 950, 300, 'RETURNING', 'Chỉ sang RETURNED.'),
+    SN('DELIVERY_FAILED', 1180, 300, 'DELIVERY_FAILED', 'Giao thất bại → sang OUT_FOR_DELIVERY (giao lại), RETURNING, RETURNED hoặc DELIVERED.', { w: 210 }),
+  ],
+  edges: [
+    T('CREATED', 'PICKUP_PENDING', ''), T('PICKUP_PENDING', 'PICKED_UP', ''), T('PICKED_UP', 'IN_TRANSIT', ''), T('IN_TRANSIT', 'ARRIVED_HUB', ''), T('ARRIVED_HUB', 'OUT_FOR_DELIVERY', ''), T('OUT_FOR_DELIVERY', 'DELIVERED', ''),
+    T('CREATED', 'CANCELLED', '', { arc: 0 }), T('PICKUP_PENDING', 'CANCELLED', '', { arc: 0.1 }),
+    T('OUT_FOR_DELIVERY', 'DELIVERY_FAILED', '', { arc: 0 }), T('DELIVERY_FAILED', 'OUT_FOR_DELIVERY', 'giao lại', { arc: 0.35 }), T('DELIVERY_FAILED', 'RETURNING', ''), T('DELIVERY_FAILED', 'RETURNED', '', { arc: -0.2 }), T('DELIVERY_FAILED', 'DELIVERED', '', { arc: -0.2 }),
+    T('RETURNING', 'RETURNED', ''), T('IN_TRANSIT', 'RETURNING', '≥ PICKED_UP', { arc: -0.18 }), T('IN_TRANSIT', 'EXCEPTION', '', { arc: 0.1 }), T('EXCEPTION', 'IN_TRANSIT', '', { arc: 0.1 }),
+  ],
+};
+
+const stPO = {
+  label: 'Purchase Order (7 trạng thái)',
+  intro: 'Bảng `TRANSITIONS` trong procurement/service.ts. PARTIALLY_RECEIVED/RECEIVED được suy ra từ số lượng đã nhận (không có lệnh thủ công); hàng bị DAMAGED không tính vào số nhận.',
+  vb: [1500, 440], zones: [],
+  nodes: [
+    SN('DRAFT', 30, 80, 'DRAFT', 'Tạo bằng `createPurchaseOrderWithLines` (over-receipt mặc định lấy từ setting).'),
+    SN('APPROVED', 270, 80, 'APPROVED', 'Lệnh `approve` (quyền procurement:approve).'),
+    SN('SENT', 510, 80, 'SENT', 'Lệnh `send`. Từ đây mới nhập kho được.'),
+    SN('PARTIALLY_RECEIVED', 750, 80, 'PARTIALLY_RECEIVED', 'Suy ra từ received_qty > 0 nhưng chưa đủ.', { w: 230 }),
+    SN('RECEIVED', 1030, 80, 'RECEIVED', 'Suy ra khi mọi dòng đã nhận đủ.'),
+    SN('CLOSED', 1270, 80, 'CLOSED', 'Lệnh `close` từ RECEIVED hoặc PARTIALLY_RECEIVED.'),
+    SN('CANCELLED', 270, 270, 'CANCELLED', 'Lệnh `cancel` từ DRAFT, APPROVED hoặc SENT.'),
+  ],
+  edges: [
+    T('DRAFT', 'APPROVED', 'approve'), T('APPROVED', 'SENT', 'send'), T('SENT', 'PARTIALLY_RECEIVED', 'nhận một phần', { arc: -0.25 }), T('SENT', 'RECEIVED', 'nhận đủ', { arc: -0.3 }), T('PARTIALLY_RECEIVED', 'RECEIVED', 'nhận đủ'), T('RECEIVED', 'CLOSED', 'close'),
+    T('PARTIALLY_RECEIVED', 'CLOSED', 'close', { arc: 0.3 }), T('DRAFT', 'CANCELLED', 'cancel', { arc: 0.1 }), T('APPROVED', 'CANCELLED', 'cancel', { arc: 0 }), T('SENT', 'CANCELLED', 'cancel', { arc: 0.1 }),
+  ],
+};
+
+const stInbox = {
+  label: 'Inbox webhook (5 trạng thái)',
+  intro: 'Trạng thái của `inbox_event`. Backoff retry = min(2^attempts, 600) giây; quá 8 lần hoặc worker chết giữa chừng thì vào DLQ.',
+  vb: [1300, 400], zones: [],
+  nodes: [
+    SN('RECEIVED', 30, 80, 'RECEIVED', 'Route webhook đã xác thực chữ ký và ghi (unique provider + external_event_id).'),
+    SN('PROCESSING', 290, 80, 'PROCESSING', 'Worker đã claim (SKIP LOCKED).'),
+    SN('PROCESSED', 550, 80, 'PROCESSED', 'Handler thành công. Bị prune sau 30 ngày.'),
+    SN('RETRY', 290, 250, 'RETRY', 'Lỗi → hẹn lại với backoff mũ.'),
+    SN('DLQ', 550, 250, 'DLQ', 'Alert `InboxDeadLetters`. Với payOS: tiền đã vào nhưng không đơn nào nhận → xử lý thủ công.'),
+  ],
+  edges: [
+    T('RECEIVED', 'PROCESSING', 'claim'), T('PROCESSING', 'PROCESSED', 'ok'), T('PROCESSING', 'RETRY', 'lỗi', { arc: 0.1 }), T('RETRY', 'PROCESSING', 'đến hạn', { arc: 0.3 }), T('RETRY', 'DLQ', 'attempts ≥ 8'), T('PROCESSING', 'DLQ', 'worker chết', { arc: -0.2 }),
+  ],
+};
+
+/* =====================================================================
+   REGISTRY
+   ===================================================================== */
+const VIEWS = [
+  { id: 'containers', tab: 'Containers', type: 'graph', graph: containers,
+    intro: 'Mức container (C4 L2) của hệ thống đang chạy: storefront + Payload, Medusa ba vai trò, lưu trữ và dịch vụ ngoài. Nhấp node để xem chi tiết, rê chuột để làm nổi các kết nối.',
+    summary: ['2 ứng dụng chính: `apps/store` (Next.js + Payload CMS nhúng) và `apps/medusa` (Medusa 2.18, modular monolith).', 'Một image Medusa chạy 3 vai trò theo `MEDUSA_WORKER_MODE` (server | worker | shared).', 'Postgres chứa 2 database tách biệt (medusa, cms). Redis là bus, cache, workflow engine và session.', 'Bật tắt từng tích hợp bằng cờ môi trường (mặc định tắt).'] },
+  { id: 'modules', tab: 'Modules', type: 'graph', graph: modules,
+    intro: 'Chín module fashion trong Medusa và cách chúng gọi nhau. Nhấp vào node hoặc vào cạnh để đọc cơ chế (workflow, sự kiện, idempotency).',
+    summary: ['Mỗi module sở hữu bảng riêng; không có khoá ngoại sang order/customer (chỉ id dạng text).', 'Cạnh nét đứt = sự kiện bất đồng bộ qua outbox/bus; nét liền = lời gọi service/workflow đồng bộ.'] },
+  { id: 'events', tab: 'Events', type: 'graph', graph: events,
+    intro: 'Nền tảng tích hợp: outbox giao sự kiện ra bus và Kafka relay, inbox nhận webhook, idempotency và đối soát.',
+    summary: ['Giao nhận at-least-once; thứ tự đảm bảo theo từng aggregate.', '3 job chạy mỗi 2 giây (publish-outbox, publish-kafka-relay, process-inbox).', '51 loại sự kiện trong `docs/events/catalog.json`, được CI kiểm tra tương thích.'] },
+  { id: 'flows', tab: 'Luồng nghiệp vụ', type: 'seq', variants: flows,
+    intro: '' },
+  { id: 'deploy', tab: 'Triển khai', type: 'graph', variants: [
+      { id: 'do', ...deployDO }, { id: 'k8s', ...deployK8s }, { id: 'e2e', ...deployE2E } ],
+    intro: '' },
+  { id: 'states', tab: 'State machines', type: 'graph', cls: 'state', variants: [
+      { id: 'mo', ...stMO }, { id: 'ship', ...stShip }, { id: 'po', ...stPO }, { id: 'inbox', ...stInbox } ],
+    intro: '' },
+  { id: 'risks', tab: 'Rủi ro & nợ kỹ thuật', type: 'risks',
+    intro: '20 phát hiện từ review code. Mức độ chỉ phản ánh đánh giá của người review; mỗi mục có đường dẫn nguồn để kiểm tra lại.' },
+];
+
+/* =====================================================================
+   TIỆN ÍCH
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const FF = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+const svgEl = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const md = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+const cv = document.createElement('canvas').getContext('2d');
+const measure = (s, font) => { cv.font = font; return cv.measureText(s).width; };
+function wrap(text, font, maxW) {
+  const words = String(text).split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const t = cur ? `${cur} ${w}` : w;
+    if (measure(t, font) > maxW && cur) { lines.push(cur); cur = w; } else cur = t;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+const sevRank = { High: 3, Medium: 2, Low: 1 };
+
+const state = { view: 'containers', variant: null, sel: null, anim: false, risks: false, off: new Set(), q: '', step: -1, timer: null };
+let svg = null; let vb = [0, 0, 1900, 900]; let vb0 = [0, 0, 1900, 900];
+let curGraph = null; let nodeEls = new Map(); let edgeEls = [];
+
+/* =====================================================================
+   CHUẨN BỊ ĐỒ THỊ + ĐỊNH TUYẾN
+   ===================================================================== */
+function prepGraph(g) {
+  if (g._p) return g;
+  g._p = true;
+  g.byId = new Map();
+  for (const n of g.nodes) {
+    const pad = 14;
+    n._t = wrap(n.t, `600 13px ${FF}`, n.w - pad * 2 - (n.go ? 12 : 0) - 6);
+    n._s = (n.s || []).flatMap((s) => wrap(s, `11px ${FF}`, n.w - pad * 2 - 6));
+    const need = 24 + n._t.length * 16 + n._s.length * 14;
+    n.h = Math.max(n.h || 0, need);
+    g.byId.set(n.id, n);
+  }
+  return g;
+}
+const sidePort = (n, side, off = 0) => {
+  switch (side) {
+    case 'r': return [n.x + n.w, n.y + n.h / 2 + off];
+    case 'l': return [n.x, n.y + n.h / 2 + off];
+    case 't': return [n.x + n.w / 2 + off, n.y];
+    default: return [n.x + n.w / 2 + off, n.y + n.h];
+  }
+};
+const isH = (s) => s === 'l' || s === 'r';
+function autoSides(a, b) {
+  const dx = b.x + b.w / 2 - (a.x + a.w / 2); const dy = b.y + b.h / 2 - (a.y + a.h / 2);
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? ['r', 'l'] : ['l', 'r'];
+  return dy > 0 ? ['b', 't'] : ['t', 'b'];
+}
+function clipRect(n, tx, ty, margin = 3) {
+  const cx = n.x + n.w / 2; const cy = n.y + n.h / 2;
+  const dx = tx - cx; const dy = ty - cy;
+  if (!dx && !dy) return [cx, cy];
+  const t = Math.min((n.w / 2) / (Math.abs(dx) || 1e-6), (n.h / 2) / (Math.abs(dy) || 1e-6));
+  const len = Math.hypot(dx, dy);
+  return [cx + dx * t + (dx / len) * margin, cy + dy * t + (dy / len) * margin];
+}
+function routeEdge(e, a, b) {
+  if (e.arc !== undefined) {           // đường cong (state machine)
+    const ac = [a.x + a.w / 2, a.y + a.h / 2]; const bc = [b.x + b.w / 2, b.y + b.h / 2];
+    const mx = (ac[0] + bc[0]) / 2; const my = (ac[1] + bc[1]) / 2;
+    const dx = bc[0] - ac[0]; const dy = bc[1] - ac[1]; const len = Math.hypot(dx, dy) || 1;
+    const c = [mx + (-dy / len) * e.arc * len, my + (dx / len) * e.arc * len];
+    const p = clipRect(a, e.arc ? c[0] : bc[0], e.arc ? c[1] : bc[1]);
+    const q = clipRect(b, e.arc ? c[0] : ac[0], e.arc ? c[1] : ac[1], 5);
+    if (!e.arc) return { d: `M${p[0]},${p[1]} L${q[0]},${q[1]}`, mid: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] };
+    return { d: `M${p[0]},${p[1]} Q${c[0]},${c[1]} ${q[0]},${q[1]}`, mid: [0.25 * p[0] + 0.5 * c[0] + 0.25 * q[0], 0.25 * p[1] + 0.5 * c[1] + 0.25 * q[1]] };
+  }
+  const [fs0, ts0] = autoSides(a, b);
+  const fs = e.fs || fs0; const ts = e.ts || ts0;
+  const p = sidePort(a, fs, e.fo || 0); const q = sidePort(b, ts, e.tOff || 0);
+  let pts;
+  if (e.via) pts = [p, ...e.via, q];
+  else if (e.line) pts = [p, q];
+  else if (isH(fs) && isH(ts)) { const mx = e.mid ?? (p[0] + q[0]) / 2; pts = p[1] === q[1] ? [p, q] : [p, [mx, p[1]], [mx, q[1]], q]; }
+  else if (!isH(fs) && !isH(ts)) { const my = e.mid ?? (p[1] + q[1]) / 2; pts = p[0] === q[0] ? [p, q] : [p, [p[0], my], [q[0], my], q]; }
+  else if (isH(fs)) pts = [p, [q[0], p[1]], q];
+  else pts = [p, [p[0], q[1]], q];
+  // làm tròn góc
+  const r = 9; let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [p0, p1, p2] = [pts[i - 1], pts[i], pts[i + 1]];
+    const l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); const l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+    const rr = Math.min(r, l1 / 2, l2 / 2);
+    if (!rr || l1 === 0 || l2 === 0) { d += ` L${p1[0]},${p1[1]}`; continue; }
+    const a1 = [p1[0] - ((p1[0] - p0[0]) / l1) * rr, p1[1] - ((p1[1] - p0[1]) / l1) * rr];
+    const a2 = [p1[0] + ((p2[0] - p1[0]) / l2) * rr, p1[1] + ((p2[1] - p1[1]) / l2) * rr];
+    d += ` L${a1[0]},${a1[1]} Q${p1[0]},${p1[1]} ${a2[0]},${a2[1]}`;
+  }
+  d += ` L${pts[pts.length - 1][0]},${pts[pts.length - 1][1]}`;
+  // điểm đặt nhãn: giữa đoạn dài nhất
+  let best = 0; let mid = pts[0];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    if (l > best) { best = l; mid = [(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2]; }
+  }
+  return { d, mid };
+}
+
+/* =====================================================================
+   VẼ ĐỒ THỊ
+   ===================================================================== */
+function mkDefs(root) {
+  const defs = svgEl('defs', {}, root);
+  for (const k of Object.keys(KINDS)) {
+    const m = svgEl('marker', { id: `ar-${k}`, viewBox: '0 0 10 10', refX: '9', refY: '5', markerWidth: '8', markerHeight: '8', orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' }, defs);
+    svgEl('path', { d: 'M0,0 L10,5 L0,10 z', class: `mk mk-${k}` }, m);
+  }
+}
+function drawNode(n, parent) {
+  const g = svgEl('g', { class: `node t-${n.type}${n.dashed ? ' dashed' : ''}`, tabindex: '0', role: 'button', 'data-id': n.id, 'aria-label': n.t }, parent);
+  svgEl('rect', { class: 'body', x: n.x, y: n.y, width: n.w, height: n.h }, g);
+  svgEl('rect', { class: 'stripe', x: n.x + 0.5, y: n.y + 12, width: 4, height: n.h - 24, rx: 2 }, g);
+  const block = n._t.length * 16 + n._s.length * 14;
+  let y = n.y + (n.h - block) / 2 + 12;
+  for (const line of n._t) { const t = svgEl('text', { class: 'nt', x: n.x + 16, y }, g); t.textContent = line; y += 16; }
+  for (const line of n._s) { const t = svgEl('text', { class: 'ns', x: n.x + 16, y }, g); t.textContent = line; y += 14; }
+  if (n.go) { const t = svgEl('text', { class: 'go', x: n.x + n.w - 20, y: n.y + 19 }, g); t.textContent = '↗'; }
+  if (n.risks && n.risks.length) {
+    const worst = Math.max(...n.risks.map((r) => sevRank[RISKS[r].sev]));
+    const b = svgEl('g', { class: `badge ${worst === 3 ? 'h' : worst === 2 ? 'm' : 'l'}` }, g);
+    svgEl('circle', { cx: n.x + n.w - 4, cy: n.y + 4, r: 10 }, b);
+    const t = svgEl('text', { x: n.x + n.w - 4, y: n.y + 8 }, b); t.textContent = String(n.risks.length);
+  }
+  return g;
+}
+function drawEdge(e, idx, g, parent) {
+  const a = g.byId.get(e.from); const b = g.byId.get(e.to);
+  if (!a || !b) { console.warn('edge thiếu node', e); return null; }
+  const { d, mid } = routeEdge(e, a, b);
+  const gr = svgEl('g', { class: `edge k-${e.kind}`, 'data-idx': idx }, parent);
+  const ends = { 'marker-end': `url(#ar-${e.kind})` };
+  if (e.bi) ends['marker-start'] = `url(#ar-${e.kind})`;
+  svgEl('path', { class: 'base', d, ...ends }, gr);
+  svgEl('path', { class: 'pulse', d }, gr);
+  svgEl('path', { class: 'hit', d }, gr);
+  if (e.label) {
+    const [lx, ly] = e.lp || mid;
+    const w = measure(e.label, `11px ${FF}`) + 14;
+    const lb = svgEl('g', { class: 'lbl' }, gr);
+    svgEl('rect', { x: lx - w / 2, y: ly - 10, width: w, height: 20 }, lb);
+    const t = svgEl('text', { x: lx, y: ly + 4 }, lb); t.textContent = e.label;
+  }
+  return gr;
+}
+function renderGraph(g, cls) {
+  prepGraph(g);
+  curGraph = g;
+  const stage = $('#stage');
+  stage.innerHTML = '';
+  svg = svgEl('svg', { viewBox: g.vb ? `0 0 ${g.vb[0]} ${g.vb[1]}` : '0 0 1900 900', role: 'img', 'aria-label': 'Sơ đồ kiến trúc' }, stage);
+  svg.setAttribute('class', `${cls || ''} ${state.anim ? 'anim' : ''} ${state.risks ? '' : 'risks-off'}`);
+  vb = [0, 0, ...(g.vb || [1900, 900])]; vb0 = vb.slice();
+  mkDefs(svg);
+  const zl = svgEl('g', {}, svg);
+  for (const z of g.zones || []) {
+    const zg = svgEl('g', { class: 'zone' }, zl);
+    svgEl('rect', { x: z.x, y: z.y, width: z.w, height: z.h }, zg);
+  }
+  const eg = svgEl('g', {}, svg);
+  const zt = svgEl('g', { class: 'zone' }, svg);
+  for (const z of g.zones || []) {
+    const w = measure(z.l, `600 12px ${FF}`) + 14;
+    svgEl('rect', { class: 'zl', x: z.x + 8, y: z.y + 4, width: w, height: 18, rx: 4 }, zt);
+    const t = svgEl('text', { x: z.x + 15, y: z.y + 17 }, zt); t.textContent = z.l;
+  }
+  const ng = svgEl('g', {}, svg);
+  edgeEls = g.edges.map((e, i) => drawEdge(e, i, g, eg));
+  nodeEls = new Map();
+  for (const n of g.nodes) nodeEls.set(n.id, drawNode(n, ng));
+  for (const k of state.off) svg.classList.add(`off-${k}`);
+  bindGraph(g);
+  applyFilter();
+  applyFocus(state.sel);
+  bindPanZoom();
+}
+function related(g, item) {
+  const nodes = new Set(); const edges = new Set();
+  if (!item) return { nodes, edges };
+  if (item.type === 'node') {
+    nodes.add(item.id);
+    g.edges.forEach((e, i) => { if (e.from === item.id || e.to === item.id) { edges.add(i); nodes.add(e.from); nodes.add(e.to); } });
+  } else if (item.type === 'edge') {
+    const e = g.edges[item.idx]; edges.add(item.idx); nodes.add(e.from); nodes.add(e.to);
+  }
+  return { nodes, edges };
+}
+function applyFocus(item) {
+  if (!svg || !curGraph) return;
+  const { nodes, edges } = related(curGraph, item);
+  svg.classList.toggle('has-focus', !!item);
+  nodeEls.forEach((el, id) => { el.classList.toggle('hl', nodes.has(id)); el.classList.toggle('sel', !!state.sel && state.sel.type === 'node' && state.sel.id === id); });
+  edgeEls.forEach((el, i) => { if (el) { el.classList.toggle('hl', edges.has(i)); el.classList.toggle('sel', !!state.sel && state.sel.type === 'edge' && state.sel.idx === i); } });
+  // kind bị ẩn thì cũng ẩn nhãn
+}
+function applyFilter() {
+  if (!svg || !curGraph) return;
+  const q = state.q.trim().toLowerCase();
+  const hit = new Set();
+  if (q) {
+    for (const n of curGraph.nodes) {
+      const hay = `${n.t} ${(n.s || []).join(' ')} ${n.d || ''} ${(n.tech || []).join(' ')} ${(n.src || []).join(' ')}`.toLowerCase();
+      if (hay.includes(q)) hit.add(n.id);
+    }
+  }
+  nodeEls.forEach((el, id) => el.classList.toggle('dim', !!q && !hit.has(id)));
+  edgeEls.forEach((el, i) => { if (el) { const e = curGraph.edges[i]; el.classList.toggle('dim', !!q && !(hit.has(e.from) && hit.has(e.to))); } });
+}
+function bindGraph(g) {
+  nodeEls.forEach((el, id) => {
+    el.addEventListener('mouseenter', () => { if (!state.sel) applyFocus({ type: 'node', id }); });
+    el.addEventListener('mouseleave', () => { if (!state.sel) applyFocus(null); });
+    el.addEventListener('focus', () => { if (!state.sel) applyFocus({ type: 'node', id }); });
+    el.addEventListener('blur', () => { if (!state.sel) applyFocus(null); });
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); select({ type: 'node', id }); });
+    el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select({ type: 'node', id }); } });
+  });
+  edgeEls.forEach((el, i) => {
+    if (!el) return;
+    el.addEventListener('mouseenter', () => { if (!state.sel) applyFocus({ type: 'edge', idx: i }); });
+    el.addEventListener('mouseleave', () => { if (!state.sel) applyFocus(null); });
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); select({ type: 'edge', idx: i }); });
+  });
+  svg.addEventListener('click', () => select(null));
+}
+function select(item) {
+  state.sel = item;
+  applyFocus(item);
+  panelGraph();
+  syncHash();
+}
+
+/* =====================================================================
+   SEQUENCE
+   ===================================================================== */
+function renderSeq(sc) {
+  const stage = $('#stage'); stage.innerHTML = '';
+  const n = sc.participants.length; const W = 1900; const mx = 130; const gap = (W - 2 * mx) / (n - 1);
+  const px = (i) => mx + i * gap; const top = 24; const bh = 56; const y0 = top + bh + 56; const pitch = 58;
+  const H = y0 + sc.steps.length * pitch + 50;
+  svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Sequence: ${sc.label}` }, stage);
+  svg.setAttribute('class', `${state.anim ? 'anim' : ''} ${state.risks ? '' : 'risks-off'}`);
+  vb = [0, 0, W, H]; vb0 = vb.slice(); curGraph = null; nodeEls = new Map(); edgeEls = [];
+  mkDefs(svg);
+  const idx = new Map(sc.participants.map((p, i) => [p.id, i]));
+  sc.participants.forEach((p, i) => {
+    svgEl('line', { class: 'seq-life', x1: px(i), x2: px(i), y1: top + bh, y2: H - 20 }, svg);
+    const w = Math.min(190, gap - 18);
+    const g = svgEl('g', { class: `node t-${p.type}` }, svg);
+    svgEl('rect', { class: 'body', x: px(i) - w / 2, y: top, width: w, height: bh }, g);
+    const lines = wrap(p.t, `600 13px ${FF}`, w - 14);
+    lines.forEach((l, j) => { const t = svgEl('text', { class: 'nt', x: px(i), y: top + bh / 2 + 4 + (j - (lines.length - 1) / 2) * 16, 'text-anchor': 'middle' }, g); t.textContent = l; });
+  });
+  const msgs = [];
+  sc.steps.forEach((s, i) => {
+    const y = y0 + i * pitch; const a = idx.get(s.from); const b = idx.get(s.to);
+    const g = svgEl('g', { class: `seq-msg k-${s.kind}`, 'data-i': i, tabindex: '0', role: 'button', 'aria-label': `Bước ${i + 1}: ${s.label}` }, svg);
+    let lx; let ly = y - 9; let anchor = 'middle';
+    if (a === b) {
+      const x = px(a);
+      svgEl('path', { class: 'line', d: `M${x + 6},${y - 10} h44 v22 h-44`, 'marker-end': `url(#ar-${s.kind})` }, g);
+      lx = x + 58; ly = y + 2; anchor = 'start';
+    } else {
+      const dir = b > a ? 1 : -1; const x1 = px(a) + dir * 14; const x2 = px(b) - dir * 2;
+      svgEl('line', { class: 'line', x1, y1: y, x2, y2: y, 'marker-end': `url(#ar-${s.kind})` }, g);
+      lx = (x1 + x2) / 2;
+    }
+    const tw = measure(s.label, `12px ${FF}`) + 12;
+    const bx = anchor === 'start' ? lx - 6 : lx - tw / 2;
+    svgEl('rect', { class: 'tb', x: bx, y: ly - 13, width: tw, height: 18, rx: 4 }, g);
+    const t = svgEl('text', { class: 't', x: lx, y: ly, 'text-anchor': anchor }, g); t.textContent = s.label;
+    const no = svgEl('g', { class: 'no' }, g);
+    svgEl('circle', { cx: px(a), cy: y, r: 10 }, no);
+    const nt = svgEl('text', { x: px(a), y: y + 4 }, no); nt.textContent = String(i + 1);
+    svgEl('rect', { x: Math.min(px(a), px(b)) - 12, y: y - 24, width: Math.abs(px(b) - px(a)) + 70, height: 34, fill: 'transparent' }, g);
+    g.addEventListener('click', (ev) => { ev.stopPropagation(); setStep(i); });
+    g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setStep(i); } });
+    msgs.push(g);
+  });
+  svg._msgs = msgs;
+  svg.addEventListener('click', () => setStep(-1));
+  bindPanZoom();
+  markStep();
+}
+function markStep() {
+  if (!svg || !svg._msgs) return;
+  svg._msgs.forEach((g, i) => { g.classList.toggle('dim', state.step >= 0 && i !== state.step); g.classList.toggle('cur', i === state.step); });
+}
+function curScenario() { const v = viewById(state.view); return v.variants.find((x) => x.id === state.variant) || v.variants[0]; }
+function setStep(i) {
+  const sc = curScenario();
+  state.step = Math.max(-1, Math.min(sc.steps.length - 1, i));
+  markStep(); panelSeq(); syncHash();
+}
+function stopPlay() { if (state.timer) { clearInterval(state.timer); state.timer = null; } const b = $('#b-play'); if (b) b.textContent = '▶ Phát'; }
+function togglePlay() {
+  if (state.timer) { stopPlay(); return; }
+  const sc = curScenario();
+  if (state.step >= sc.steps.length - 1) state.step = -1;
+  setStep(state.step + 1);
+  const b = $('#b-play'); if (b) b.textContent = '❚❚ Dừng';
+  state.timer = setInterval(() => {
+    if (state.step >= sc.steps.length - 1) { stopPlay(); return; }
+    setStep(state.step + 1);
+  }, 2600);
+}
+
+/* =====================================================================
+   RISKS VIEW
+   ===================================================================== */
+function riskIndex() {
+  const idx = {};
+  for (const v of VIEWS) {
+    if (v.type !== 'graph') continue;
+    const gs = v.variants ? v.variants.map((x) => [x.id, x]) : [[null, v.graph]];
+    for (const [vid, g] of gs) for (const n of g.nodes) for (const r of n.risks || []) (idx[r] = idx[r] || []).push({ view: v.id, variant: vid, node: n.id, title: n.t });
+  }
+  return idx;
+}
+let riskFilter = 'all';
+function renderRisks() {
+  const stage = $('#stage'); stage.innerHTML = ''; svg = null; curGraph = null;
+  const wrapEl = document.createElement('div'); wrapEl.className = 'risks-view'; stage.appendChild(wrapEl);
+  const idx = riskIndex();
+  const bar = document.createElement('div'); bar.className = 'legend'; bar.style.marginBottom = '12px';
+  bar.innerHTML = ['all', 'High', 'Medium', 'Low'].map((f) => `<button class="chip${riskFilter === f ? ' sel' : ''}" data-f="${f}">${f === 'all' ? 'Tất cả' : f}</button>`).join('');
+  wrapEl.appendChild(bar);
+  const rows = Object.entries(RISKS).filter(([, r]) => riskFilter === 'all' || r.sev === riskFilter);
+  const tb = document.createElement('table'); tb.className = 'rt';
+  tb.innerHTML = `<thead><tr><th>ID</th><th>Mức</th><th>Vấn đề</th><th>Xuất hiện ở</th></tr></thead><tbody>${rows.map(([id, r]) => `
+    <tr data-r="${id}" style="cursor:pointer"><td class="mono">${id}</td><td><span class="sev ${r.sev}">${r.sev}</span></td><td>${md(r.t)}</td>
+    <td>${(idx[id] || []).map((x) => `<span class="tag">${esc(x.title)}</span>`).join('') || '<span class="hint">tài liệu / CI</span>'}</td></tr>`).join('')}</tbody>`;
+  wrapEl.appendChild(tb);
+  bar.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { riskFilter = c.dataset.f; renderRisks(); }));
+  tb.querySelectorAll('tr[data-r]').forEach((tr) => tr.addEventListener('click', () => { state.sel = { type: 'risk', id: tr.dataset.r }; panelRisk(tr.dataset.r); syncHash(); }));
+}
+
+/* =====================================================================
+   PANEL
+   ===================================================================== */
+const panel = () => $('#panel');
+function list(items, mono) { return items && items.length ? `<ul>${items.map((x) => `<li>${mono ? `<code>${esc(x)}</code>` : md(x)}</li>`).join('')}</ul>` : ''; }
+function riskChips(ids) {
+  return (ids || []).map((r) => `<div class="riskrow" data-risk="${r}"><span class="sev ${RISKS[r].sev}">${RISKS[r].sev}</span><b class="mono">${r}</b> ${md(RISKS[r].t)}</div>`).join('');
+}
+function wirePanel() {
+  panel().querySelectorAll('[data-risk]').forEach((el) => el.addEventListener('click', () => { goto('risks', null); state.sel = { type: 'risk', id: el.dataset.risk }; panelRisk(el.dataset.risk); }));
+  panel().querySelectorAll('[data-node]').forEach((el) => el.addEventListener('click', () => select({ type: 'node', id: el.dataset.node })));
+  panel().querySelectorAll('[data-edge]').forEach((el) => el.addEventListener('click', () => select({ type: 'edge', idx: Number(el.dataset.edge) })));
+  panel().querySelectorAll('[data-go]').forEach((el) => el.addEventListener('click', () => goto(el.dataset.go, null)));
+  panel().querySelectorAll('[data-step]').forEach((el) => el.addEventListener('click', () => setStep(Number(el.dataset.step))));
+}
+const KIND_NAME = { actor: 'Người dùng', edge: 'Edge / mạng', app: 'Ứng dụng / process', cms: 'CMS', mod: 'Module nghiệp vụ', data: 'Lưu trữ', ext: 'Dịch vụ ngoài', ops: 'Vận hành', state: 'Trạng thái', note: 'Ghi chú' };
+function panelDefault() {
+  const v = viewById(state.view); const sub = v.variants ? (v.variants.find((x) => x.id === state.variant) || v.variants[0]) : null;
+  const sum = (v.summary || []).concat(sub && sub.summary ? sub.summary : []);
+  panel().innerHTML = `<h2>${esc(sub ? sub.label : v.tab)}</h2><p class="hint">${md((sub && sub.intro) || v.intro || '')}</p>
+    ${sum.length ? `<h3>Tóm tắt</h3>${list(sum)}` : ''}
+    <h3>Cách dùng</h3>
+    <ul><li>Nhấp node hoặc cạnh để xem chi tiết và đường dẫn source.</li><li>Rê chuột để làm nổi kết nối; cuộn chuột để zoom, kéo nền để di chuyển.</li><li>Bật <b>Rủi ro</b> để xem huy hiệu trên node; bật <b>Dòng chảy</b> để thấy hướng dữ liệu.</li><li>Bấm chú giải phía trên để ẩn/hiện từng loại cạnh. Gõ vào ô tìm kiếm để lọc node.</li></ul>
+    <p class="hint">Đường dẫn <code>file:dòng</code> là vị trí trong repo tại commit đã review.</p>`;
+  wirePanel();
+}
+function panelGraph() {
+  const g = curGraph; const s = state.sel;
+  if (!g || !s) { panelDefault(); return; }
+  if (s.type === 'node') {
+    const n = g.byId.get(s.id);
+    const out = g.edges.map((e, i) => [e, i]).filter(([e]) => e.from === n.id);
+    const inn = g.edges.map((e, i) => [e, i]).filter(([e]) => e.to === n.id);
+    const label = (e, i, other) => `<li><a href="#" data-edge="${i}" onclick="return false">${esc(g.byId.get(other).t)}</a>${e.label ? ` <span class="hint">· ${esc(e.label)}</span>` : ''} <span class="tag">${esc(KINDS[e.kind].label)}</span></li>`;
+    panel().innerHTML = `<h2>${esc(n.t)}</h2><div><span class="tag">${KIND_NAME[n.type] || n.type}</span>${n.dashed ? '<span class="tag">tuỳ chọn / chưa dùng</span>' : ''}</div>
+      ${n.s && n.s.length ? `<p class="hint">${n.s.map(esc).join('<br>')}</p>` : ''}
+      ${n.d ? `<h3>Mô tả</h3><p>${md(n.d)}</p>` : ''}
+      ${n.tech && n.tech.length ? `<h3>Chi tiết kỹ thuật</h3>${list(n.tech)}` : ''}
+      ${n.src && n.src.length ? `<h3>Nguồn</h3>${list(n.src, true)}` : ''}
+      ${n.risks && n.risks.length ? `<h3>Rủi ro liên quan</h3>${riskChips(n.risks)}` : ''}
+      ${out.length ? `<h3>Đi ra (${out.length})</h3><ul>${out.map(([e, i]) => label(e, i, e.to)).join('')}</ul>` : ''}
+      ${inn.length ? `<h3>Đi vào (${inn.length})</h3><ul>${inn.map(([e, i]) => label(e, i, e.from)).join('')}</ul>` : ''}
+      ${n.go ? `<p><button class="btn" data-go="${n.go}">Mở sơ đồ chi tiết ↗</button></p>` : ''}`;
+  } else if (s.type === 'edge') {
+    const e = g.edges[s.idx]; const a = g.byId.get(e.from); const b = g.byId.get(e.to);
+    panel().innerHTML = `<h2>${esc(e.label || `${a.t} → ${b.t}`)}</h2><div><span class="tag">${esc(KINDS[e.kind].label)}</span>${e.bi ? '<span class="tag">hai chiều</span>' : ''}</div>
+      <p><a href="#" data-node="${a.id}" onclick="return false">${esc(a.t)}</a> ${e.bi ? '↔' : '→'} <a href="#" data-node="${b.id}" onclick="return false">${esc(b.t)}</a></p>
+      ${e.d ? `<h3>Cơ chế</h3><p>${md(e.d)}</p>` : '<p class="hint">Không có mô tả thêm; xem hai node ở hai đầu.</p>'}`;
+  }
+  if (state.view === 'states' && s.type === 'node') {
+    const n = g.byId.get(s.id);
+    const nxt = g.edges.filter((e) => e.from === n.id).map((e) => e.to); const prv = g.edges.filter((e) => e.to === n.id).map((e) => e.from);
+    panel().innerHTML += `<h3>Có thể chuyển tới</h3><p>${nxt.length ? nxt.map((x) => `<a href="#" data-node="${x}" onclick="return false"><code>${x}</code></a>`).join(' ') : '<span class="hint">— (trạng thái cuối)</span>'}</p>
+      <h3>Đến từ</h3><p>${prv.length ? prv.map((x) => `<a href="#" data-node="${x}" onclick="return false"><code>${x}</code></a>`).join(' ') : '<span class="hint">— (trạng thái đầu)</span>'}</p>`;
+  }
+  wirePanel();
+}
+function panelSeq() {
+  const sc = curScenario(); const i = state.step; const st = sc.steps[i];
+  const names = new Map(sc.participants.map((p) => [p.id, p.t]));
+  panel().innerHTML = `<h2>${esc(sc.label)}</h2><p class="hint">${md(sc.intro)}</p>
+    <div class="stepbar"><button class="btn" id="b-prev">◀ Trước</button><button class="btn" id="b-next">Sau ▶</button><button class="btn" id="b-play">▶ Phát</button><button class="btn" id="b-all">Hiện tất cả</button></div>
+    ${st ? `<h3>Bước ${i + 1}/${sc.steps.length}</h3><p><b>${esc(names.get(st.from))}</b> ${st.from === st.to ? '↻' : '→'} <b>${esc(names.get(st.to))}</b></p><p>${esc(st.label)}</p><p><span class="tag">${esc(KINDS[st.kind].label)}</span></p>${st.d ? `<p>${md(st.d)}</p>` : ''}${st.src.length ? `<h3>Nguồn</h3>${list(st.src, true)}` : ''}` : '<h3>Các bước</h3>'}
+    <ol style="padding-left:20px;margin:6px 0">${sc.steps.map((s, k) => `<li style="margin:3px 0"><a href="#" data-step="${k}" onclick="return false" ${k === i ? 'style="font-weight:700"' : ''}>${esc(s.label)}</a></li>`).join('')}</ol>`;
+  $('#b-prev').onclick = () => setStep(state.step - 1); $('#b-next').onclick = () => setStep(state.step + 1);
+  $('#b-play').onclick = togglePlay; $('#b-all').onclick = () => { stopPlay(); setStep(-1); };
+  if (state.timer) $('#b-play').textContent = '❚❚ Dừng';
+  wirePanel();
+}
+function panelRisk(id) {
+  const r = RISKS[id]; const idx = riskIndex()[id] || [];
+  panel().innerHTML = `<h2><span class="sev ${r.sev}">${r.sev}</span>${id}</h2><p><b>${md(r.t)}</b></p><h3>Chi tiết</h3><p>${md(r.d)}</p><h3>Hướng xử lý gợi ý</h3><p>${md(r.fix)}</p>
+    <h3>Nguồn</h3>${list(r.src, true)}
+    ${idx.length ? `<h3>Node liên quan</h3><ul>${idx.map((x) => `<li><a href="#" data-goto="${x.view}|${x.variant || ''}|${x.node}" onclick="return false">${esc(x.title)}</a> <span class="hint">· ${esc(viewById(x.view).tab)}</span></li>`).join('')}</ul>` : ''}`;
+  panel().querySelectorAll('[data-goto]').forEach((el) => el.addEventListener('click', () => { const [v, va, nd] = el.dataset.goto.split('|'); goto(v, va || null, nd); }));
+}
+
+/* =====================================================================
+   ĐIỀU HƯỚNG + RENDER TỔNG
+   ===================================================================== */
+const viewById = (id) => VIEWS.find((v) => v.id === id) || VIEWS[0];
+function buildTabs() {
+  const nav = $('#tabs'); nav.innerHTML = '';
+  for (const v of VIEWS) {
+    const b = document.createElement('button');
+    b.className = 'tab'; b.role = 'tab'; b.textContent = v.tab; b.dataset.v = v.id;
+    b.setAttribute('aria-selected', String(v.id === state.view));
+    b.onclick = () => goto(v.id, null);
+    nav.appendChild(b);
+  }
+}
+function buildVariant(v) {
+  const sel = $('#variant');
+  if (!v.variants) { sel.hidden = true; return; }
+  sel.hidden = false; sel.innerHTML = v.variants.map((x) => `<option value="${x.id}">${esc(x.label)}</option>`).join('');
+  sel.value = state.variant || v.variants[0].id;
+}
+function buildLegend(kinds) {
+  const lg = $('#legend'); lg.innerHTML = '';
+  for (const k of kinds) {
+    const c = document.createElement('button');
+    c.className = `chip${state.off.has(k) ? ' off' : ''}`; c.style.color = `var(--c-${k})`;
+    c.innerHTML = `<i></i><span style="color:var(--text)">${esc(KINDS[k].label)}</span>`;
+    c.setAttribute('aria-pressed', String(!state.off.has(k)));
+    c.onclick = () => { if (state.off.has(k)) state.off.delete(k); else state.off.add(k); c.classList.toggle('off'); if (svg) svg.classList.toggle(`off-${k}`, state.off.has(k)); };
+    lg.appendChild(c);
+  }
+}
+function goto(viewId, variantId, selId) {
+  stopPlay();
+  const v = viewById(viewId);
+  state.view = v.id;
+  if (v.variants) {
+    if (variantId && v.variants.some((x) => x.id === variantId)) state.variant = variantId;
+    else if (!v.variants.some((x) => x.id === state.variant)) state.variant = v.variants[0].id;
+  } else state.variant = null;
+  state.sel = null; state.step = -1;
+  render();
+  if (selId && curGraph && curGraph.byId.has(selId)) select({ type: 'node', id: selId });
+}
+function render() {
+  const v = viewById(state.view);
+  document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.v === v.id)));
+  buildVariant(v);
+  const sub = v.variants ? (v.variants.find((x) => x.id === state.variant) || v.variants[0]) : null;
+  $('#intro').innerHTML = md((sub && sub.intro) || v.intro || '');
+  if (v.type === 'risks') { buildLegend([]); renderRisks(); if (state.sel && state.sel.type === 'risk') panelRisk(state.sel.id); else panelDefault(); syncHash(); return; }
+  if (v.type === 'seq') { buildLegend(['http', 'event', 'webhook', 'data']); renderSeq(sub); panelSeq(); syncHash(); return; }
+  const g = sub || v.graph;
+  buildLegend([...new Set(g.edges.map((e) => e.kind))]);
+  renderGraph(g, v.cls);
+  panelDefault();
+  syncHash();
+}
+function syncHash() {
+  let h = state.view + (state.variant ? `:${state.variant}` : '');
+  if (state.sel && state.sel.type === 'node') h += `/${state.sel.id}`;
+  else if (state.sel && state.sel.type === 'risk') h += `/${state.sel.id}`;
+  else if (state.view === 'flows' && state.step >= 0) h += `/${state.step + 1}`;
+  history.replaceState(null, '', `#${h}`);
+}
+function fromHash() {
+  const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (!raw) return false;
+  const [head, sel] = raw.split('/'); const [vid, va] = head.split(':');
+  const v = VIEWS.find((x) => x.id === vid); if (!v) return false;
+  state.view = v.id; state.variant = v.variants ? (va && v.variants.some((x) => x.id === va) ? va : v.variants[0].id) : null;
+  state.sel = null; state.step = -1;
+  render();
+  if (!sel) return true;
+  if (v.type === 'graph' && curGraph && curGraph.byId.has(sel)) select({ type: 'node', id: sel });
+  else if (v.type === 'seq') setStep(Number(sel) - 1);
+  else if (v.type === 'risks' && RISKS[sel]) { state.sel = { type: 'risk', id: sel }; panelRisk(sel); }
+  return true;
+}
+
+/* =====================================================================
+   PAN / ZOOM
+   ===================================================================== */
+function setVB() { if (svg) svg.setAttribute('viewBox', vb.map((n) => +n.toFixed(1)).join(' ')); }
+function bindPanZoom() {
+  if (!svg) return;
+  svg.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const k = Math.exp(ev.deltaY * 0.0014);
+    const nw = Math.min(vb0[2] * 1.6, Math.max(vb0[2] * 0.2, vb[2] * k)); const f = nw / vb[2];
+    // giữ điểm dưới con trỏ cố định (tính theo preserveAspectRatio=meet)
+    const scale = Math.max(vb[2] / r.width, vb[3] / r.height);
+    const offX = (r.width - vb[2] / scale) / 2; const offY = (r.height - vb[3] / scale) / 2;
+    const mx = vb[0] + (ev.clientX - r.left - offX) * scale; const my = vb[1] + (ev.clientY - r.top - offY) * scale;
+    vb = [mx - (mx - vb[0]) * f, my - (my - vb[1]) * f, vb[2] * f, vb[3] * f];
+    setVB();
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener('pointerdown', (ev) => {
+    if (ev.target.closest('.node, .edge, .seq-msg')) return;
+    const r = svg.getBoundingClientRect(); const scale = Math.max(vb[2] / r.width, vb[3] / r.height);
+    drag = { x: ev.clientX, y: ev.clientY, vb: vb.slice(), scale, moved: false };
+    svg.setPointerCapture(ev.pointerId); svg.classList.add('dragging');
+  });
+  svg.addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x; const dy = ev.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+    vb = [drag.vb[0] - dx * drag.scale, drag.vb[1] - dy * drag.scale, vb[2], vb[3]]; setVB();
+  });
+  const end = (ev) => { if (!drag) return; const moved = drag.moved; drag = null; svg.classList.remove('dragging'); try { svg.releasePointerCapture(ev.pointerId); } catch (e) { /* đã nhả */ } if (moved) { svg.addEventListener('click', (c) => c.stopImmediatePropagation(), { capture: true, once: true }); } };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+}
+
+/* =====================================================================
+   KHỞI TẠO
+   ===================================================================== */
+function init() {
+  try { const t = localStorage.getItem('fecs-arch-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: light)').matches) document.documentElement.dataset.theme = 'light'; } catch (e) { /* bỏ qua */ }
+  buildTabs();
+  $('#variant').addEventListener('change', (e) => { goto(state.view, e.target.value); });
+  $('#q').addEventListener('input', (e) => { state.q = e.target.value; applyFilter(); });
+  $('#b-anim').addEventListener('click', (e) => { state.anim = !state.anim; e.currentTarget.setAttribute('aria-pressed', String(state.anim)); if (svg) svg.classList.toggle('anim', state.anim); });
+  $('#b-risk').addEventListener('click', (e) => { state.risks = !state.risks; e.currentTarget.setAttribute('aria-pressed', String(state.risks)); if (svg) svg.classList.toggle('risks-off', !state.risks); });
+  $('#b-fit').addEventListener('click', () => { vb = vb0.slice(); setVB(); });
+  $('#b-theme').addEventListener('click', () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'light' ? 'dark' : 'light'; try { localStorage.setItem('fecs-arch-theme', r.dataset.theme); } catch (e) { /* bỏ qua */ } });
+  window.addEventListener('keydown', (ev) => {
+    if (ev.target.matches('input,select,textarea')) return;
+    if (ev.key === 'Escape') { if (state.view === 'flows') setStep(-1); else select(null); }
+    if (state.view === 'flows') { if (ev.key === 'ArrowRight') { ev.preventDefault(); setStep(state.step + 1); } if (ev.key === 'ArrowLeft') { ev.preventDefault(); setStep(state.step - 1); } }
+  });
+  window.addEventListener('hashchange', () => { fromHash(); });
+  if (!fromHash()) render();
+}
+init();
+window.__arch = { VIEWS, RISKS, goto };
+})();
+</script>
+</body>
+</html>

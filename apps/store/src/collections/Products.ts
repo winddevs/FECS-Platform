@@ -4,6 +4,12 @@ import {
 } from "@payloadcms/richtext-lexical";
 import { CollectionConfig } from "payload";
 
+import {
+  isMedusaRequest,
+  isMedusaRequestFieldLevel,
+  isMedusaRequestFrom,
+} from "@/access/isMedusaRequest";
+
 export const Products: CollectionConfig = {
   slug: "products",
   admin: {
@@ -21,7 +27,7 @@ export const Products: CollectionConfig = {
         hidden: true, // Hide this field in the admin UI
       },
       access: {
-        update: ({ req }) => !!req.query.is_from_medusa,
+        update: isMedusaRequestFieldLevel,
       },
     },
     {
@@ -126,12 +132,12 @@ export const Products: CollectionConfig = {
             hidden: true, // Hide this field in the admin UI
           },
           access: {
-            update: ({ req }) => !!req.query.is_from_medusa,
+            update: isMedusaRequestFieldLevel,
           },
         },
       ],
       validate: (value: any, { req, previousValue }) => {
-        if (req.query.is_from_medusa) {
+        if (isMedusaRequestFrom(req)) {
           return true; // Skip validation if the request is from Medusa
         }
 
@@ -174,7 +180,7 @@ export const Products: CollectionConfig = {
             hidden: true, // Hide this field in the admin UI
           },
           access: {
-            update: ({ req }) => !!req.query.is_from_medusa,
+            update: isMedusaRequestFieldLevel,
           },
         },
         {
@@ -192,7 +198,7 @@ export const Products: CollectionConfig = {
                 hidden: true, // Hide this field in the admin UI
               },
               access: {
-                update: ({ req }) => !!req.query.is_from_medusa,
+                update: isMedusaRequestFieldLevel,
               },
             },
             {
@@ -205,7 +211,7 @@ export const Products: CollectionConfig = {
                 hidden: true, // Hide this field in the admin UI
               },
               access: {
-                update: ({ req }) => !!req.query.is_from_medusa,
+                update: isMedusaRequestFieldLevel,
               },
             },
             {
@@ -218,7 +224,7 @@ export const Products: CollectionConfig = {
         },
       ],
       validate: (value: any, { req, previousValue }) => {
-        if (req.query.is_from_medusa) {
+        if (isMedusaRequestFrom(req)) {
           return true; // Skip validation if the request is from Medusa
         }
 
@@ -290,7 +296,7 @@ export const Products: CollectionConfig = {
     ],
     afterChange: [
       async ({ doc, req, operation, previousDoc }) => {
-        if (req.query.is_from_medusa) {
+        if (isMedusaRequestFrom(req)) {
           return doc;
         }
 
@@ -331,7 +337,7 @@ export const Products: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => !!req.query.is_from_medusa,
-    delete: ({ req }) => !!req.query.is_from_medusa,
+    create: isMedusaRequest,
+    delete: isMedusaRequest,
   },
 };

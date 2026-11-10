@@ -3,15 +3,16 @@ import type { CollectionConfig } from "payload";
 import { isAdmin, isAdminFieldLevel } from "@/access/isAdmin";
 import { isAdminOrSelf, isAdminOrSelfFieldLevel } from "@/access/isAdminOrSelf";
 
-import { authenticated } from "../../access/authenticated";
-
 export const Users: CollectionConfig = {
   slug: "users",
   access: {
-    admin: authenticated,
+    // Only admins may open the Payload panel. `authenticated` let any logged-in
+    // user in, including role `public`.
+    admin: ({ req: { user } }) => Boolean(user?.roles?.includes("admin")),
     create: isAdmin,
     delete: isAdminOrSelf,
-    read: authenticated,
+    // Admins read everyone; any other user reads only themselves.
+    read: isAdminOrSelf,
     update: isAdminOrSelf,
   },
   admin: {

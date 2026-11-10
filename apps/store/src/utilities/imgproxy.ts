@@ -14,10 +14,16 @@
  *   - .webp:   Cloudflare caches this extension by default
  */
 
-/** Keep in sync with docker/imgproxy/presets.txt. */
+/**
+ * Keep in sync with docker/imgproxy/presets.txt.
+ * The widest preset is the largest copy that is public, so there is no 3840:
+ * a request for more falls back to the widest one (see pickWidth).
+ */
 export const IMGPROXY_WIDTHS = [
-  32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048, 3840,
+  32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048,
 ] as const;
+
+const WIDEST_WIDTH = 2048;
 
 /** Every Payload media file lives under this prefix in the bucket. */
 const MEDIA_KEY_PREFIX = "cms/media/";
@@ -39,14 +45,14 @@ const toBase64Url = (value: string): string => {
     .replace(/=+$/, "");
 };
 
-/** Smallest preset that is at least as wide as asked (never upscales a request). */
+/** Smallest preset that is at least as wide as asked; the widest one when asked for more. */
 export const pickWidth = (width: number): number => {
   for (const candidate of IMGPROXY_WIDTHS) {
     if (candidate >= width) {
       return candidate;
     }
   }
-  return IMGPROXY_WIDTHS.at(-1) ?? 3840;
+  return IMGPROXY_WIDTHS.at(-1) ?? WIDEST_WIDTH;
 };
 
 const getBaseURL = (): string | null => {

@@ -6,6 +6,7 @@
 DOMAIN=bibaestudios.com                # storefront + CMS admin (www redirects here)
 API_DOMAIN=ecom.bibaestudios.com        # Medusa API + admin (/app)
 S3_DOMAIN=s3.bibaestudios.com          # MinIO S3 API (media uploads and reads)
+IMG_DOMAIN=img.bibaestudios.com        # imgproxy: resized WebP images (default img.$DOMAIN). Cloudflare proxy ON
 CAPTCHA_DOMAIN=captcha.bibaestudios.com
 ADMIN_DOMAIN=admin.bibaestudios.com    # CMS entry point: redirects to https://$DOMAIN/admin
 LETSENCRYPT_EMAIL=                     # expiry notices from Let's Encrypt

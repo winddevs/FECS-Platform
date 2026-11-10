@@ -191,7 +191,7 @@ How the URL works: `https://img.bibaestudios.com/<version>/w<width>/<key>.webp`
 
 - `<version>` changes whenever the media document is saved, so a replaced image
   is fetched again even though every response is cached for a year.
-- `w<width>` is one of the 15 presets in `docker/imgproxy/presets.txt`. imgproxy
+- `w<width>` is one of the 14 presets in `docker/imgproxy/presets.txt`. imgproxy
   runs in presets-only mode, so nobody can request an odd size, and the URLs
   need no signing key (the browser builds them).
 - `<key>` is the file's path in the bucket (`cms/media/photo.png`), Base64-URL
@@ -266,8 +266,8 @@ https://www.cloudflare.com/ips-v4 and `/ips-v6`); check them twice a year.
 1. DNS: `img` A record to the server, **Proxied** (orange cloud).
 2. SSL/TLS: set the mode to **Full (strict)**. Add the host to the existing
    certificate: `sudo certbot certonly --expand --webroot -w /var/www/certbot -d
-bibaestudios.com -d www.bibaestudios.com -d api.bibaestudios.com -d
-img.bibaestudios.com`, then reload nginx. (If the challenge fails, switch the
+   bibaestudios.com -d www.bibaestudios.com -d api.bibaestudios.com -d
+   img.bibaestudios.com`, then reload nginx. (If the challenge fails, switch the
    record to DNS only for that minute.)
 3. Caching > Cache Rules, one rule for `Hostname equals img.bibaestudios.com`:
    - Cache eligibility: **Eligible for cache**

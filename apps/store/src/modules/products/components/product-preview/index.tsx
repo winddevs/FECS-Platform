@@ -2,7 +2,8 @@ import { getProductPrice } from "@lib/util/get-product-price";
 import { HttpTypes } from "@medusajs/types";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import { getLocale } from "next-intl/server";
-import Image from "next/image";
+
+import { PayloadImage } from "@/components/PayloadImage";
 
 import {
   getProductImages,
@@ -45,7 +46,7 @@ export default async function ProductPreview({
     >
       <div className="sf-card-media">
         {primaryUrl ? (
-          <Image
+          <PayloadImage
             src={primaryUrl}
             alt={title}
             fill
@@ -60,7 +61,7 @@ export default async function ProductPreview({
           </span>
         )}
         {primaryUrl && hoverUrl && (
-          <Image
+          <PayloadImage
             className="sf-card-img-hover"
             src={hoverUrl}
             alt=""

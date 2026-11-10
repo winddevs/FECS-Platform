@@ -14,22 +14,24 @@ a single server and is still the reference for the nginx rules.
   STORE droplet (public)                  BACKEND droplet (public)
   bibaestudios.com, www                   ecom.bibaestudios.com
   admin.bibaestudios.com (-> /admin)
-  captcha.bibaestudios.com                s3.bibaestudios.com
+  captcha.bibaestudios.com                s3.bibaestudios.com, img.bibaestudios.com
   nginx -> store   :8000 (loopback)       nginx -> medusa :9000 (private IP)
         -> fcaptcha:3100 (loopback)             -> minio  :9002 (loopback)
+                                                -> imgproxy :8081 (loopback)
         |                                        |
         |   private VPC network (sgp1)           |
         +--> Medusa    10.x.x.x:9000  ----------->+  medusa    (API, admin, jobs)
         +--> Postgres  10.x.x.x:5432  (ecommerce_cms)  postgres  (ecommerce_medusa + ecommerce_cms)
         +--> Redis     10.x.x.x:6379  (sign-in limits) redis
                                                  minio     (media + product images)
+                                                 imgproxy  (resized WebP copies, optional)
                                                  meilisearch (product search, internal only)
 ```
 
-| Droplet     | Runs                                                                                      | Recommended size                              | Minimum (with the 2 GB swap the script adds) |
-| ----------- | ----------------------------------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------- |
-| **backend** | Medusa (one process, API + admin + jobs), Postgres 17, Redis 7, MinIO, Meilisearch, nginx | 4 GiB RAM, 2 vCPU, 80 GiB SSD (Basic, $24/mo) | 2 GiB, 2 vCPU, 60 GiB ($18/mo)               |
-| **store**   | Next.js storefront and Payload CMS admin (one app), FCaptcha, nginx                       | 2 GiB RAM, 2 vCPU, 60 GiB SSD (Basic, $18/mo) | 2 GiB, 1 vCPU, 50 GiB ($12/mo)               |
+| Droplet     | Runs                                                                                                | Recommended size                              | Minimum (with the 2 GB swap the script adds) |
+| ----------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| **backend** | Medusa (one process, API + admin + jobs), Postgres 17, Redis 7, MinIO, imgproxy, Meilisearch, nginx | 4 GiB RAM, 2 vCPU, 80 GiB SSD (Basic, $24/mo) | 2 GiB, 2 vCPU, 60 GiB ($18/mo)               |
+| **store**   | Next.js storefront and Payload CMS admin (one app), FCaptcha, nginx                                 | 2 GiB RAM, 2 vCPU, 60 GiB SSD (Basic, $18/mo) | 2 GiB, 1 vCPU, 50 GiB ($12/mo)               |
 
 **Current setup (demo):** the backend is a Basic 2 GiB / 2 vCPU / 60 GiB droplet and the store
 a 2 GiB / 1 vCPU / 50 GiB droplet. `infra/deploy/backend/docker-compose.yml` is tuned for
@@ -131,6 +133,7 @@ Host bibaestudios-store
 | `captcha`                 | store droplet `188.166.238.43`    | FCaptcha widget and API                                        |
 | `ecom`                    | backend droplet `165.232.166.136` | Medusa API; opens Medusa Admin (`/app`)                        |
 | `s3`                      | backend droplet `165.232.166.136` | MinIO S3 API                                                   |
+| `img`                     | backend droplet `165.232.166.136` | resized images (imgproxy). **Cloudflare proxy on**, see 6.1    |
 
 Private addresses (VPC `10.104.0.0/20`): store `10.104.0.3`, backend `10.104.0.5`.
 
@@ -323,6 +326,108 @@ Consequences:
 - Browsers upload to `https://s3.bibaestudios.com` directly with presigned URLs
   (Payload `clientUploads`). CORS is allowed for `https://bibaestudios.com` and
   `https://www.bibaestudios.com` only.
+
+### 6.1 Image resizing (imgproxy) and protecting the pictures
+
+Without imgproxy, the Next.js server on the store droplet resizes every picture.
+With it, a separate container next to MinIO does, and Cloudflare keeps every
+result for a year, so the droplets only see the first visit to each picture.
+
+```
+Browser -> Cloudflare (cached WebP) -> nginx on the backend droplet -> imgproxy -> MinIO (original)
+```
+
+What is in place once it is on:
+
+- URLs look like `https://img.bibaestudios.com/<version>/w<width>/<base64 key>.webp`.
+  `<version>` changes when the media document is saved, so a replaced picture is
+  fetched again. imgproxy accepts only the 14 widths of `docker/imgproxy/presets.txt`
+  (the widest is 2048) and reads only `ecommerce-media/cms/media/`; any other
+  size, path or format is a 404. EXIF (GPS, camera) is removed from every copy.
+- The `img` host answers only Cloudflare (`snippets/cloudflare-only.conf`), so
+  the Cloudflare rules below cannot be skipped by going to the droplet directly.
+  nginx also limits a visitor to 20 cache misses a second (`zone=img`).
+- Payload media shown through `Media`/`PayloadImage` and the product cards and
+  gallery use it. Medusa-only product photos (`ecommerce-medusa`), the cart and the
+  search box still go through the Next.js optimizer.
+
+**Turn it on** (the order matters; nothing changes for visitors until the last step):
+
+1. DNS: add `img` as an **A record to the backend droplet, proxied (orange cloud)**.
+   Cloudflare SSL mode _Full (strict)_.
+2. `scripts/deploy.sh setup backend` (safe to repeat): adds `img` to the
+   certificate and installs the nginx host. If the certificate request fails
+   because of the proxy, switch `img` to DNS only for that minute.
+3. `scripts/deploy.sh release backend`: starts imgproxy (and restarts it when
+   `presets.txt` changed). A failure here only warns.
+4. Cloudflare, for the host `img.bibaestudios.com`:
+   - _Caching > Cache Rules_: eligible for cache; Edge TTL "use cache-control
+     header if present, bypass cache if not"; leave Polish, Mirage and Rocket
+     Loader off.
+   - _Security > WAF > Custom rules_, action Block, to stop other sites embedding
+     the pictures (empty referrers stay allowed: privacy settings, apps):
+
+     ```
+     (http.host eq "img.bibaestudios.com" and http.referer ne ""
+      and not http.referer contains "bibaestudios.com")
+     ```
+
+     Also turn on **Hotlink Protection** for the zone (Scrape Shield).
+
+   - _Security > WAF > Rate limiting rules_: for example 300 requests per minute
+     per IP on the host, action Block. The free plan allows one such rule.
+   - _Security > Bots_: Bot Fight Mode on.
+5. Check the chain, then build the storefront with it:
+
+   ```bash
+   # 404 from imgproxy = Cloudflare, nginx and imgproxy all answer
+   # (the key part needs 8+ characters, or nginx answers 404 on its own)
+   curl -s -o /dev/null -w '%{http_code}\n' https://img.bibaestudios.com/v1/w999/preflight-check.webp
+   # first request MISS, second HIT (use a real <version>/<base64 key> from the site)
+   curl -sI https://img.bibaestudios.com/<version>/w640/<key>.webp | grep -iE 'HTTP|cf-cache-status|content-type'
+
+   scripts/deploy.sh set-env store NEXT_PUBLIC_IMGPROXY_URL   # https://img.bibaestudios.com
+   scripts/deploy.sh release store
+   ```
+
+   `release store` first asks the host for the 404 above and stops if it does not
+   answer, because the value is compiled into the browser bundle.
+
+**Turn it off**: remove `NEXT_PUBLIC_IMGPROXY_URL` from the store `.env` and run
+`release store`. The Next.js optimizer takes over.
+
+**Changing presets.** Edit `docker/imgproxy/presets.txt` and `IMGPROXY_WIDTHS` in
+`apps/store/src/utilities/imgproxy.ts` together, then `release backend` (restarts
+imgproxy) and `release store` (a storefront built with the old list asks for
+removed widths and gets 404). URLs keep the same version, so purge the host in
+Cloudflare (_Caching > Purge > Hostname_).
+
+**Memory.** The container is limited to 512 MB and 2 images at a time. On a 2 GiB
+backend droplet watch `scripts/deploy.sh status` after the first large upload;
+imgproxy rejects sources over 50 MP or 50 MB.
+
+**What this does not protect.** The original files stay public:
+`https://s3.bibaestudios.com/ecommerce-media/cms/media/<name>` returns the
+full-size upload, and everything in `ecommerce-medusa` (photos added in Medusa
+Admin) is public too. A picture that a browser can show can always be saved, so
+the aim is to make bulk copying slow and the public copies small, not impossible.
+
+The originals are not closed yet because the site still reads them directly:
+
+- `og:image` (`utilities/generateMeta.ts` falls back to the original) and the
+  product JSON-LD images (`lib/seo/product.ts`). Social networks and search
+  engines need JPEG/PNG, not WebP.
+- Videos (`VideoMedia` plays the file URL; imgproxy does not serve video).
+- Images rendered with a plain `next/image` or `<img>`: the header menu images
+  and the hover blocks (`HoverCards`, `HoverHighlights`).
+- The Payload admin, which opens the file URL from the browser (not tested).
+
+To close them: move those readers to imgproxy (a JPEG route for `og:image`) or
+to signed S3 URLs, then replace `public-read-media.json` with a policy that
+allows videos only. Add a watermark at the same time: imgproxy needs a logo file
+(`IMGPROXY_WATERMARK_PATH`) and its own preset names for pictures that carry it.
+Legal measures (a copyright clause in the terms, keeping the originals as proof)
+work alongside the technical ones.
 
 ## 7. Search: Meilisearch
 

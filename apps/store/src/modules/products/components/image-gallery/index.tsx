@@ -2,8 +2,9 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import { useState } from "react";
+
+import { PayloadImage } from "@/components/PayloadImage";
 
 type ImageGalleryProps = {
   images: {
@@ -34,7 +35,7 @@ const ImageGallery = ({ images, title = "" }: ImageGalleryProps) => {
     <div className="sf-gallery" data-testid="product-gallery">
       <div className="sf-stage">
         {current ? (
-          <Image
+          <PayloadImage
             key={current.id}
             src={current.url}
             alt={altFor(index)}
@@ -82,7 +83,7 @@ const ImageGallery = ({ images, title = "" }: ImageGalleryProps) => {
                 aria-current={position === index}
                 onClick={() => setIndex(position)}
               >
-                <Image
+                <PayloadImage
                   src={image.url}
                   alt=""
                   fill

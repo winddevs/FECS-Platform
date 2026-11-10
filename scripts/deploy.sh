@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy the platform to two DigitalOcean droplets.
 #
-#   backend droplet  Medusa, Postgres (medusa + cms databases), Redis, MinIO, Meilisearch
+#   backend droplet  Medusa, Postgres (medusa + cms databases), Redis, MinIO, imgproxy, Meilisearch
 #   store droplet    Next.js storefront + Payload CMS admin, FCaptcha
 #
 # Images are built on this machine (linux/amd64) and sent over SSH, so the
@@ -86,6 +86,7 @@ load_conf() {
   : "${KEEP_RELEASES:=3}"
   : "${LETSENCRYPT_EMAIL:=}"
   : "${ADMIN_DOMAIN:=admin.$DOMAIN}"
+  : "${IMG_DOMAIN:=img.$DOMAIN}"
   local v
   for v in DOMAIN API_DOMAIN S3_DOMAIN CAPTCHA_DOMAIN BACKEND_SSH BACKEND_PUBLIC_IP BACKEND_PRIVATE_IP; do
     [ -n "${!v:-}" ] || die "$v is empty in $CONF"
@@ -189,6 +190,7 @@ render() {
   sed \
     -e "s|__API_DOMAIN__|$API_DOMAIN|g" \
     -e "s|__S3_DOMAIN__|$S3_DOMAIN|g" \
+    -e "s|__IMG_DOMAIN__|$IMG_DOMAIN|g" \
     -e "s|__CAPTCHA_DOMAIN__|$CAPTCHA_DOMAIN|g" \
     -e "s|__ADMIN_DOMAIN__|$ADMIN_DOMAIN|g" \
     -e "s|__BACKEND_PRIVATE_IP__|$BACKEND_PRIVATE_IP|g" \
@@ -329,7 +331,7 @@ setup_nginx() {
   mkdir -p "$tmp/snippets"
 
   CERT_NAME="$cert_name" render "$DEPLOY_DIR/nginx/tls.conf.tpl" >"$tmp/snippets/tls.conf"
-  cp "$ROOT"/infra/nginx/snippets/{proxy-common,security-headers,internal-only}.conf "$tmp/snippets/"
+  cp "$ROOT"/infra/nginx/snippets/{proxy-common,security-headers,internal-only,cloudflare-only}.conf "$tmp/snippets/"
   cp "$DEPLOY_DIR"/nginx/snippets/*.conf "$tmp/snippets/"
   CERT_NAME="$cert_name" render "$DEPLOY_DIR/nginx/$template" >"$tmp/$conf_name"
 
@@ -454,6 +456,7 @@ write_backend_env() {
 DOMAIN=$DOMAIN
 API_DOMAIN=$API_DOMAIN
 S3_DOMAIN=$S3_DOMAIN
+IMG_DOMAIN=$IMG_DOMAIN
 BACKEND_PRIVATE_IP=$BACKEND_PRIVATE_IP
 
 # ---- infrastructure ----
@@ -570,6 +573,10 @@ S3_REGION=us-east-1
 S3_ACCESS_KEY_ID=$s3user
 S3_SECRET_ACCESS_KEY=$s3pass
 NEXT_PUBLIC_R2_HOSTNAME=
+# Resized WebP images through imgproxy (https://$IMG_DOMAIN). Empty = Next.js resizes
+# them itself. Fill it in only after the DNS record, the Cloudflare rules and
+# \`release backend\` are done (docs/deploy-digitalocean.md, "Image resizing"):
+#   scripts/deploy.sh set-env store NEXT_PUBLIC_IMGPROXY_URL   (then release store)
 NEXT_PUBLIC_IMGPROXY_URL=
 
 # ---- captcha (FCaptcha container on this droplet) ----
@@ -618,8 +625,8 @@ cmd_setup() {
   rsh "$T_HOST" "[ -f '$T_DIR/release.env' ] || printf 'IMAGE_TAG=none\nPREVIOUS_TAG=none\n' > '$T_DIR/release.env'"
 
   if [ "$T_NAME" = backend ]; then
-    check_dns "$BACKEND_PUBLIC_IP" "$API_DOMAIN" "$S3_DOMAIN"
-    setup_nginx "$T_HOST" backend.conf.tpl fecs-backend.conf "$API_DOMAIN" "$API_DOMAIN,$S3_DOMAIN"
+    check_dns "$BACKEND_PUBLIC_IP" "$API_DOMAIN" "$S3_DOMAIN" "$IMG_DOMAIN"
+    setup_nginx "$T_HOST" backend.conf.tpl fecs-backend.conf "$API_DOMAIN" "$API_DOMAIN,$S3_DOMAIN,$IMG_DOMAIN"
   else
     check_dns "$STORE_PUBLIC_IP" "$DOMAIN" "www.$DOMAIN" "$ADMIN_DOMAIN" "$CAPTCHA_DOMAIN"
     setup_nginx "$T_HOST" store.conf.tpl fecs-store.conf "$DOMAIN" "$DOMAIN,www.$DOMAIN,$ADMIN_DOMAIN,$CAPTCHA_DOMAIN"
@@ -698,7 +705,40 @@ $compose up -d medusa </dev/null
 EOF
   wait_healthy_or_rollback "$T_HOST" "$T_DIR" medusa
   prune_images "$T_HOST" fecs-medusa
+  release_imgproxy
   log "backend released: $tag"
+}
+
+# imgproxy resizes the storefront images. It starts after Medusa is healthy and a
+# failure here only warns: product pages keep working through the Next.js
+# optimizer until the storefront is built with NEXT_PUBLIC_IMGPROXY_URL.
+release_imgproxy() {
+  local presets="$ROOT/docker/imgproxy/presets.txt" changed=0
+  if [ ! -f "$presets" ]; then
+    warn "missing $presets: imgproxy not updated"
+    return 0
+  fi
+  log "updating imgproxy"
+  # The presets file is bind-mounted, so imgproxy must be restarted when it changes.
+  if ! rsh "$T_HOST" "cmp -s - '$T_DIR/imgproxy/presets.txt'" <"$presets" 2>/dev/null; then
+    changed=1
+    rsh "$T_HOST" "mkdir -p '$T_DIR/imgproxy' && cat > '$T_DIR/imgproxy/presets.txt'" <"$presets"
+  fi
+  rsh "$T_HOST" bash -s -- "$T_DIR" "$changed" <<'EOF' || warn "imgproxy did not become healthy: run 'scripts/deploy.sh logs backend imgproxy'. The storefront is not affected until NEXT_PUBLIC_IMGPROXY_URL is set."
+set -euo pipefail
+cd "$1"
+compose="docker compose --env-file .env --env-file release.env"
+$compose up -d imgproxy </dev/null
+if [ "$2" = 1 ]; then $compose restart imgproxy </dev/null; fi
+cid="$($compose ps -q imgproxy </dev/null)"
+for _ in $(seq 1 20); do
+  state="$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo none)"
+  if [ "$state" = healthy ]; then echo "imgproxy is healthy"; exit 0; fi
+  sleep 3
+done
+$compose logs --tail=30 imgproxy </dev/null >&2 || true
+exit 1
+EOF
 }
 
 # ---- release: store ---------------------------------------------------------------
@@ -716,6 +756,25 @@ tunnel_down() {
     ssh -S "$TUNNEL_SOCK" -O exit "$BACKEND_SSH" >/dev/null 2>&1 || true
   fi
   [ -z "$BUILD_ENV_FILE" ] || rm -f "$BUILD_ENV_FILE"
+}
+
+# NEXT_PUBLIC_IMGPROXY_URL is compiled into the browser bundle. If the image host
+# is not answering when the storefront ships, every picture on the site breaks
+# until the next release, so refuse to build against a host that is down.
+# /v1/w999/... names an unknown preset: a working chain (Cloudflare, nginx,
+# imgproxy) answers 404, a stopped imgproxy gives 502, a missing DNS record gives 000.
+check_imgproxy_url() {
+  local url code
+  url="$(env_get "$T_HOST" "$T_DIR" NEXT_PUBLIC_IMGPROXY_URL)"
+  [ -n "$url" ] || return 0
+  [ "${SKIP_IMG_CHECK:-0}" = "1" ] && return 0
+  code="$(curl -s -o /dev/null -m 15 -w '%{http_code}' "${url%/}/v1/w999/preflight-check.webp" || true)"
+  if [ "$code" != "404" ]; then
+    die "NEXT_PUBLIC_IMGPROXY_URL=$url does not answer like imgproxy (HTTP $code, expected 404).
+Check the DNS record and the Cloudflare proxy of the image host, and run 'scripts/deploy.sh release backend'.
+To ship without imgproxy, remove the value from $T_HOST:$T_DIR/.env. To skip this check: SKIP_IMG_CHECK=1."
+  fi
+  log "image host $url answers (HTTP $code)"
 }
 
 release_store() {
@@ -738,6 +797,8 @@ Never point 'next dev' at the production database."
   log "checking that Medusa answers on the private network"
   rsh "$T_HOST" "curl -fsS -m 10 http://$BACKEND_PRIVATE_IP:9000/health >/dev/null" ||
     die "the store droplet cannot reach Medusa at http://$BACKEND_PRIVATE_IP:9000/health. Release the backend first and check both droplets are in the same VPC."
+
+  check_imgproxy_url
 
   local tag
   tag="$(release_tag)"

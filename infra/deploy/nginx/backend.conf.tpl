@@ -3,6 +3,7 @@
 #
 #   __API_DOMAIN__  -> Medusa API, Medusa Admin (/app), webhooks   (__BACKEND_PRIVATE_IP__:9000)
 #   __S3_DOMAIN__   -> MinIO S3 API: browser uploads (presigned) and public media reads (127.0.0.1:9002)
+#   __IMG_DOMAIN__  -> imgproxy: resized WebP copies of the media, Cloudflare only (127.0.0.1:8081)
 #
 # Rules are the same as infra/nginx/bibaestudios.com.conf (single-server layout).
 # Snippets (tls, proxy-common, security-headers, internal-only) are installed
@@ -36,6 +37,11 @@ limit_req_zone $binary_remote_addr zone=auth_other:10m rate=60r/m;
 limit_req_status 429;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 
+# Image resizing is the one expensive request on this droplet. Cloudflare answers
+# repeats from its cache, so only misses count here: a visitor (real address,
+# see cloudflare-realip.conf) who misses more than this is a scraper.
+limit_req_zone $binary_remote_addr zone=img:10m rate=20r/s;
+
 upstream medusa {
     server __BACKEND_PRIVATE_IP__:9000;
     keepalive 32;
@@ -43,6 +49,11 @@ upstream medusa {
 
 upstream minio {
     server 127.0.0.1:9002;
+    keepalive 16;
+}
+
+upstream imgproxy {
+    server 127.0.0.1:8081;
     keepalive 16;
 }
 
@@ -60,7 +71,7 @@ server_tokens off;
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-    server_name __API_DOMAIN__ __S3_DOMAIN__;
+    server_name __API_DOMAIN__ __S3_DOMAIN__ __IMG_DOMAIN__;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -182,5 +193,56 @@ server {
         proxy_hide_header X-Minio-Deployment-Id;
         proxy_hide_header X-Amz-Request-Id;
         proxy_hide_header X-Amz-Id-2;
+    }
+}
+
+# ---- imgproxy: resized images -------------------------------------------------
+#
+#   Browser -> Cloudflare (cached WebP) -> this nginx -> imgproxy -> MinIO
+#
+# The storefront builds /<version>/w<width>/<base64url key>.webp. imgproxy
+# accepts only the widths in presets.txt and reads only ecommerce-media/cms/media/,
+# so everything else is refused here before it reaches it. Only Cloudflare may
+# connect (snippets/cloudflare-only.conf): its rate limit, hotlink and bot rules
+# in front of this host are what keep scrapers off, and a direct request would
+# skip them. If the DNS record is "DNS only" (grey cloud) this host answers 403.
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name __IMG_DOMAIN__;
+
+    include snippets/tls.conf;
+    include snippets/cloudflare-only.conf;
+
+    location ~ "^/[A-Za-z0-9_-]{1,32}/w[0-9]{2,4}/[A-Za-z0-9_-]{8,1024}\.webp$" {
+        limit_except GET HEAD {
+            deny all;
+        }
+        limit_req zone=img burst=60 nodelay;
+
+        proxy_pass http://imgproxy;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $proxy_host;
+        proxy_set_header Cookie "";
+
+        # Resizing a big photo can take a moment; imgproxy gives up at 10 s.
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+
+        # The URL carries a version, so an answer never changes: keep it a year.
+        # Without `always`, nginx adds Cache-Control to successful answers only,
+        # so a 404 or 429 is never cached as immutable.
+        proxy_hide_header Cache-Control;
+        proxy_hide_header Set-Cookie;
+        proxy_hide_header Server;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location / {
+        return 404;
     }
 }

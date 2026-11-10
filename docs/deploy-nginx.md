@@ -250,7 +250,7 @@ large originals are uploaded. imgproxy rejects sources over 50 MP or 50 MB.
 ### 2. nginx
 
 ```bash
-sudo cp infra/nginx/snippets/cloudflare-only.conf /etc/nginx/snippets/
+sudo cp infra/deploy/nginx/snippets/cloudflare-{realip,geo}.conf /etc/nginx/snippets/
 sudo cp infra/nginx/img.bibaestudios.com.conf /etc/nginx/conf.d/
 sudo mkdir -p /var/cache/nginx/img && sudo chown www-data /var/cache/nginx/img
 ```
@@ -258,8 +258,12 @@ sudo mkdir -p /var/cache/nginx/img && sudo chown www-data /var/cache/nginx/img
 The server answers only Cloudflare's address ranges (anyone else gets 403), and
 forwards only URLs shaped like the ones above. A 5 GB cache on disk lets one
 resize serve several Cloudflare locations that miss at the same time.
-Cloudflare's ranges are in `snippets/cloudflare-only.conf` (copied from
-https://www.cloudflare.com/ips-v4 and `/ips-v6`); check them twice a year.
+Cloudflare's ranges are in `snippets/cloudflare-realip.conf` and
+`snippets/cloudflare-geo.conf` (copied from https://www.cloudflare.com/ips-v4
+and `/ips-v6`; the two lists must match); check them twice a year. Both files are
+included once, at the top of `img.bibaestudios.com.conf`. If another file in
+`conf.d` already includes them, remove the duplicate lines: nginx rejects a
+`geo` variable defined twice.
 
 ### 3. Cloudflare
 
@@ -293,7 +297,7 @@ back to Next.js's optimizer.
 U=https://img.bibaestudios.com/<version>/w640/<base64 key>.webp
 curl -sI $U | grep -iE 'HTTP|cf-cache-status|x-cache-status|content-type|cache-control'
 curl -sI $U | grep -i cf-cache-status                                  # HIT
-curl -s -o /dev/null -w '%{http_code}\n' https://img.bibaestudios.com/v1/w999/x.webp   # 404
+curl -s -o /dev/null -w '%{http_code}\n' https://img.bibaestudios.com/v1/w999/preflight-check.webp   # 404 from imgproxy (the key part needs 8+ characters)
 curl -s -o /dev/null -w '%{http_code}\n' --resolve img.bibaestudios.com:443:<server ip> $U  # 403: not via Cloudflare
 ```
 

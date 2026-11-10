@@ -162,16 +162,50 @@ function checkUrlHasCountryCode(request: NextRequest, countryCode: string) {
   return urlCountryCode === countryCode;
 }
 
+// Payload stores the admin language in `<cookiePrefix>-lng` (cookiePrefix is
+// set in payload.config.ts). Without this cookie it follows the browser's
+// Accept-Language header, so an English browser would get an English admin.
+const ADMIN_LANGUAGE_COOKIE = "paydusa-lng";
+const DEFAULT_ADMIN_LANGUAGE = "vi";
+const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
+
+/**
+ * Makes Vietnamese the admin language until the user picks another one in
+ * their account settings (which writes the same cookie).
+ */
+function withDefaultAdminLanguage(request: NextRequest) {
+  if (request.cookies.has(ADMIN_LANGUAGE_COOKIE)) {
+    return NextResponse.next();
+  }
+
+  // Add the cookie to this request too, so the first page is already in Vietnamese.
+  const headers = new Headers(request.headers);
+  const cookie = `${ADMIN_LANGUAGE_COOKIE}=${DEFAULT_ADMIN_LANGUAGE}`;
+  const existing = headers.get("cookie");
+  headers.set("cookie", existing ? `${existing}; ${cookie}` : cookie);
+
+  const response = NextResponse.next({ request: { headers } });
+  response.cookies.set(ADMIN_LANGUAGE_COOKIE, DEFAULT_ADMIN_LANGUAGE, {
+    maxAge: ONE_YEAR_IN_SECONDS,
+    path: "/",
+    sameSite: "lax",
+  });
+  return response;
+}
+
 /**
  * Combined middleware to handle both internationalization and region selection.
- * This ignores /admin paths and doesn't redirect them.
+ * /admin paths are not redirected; they only get the default admin language.
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for admin and API paths
+  if (pathname.startsWith("/admin")) {
+    return withDefaultAdminLanguage(request);
+  }
+
+  // Skip middleware for API paths
   if (
-    pathname.startsWith("/admin") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/_vercel") ||

@@ -15,6 +15,7 @@ import { Plugin } from "payload";
 import { requireCaptcha } from "@/hooks/requireCaptcha";
 import { revalidateRedirects } from "@/hooks/revalidateRedirects";
 import { Page, Post } from "@/payload-types";
+import { translateAdminLabels } from "@/plugins/translateAdminLabels";
 import { beforeSyncWithSearch } from "@/search/beforeSync";
 import { searchFields } from "@/search/fieldOverrides";
 import { getServerSideURL } from "@/utilities/getURL";
@@ -134,4 +135,6 @@ export const plugins: Plugin[] = [
       forcePathStyle: true,
     },
   }),
+  // Keep last: it translates labels of the collections added by the plugins above.
+  translateAdminLabels,
 ];

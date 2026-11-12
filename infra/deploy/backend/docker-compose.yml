@@ -109,10 +109,15 @@ services:
   #     nobody can ask for an odd size, and no signing key is needed
   #   - reads only cms/media/ in one bucket, whatever URL it is given
   #   - strips EXIF (GPS, camera) from every copy
-  # It uses the MinIO root key because the usual tool to create a read-only
-  # user (`mc`) is no longer published. imgproxy only reads, but a flaw in it
-  # could expose that key, so it listens on loopback only (nginx is the only way
-  # in) and the memory limit below caps what a bad request can do.
+  # Where it reads from is set in .env (all optional, the defaults are the local MinIO):
+  #   IMGPROXY_S3_ENDPOINT  https://<account id>.r2.cloudflarestorage.com  (Cloudflare R2)
+  #   IMGPROXY_S3_REGION    auto
+  #   IMGPROXY_S3_BUCKET    the R2 bucket that holds cms/media/
+  #   IMGPROXY_S3_KEY_ID / IMGPROXY_S3_SECRET   an R2 token with "Object Read" ONLY
+  # Without them it uses the MinIO root key (the usual tool to create a read-only
+  # MinIO user, `mc`, is no longer published). Either way imgproxy only reads, but
+  # a flaw in it could expose the key, so it listens on loopback only (nginx is
+  # the only way in) and the memory limit below caps what a bad request can do.
   imgproxy:
     image: ghcr.io/imgproxy/imgproxy:v4.0.17
     restart: unless-stopped
@@ -120,13 +125,13 @@ services:
       minio: { condition: service_healthy }
     environment:
       IMGPROXY_USE_S3: "true"
-      IMGPROXY_S3_ENDPOINT: http://minio:9000
-      IMGPROXY_S3_REGION: us-east-1
-      IMGPROXY_S3_ALLOWED_BUCKETS: ecommerce-media
-      IMGPROXY_BASE_URL: s3://ecommerce-media/
-      IMGPROXY_ALLOWED_SOURCES: s3://ecommerce-media/cms/media/
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?}
+      IMGPROXY_S3_ENDPOINT: ${IMGPROXY_S3_ENDPOINT:-http://minio:9000}
+      IMGPROXY_S3_REGION: ${IMGPROXY_S3_REGION:-us-east-1}
+      IMGPROXY_S3_ALLOWED_BUCKETS: ${IMGPROXY_S3_BUCKET:-ecommerce-media}
+      IMGPROXY_BASE_URL: s3://${IMGPROXY_S3_BUCKET:-ecommerce-media}/
+      IMGPROXY_ALLOWED_SOURCES: s3://${IMGPROXY_S3_BUCKET:-ecommerce-media}/cms/media/
+      AWS_ACCESS_KEY_ID: ${IMGPROXY_S3_KEY_ID:-${MINIO_ROOT_USER:?}}
+      AWS_SECRET_ACCESS_KEY: ${IMGPROXY_S3_SECRET:-${MINIO_ROOT_PASSWORD:?}}
       # File names may contain "?", so do not read a query string from them.
       IMGPROXY_SOURCE_URL_QUERY_SEPARATOR: ""
       IMGPROXY_ONLY_PRESETS: "true"

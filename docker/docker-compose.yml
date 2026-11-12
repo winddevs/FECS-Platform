@@ -95,7 +95,7 @@ services:
     restart: "no"
 
   # Resizes and converts images from MinIO on request (WebP). In production
-  # Cloudflare sits in front of it, see docs/deploy-nginx.md.
+  # Cloudflare sits in front of it, see docs/deploy-digitalocean.md (section 6.1).
   # Storefront: NEXT_PUBLIC_IMGPROXY_URL=http://localhost:8081
   imgproxy:
     image: ghcr.io/imgproxy/imgproxy:v4.0.17

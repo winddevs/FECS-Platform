@@ -65,6 +65,13 @@ First-deploy helpers
   seed-cms <email>           create the first CMS admin and a welcome post (before the first store release)
   publishable-key            copy the Medusa publishable key into the store .env
 
+Media storage
+  imgproxy                   refresh the compose files and (re)start imgproxy only, e.g. after a
+                             change of the IMGPROXY_S3_* settings; Medusa is not rebuilt
+  media-to-r2 [--dry-run]    copy cms/media/ from MinIO to the Cloudflare R2 bucket (safe to repeat,
+                             never deletes). Needs R2_ACCOUNT_ID, MEDIA_BUCKET, R2_WRITE_KEY_ID and
+                             R2_WRITE_SECRET in the backend .env (docs/deploy-digitalocean.md 6.2)
+
 Operate
   status                     containers, memory, disk, health checks
   logs backend|store [svc]   follow logs
@@ -1013,6 +1020,77 @@ cmd_publishable_key() {
   log "publishable key written to the store .env"
 }
 
+# ---- media storage: MinIO -> Cloudflare R2 -----------------------------------
+
+# Compose files, presets and a (re)start of imgproxy, without building Medusa.
+# `up -d` recreates the container when its settings in .env changed.
+cmd_imgproxy() {
+  load_conf
+  target backend
+  log "refreshing compose files"
+  push_dir "$DEPLOY_DIR/backend" "$T_HOST" "$T_DIR"
+  rsh "$T_HOST" "chmod +x '$T_DIR'/postgres-init/*.sh 2>/dev/null || true"
+  release_imgproxy
+}
+
+# Copies ecommerce-media/cms/media/ from MinIO to the R2 bucket and compares the two.
+# rclone runs in a container on the backend droplet, on MinIO's Docker network. The R2
+# token is read from the backend .env on the droplet and handed to the container
+# through the environment, so it is never on a command line or in this terminal.
+# Only copies: nothing is deleted from either side, so it can be repeated.
+cmd_media_to_r2() {
+  load_conf
+  target backend
+  local dry=""
+  case "${1:-}" in
+    "") ;;
+    --dry-run) dry="--dry-run" ;;
+    *) die "usage: media-to-r2 [--dry-run]" ;;
+  esac
+  require_env "$T_HOST" "$T_DIR" R2_ACCOUNT_ID MEDIA_BUCKET R2_WRITE_KEY_ID R2_WRITE_SECRET
+  # An empty argument disappears when ssh joins the command line: "-" means "none".
+  rsh "$T_HOST" bash -s -- "$T_DIR" "${dry:--}" <<'REMOTE'
+set -euo pipefail
+cd "$1"; dry="$2"
+[ "$dry" != "-" ] || dry=""
+get() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'; }
+account="$(get R2_ACCOUNT_ID)"; bucket="$(get MEDIA_BUCKET)"
+minio_user="$(get MINIO_ROOT_USER)"
+case "$account" in *[!a-f0-9]*) echo "R2_ACCOUNT_ID must be the 32-character account id" >&2; exit 1 ;; esac
+
+compose="docker compose --env-file .env --env-file release.env"
+net="$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$($compose ps -q minio </dev/null)")"
+[ -n "$net" ] || { echo "MinIO is not running" >&2; exit 1; }
+
+# Secrets go in through the environment (docker run -e NAME), not as arguments.
+export RCLONE_CONFIG_MINIO_ACCESS_KEY_ID="$minio_user"
+RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY="$(get MINIO_ROOT_PASSWORD)"; export RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY
+RCLONE_CONFIG_R2_ACCESS_KEY_ID="$(get R2_WRITE_KEY_ID)"; export RCLONE_CONFIG_R2_ACCESS_KEY_ID
+RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$(get R2_WRITE_SECRET)"; export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
+rclone() {
+  docker run --rm --network "$net" \
+    -e RCLONE_CONFIG_MINIO_TYPE=s3 -e RCLONE_CONFIG_MINIO_PROVIDER=Minio \
+    -e RCLONE_CONFIG_MINIO_ENDPOINT=http://minio:9000 \
+    -e RCLONE_CONFIG_MINIO_ACCESS_KEY_ID -e RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY \
+    -e RCLONE_CONFIG_R2_TYPE=s3 -e RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
+    -e "RCLONE_CONFIG_R2_ENDPOINT=https://${account}.r2.cloudflarestorage.com" \
+    -e RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true \
+    -e RCLONE_CONFIG_R2_ACCESS_KEY_ID -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY \
+    rclone/rclone:1.69.1 "$@" </dev/null
+}
+
+src="minio:ecommerce-media/cms/media"; dst="r2:${bucket}/cms/media"
+echo "source:      $(rclone size "$src" 2>/dev/null | tr '\n' ' ')"
+echo "destination: $(rclone size "$dst" 2>/dev/null | tr '\n' ' ' || true)"
+echo "copying $src -> $dst ${dry:+(dry run)}"
+rclone copy "$src" "$dst" --checksum --transfers 4 --stats-one-line -v $dry 2>&1 | grep -vE "Config file" | tail -n 15
+if [ -z "$dry" ]; then
+  echo "comparing (every source file must exist in R2 with the same content)"
+  rclone check "$src" "$dst" --one-way 2>&1 | grep -vE "Config file" | tail -n 5
+fi
+REMOTE
+}
+
 # ---- operate ------------------------------------------------------------------
 
 cmd_status() {
@@ -1107,6 +1185,8 @@ main() {
     status) cmd_status ;;
     logs) cmd_logs "$@" ;;
     backup) cmd_backup ;;
+    imgproxy) cmd_imgproxy ;;
+    media-to-r2) cmd_media_to_r2 "$@" ;;
     ssh) cmd_ssh "$@" ;;
     *)
       usage

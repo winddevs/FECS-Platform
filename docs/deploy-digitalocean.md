@@ -14,7 +14,7 @@ a single server and is still the reference for the nginx rules.
   STORE droplet (public)                  BACKEND droplet (public)
   bibaestudios.com, www                   ecom.bibaestudios.com
   admin.bibaestudios.com (-> /admin)
-  captcha.bibaestudios.com                s3.bibaestudios.com, img.bibaestudios.com
+  captcha.bibaestudios.com                s3., img.bibaestudios.com
   nginx -> store   :8000 (loopback)       nginx -> medusa :9000 (private IP)
         -> fcaptcha:3100 (loopback)             -> minio  :9002 (loopback)
                                                 -> imgproxy :8081 (loopback)
@@ -134,6 +134,7 @@ Host bibaestudios-store
 | `ecom`                    | backend droplet `165.232.166.136` | Medusa API; opens Medusa Admin (`/app`)                        |
 | `s3`                      | backend droplet `165.232.166.136` | MinIO S3 API                                                   |
 | `img`                     | backend droplet `165.232.166.136` | resized images (imgproxy). **Cloudflare proxy on**, see 6.1    |
+| `media`                   | Cloudflare R2 (custom domain)     | media files, images and videos. Not a droplet: see 6.2         |
 
 Private addresses (VPC `10.104.0.0/20`): store `10.104.0.3`, backend `10.104.0.5`.
 
@@ -428,6 +429,145 @@ allows videos only. Add a watermark at the same time: imgproxy needs a logo file
 (`IMGPROXY_WATERMARK_PATH`) and its own preset names for pictures that carry it.
 Legal measures (a copyright clause in the terms, keeping the originals as proof)
 work alongside the technical ones.
+
+### 6.2 Media on Cloudflare R2, and protecting the videos
+
+Plan: the CMS media library (images and videos, bucket `ecommerce-media`, prefix
+`cms/media/`) moves from MinIO to a Cloudflare R2 bucket. Why:
+
+- R2 has no download fee, and Cloudflare allows its CDN to carry video **that is
+  stored on R2**. Videos therefore go through the Cloudflare proxy like everything
+  else: the droplet's address is not given away by a DNS-only record, and the droplet
+  carries no video traffic. (Video stored on MinIO may not be served through the free
+  CDN: see [Cloudflare's terms](https://blog.cloudflare.com/updated-tos).)
+- Uploads from the CMS go straight to R2 with presigned URLs, with no 100 MB proxy limit.
+- MinIO is an archived project and has no backup; R2 is managed.
+- imgproxy reads with a read-only token instead of the MinIO root key.
+
+Medusa product photos (`ecommerce-medusa`) stay on MinIO.
+
+**What protects the videos** (a video that a browser can play can always be saved;
+these layers stop embedding, bulk copying and unmarked copies):
+
+1. Hotlink protection on `media`: pages of other sites cannot embed the file.
+2. Rate limit and Bot Fight Mode on `media`: stops download tools.
+3. The bucket is private: no `r2.dev` address; the only public way in is the
+   `media` custom domain, which has the rules above in front of it.
+4. A watermark on every public video: `scripts/prepare-video.sh clip.mov --logo logo.png`.
+   (Link signing with expiry, "WAF token authentication", needs the Cloudflare Pro
+   plan and signed URLs in the storefront; add it only for paid or exclusive content.)
+
+#### Step 1: in the Cloudflare dashboard
+
+1. R2 Object Storage: enable it (a payment method may be requested; the free tier
+   is 10 GB and no download fees). Note the **Account ID**.
+2. Create a bucket, for example `bibaestudios-media`, location hint Asia-Pacific.
+   Leave **Public Development URL** (`r2.dev`) disabled.
+3. In the bucket, Settings > CORS policy:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": [
+         "https://bibaestudios.com",
+         "https://www.bibaestudios.com"
+       ],
+       "AllowedMethods": ["GET", "PUT", "HEAD"],
+       "AllowedHeaders": ["*"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+4. R2 > Manage API tokens: create two tokens, both limited to this bucket:
+   **Object Read & Write** (the CMS and the copy) and **Object Read only** (imgproxy).
+   Keep each Access Key ID and Secret; the secret is shown once.
+
+#### Step 2: put the settings on the backend (values are read from the terminal, hidden)
+
+```bash
+scripts/deploy.sh set-env backend R2_ACCOUNT_ID
+scripts/deploy.sh set-env backend MEDIA_BUCKET          # bibaestudios-media
+scripts/deploy.sh set-env backend R2_WRITE_KEY_ID
+scripts/deploy.sh set-env backend R2_WRITE_SECRET
+scripts/deploy.sh media-to-r2 --dry-run                 # lists what would be copied
+scripts/deploy.sh media-to-r2                           # copies, then compares; safe to repeat
+```
+
+`media-to-r2` only copies (it never deletes) and ends by checking that every file
+exists in R2 with the same content.
+
+#### Step 3: imgproxy reads from R2
+
+```bash
+scripts/deploy.sh set-env backend IMGPROXY_S3_ENDPOINT  # https://<account id>.r2.cloudflarestorage.com
+scripts/deploy.sh set-env backend IMGPROXY_S3_REGION    # auto
+scripts/deploy.sh set-env backend IMGPROXY_S3_BUCKET    # bibaestudios-media
+scripts/deploy.sh set-env backend IMGPROXY_S3_KEY_ID    # the read-only token
+scripts/deploy.sh set-env backend IMGPROXY_S3_SECRET
+scripts/deploy.sh imgproxy                              # restarts imgproxy with the new settings; Medusa is not rebuilt
+```
+
+Check an image on `img` (see 6.1) still returns 200. Visitors notice nothing: the
+files are in both places.
+
+#### Step 4: switch the CMS and the video host
+
+1. DNS: delete the `media` A record (the one pointing at the backend droplet), then in
+   R2 > the bucket > Settings > Custom Domains, connect `media.bibaestudios.com`.
+   Cloudflare creates the proxied record itself. Check with
+   `curl -sI https://media.bibaestudios.com/cms/media/<a file>.png` (200, `server: cloudflare`).
+2. Store settings (the CMS signs uploads with these, and builds file URLs from them):
+
+   ```bash
+   scripts/deploy.sh set-env store S3_ENDPOINT        # https://<account id>.r2.cloudflarestorage.com
+   scripts/deploy.sh set-env store S3_REGION          # auto
+   scripts/deploy.sh set-env store S3_BUCKET          # bibaestudios-media
+   scripts/deploy.sh set-env store S3_ACCESS_KEY_ID   # the Read & Write token
+   scripts/deploy.sh set-env store S3_SECRET_ACCESS_KEY
+   scripts/deploy.sh set-env store S3_FILE_URL        # https://media.bibaestudios.com
+   scripts/deploy.sh release store
+   ```
+
+   `S3_FILE_URL` has no bucket name: the custom domain already points at the bucket.
+
+3. Cloudflare rules for the host `media.bibaestudios.com`:
+   - Caching > Cache Rules: eligible for cache; Edge TTL 1 month; Browser TTL 1 year.
+     Every file URL carries `?v=<last change>`, so a replaced file gets a new URL.
+   - Security > WAF > Custom rules, action Block:
+
+     ```
+     (http.host eq "media.bibaestudios.com" and http.referer ne ""
+      and not http.referer contains "bibaestudios.com")
+     ```
+
+   - Security > WAF > Rate limiting rules: for example 300 requests per minute per IP.
+   - Security > Bots: Bot Fight Mode on.
+
+#### Step 5: clean up
+
+Once pictures and a test video work from `media.bibaestudios.com` and the CMS
+uploads to R2:
+
+- keep the MinIO copy of `ecommerce-media` for a few weeks as a way back, then delete it;
+- remove `R2_WRITE_KEY_ID` and `R2_WRITE_SECRET` from the backend `.env` (only the copy used them).
+
+**Roll back** (before cleaning up): set `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, the two
+keys and `S3_FILE_URL` of the store back to the MinIO values (`https://s3.bibaestudios.com`,
+`us-east-1`, `ecommerce-media`, the MinIO user and password,
+`https://s3.bibaestudios.com/ecommerce-media`) and `release store`; clear the five
+`IMGPROXY_S3_*` values on the backend and run `scripts/deploy.sh imgproxy`.
+Files uploaded to R2 in the meantime are not in MinIO: copy them back with rclone.
+
+#### Preparing a video
+
+```bash
+scripts/prepare-video.sh original.mov hero.mp4 --logo logo.png    # H.264 MP4, <=1920 px, faststart, no audio, watermark
+```
+
+It stops above 100 MB and warns above 50 MB. See `--help` for `--audio`,
+`--max-width` and `--crf`.
 
 ## 7. Search: Meilisearch
 

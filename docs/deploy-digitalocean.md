@@ -242,6 +242,15 @@ scripts/deploy.sh release store       # storefront or CMS changed
 scripts/deploy.sh release all         # both
 ```
 
+**Local and production settings are separate files.** `apps/*/.env.template` is for local
+development only (URLs point at localhost). `apps/*/.env.production.template` lists the
+production values; the real production `.env` exists only on the droplets and is created by
+`scripts/deploy.sh setup`. Before building, `release` stops when a public URL in the server
+`.env` (`BACKEND_URL`, `STOREFRONT_URL`, the CORS lists, `NEXT_PUBLIC_*`, `S3_*`) points at
+localhost, and names the variable. `ALLOW_LOCAL_URLS=1` turns that into a warning.
+Medusa also refuses to build a staff-invite or password-reset link from a missing or local
+`BACKEND_URL` in production, instead of sending a link to `localhost`.
+
 What a release does:
 
 - **backend**: builds `fecs-medusa:<timestamp>-<git sha>`, sends it over SSH, starts

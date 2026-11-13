@@ -1,6 +1,11 @@
 import { Modules } from "@medusajs/framework/utils";
 import { SubscriberArgs, type SubscriberConfig } from "@medusajs/medusa";
 
+import {
+  resolveBackendUrl,
+  resolveStorefrontUrl,
+} from "../lib/config/public-urls";
+
 export default async function resetPasswordTokenHandler({
   event: {
     data: { entity_id: email, token, actor_type },
@@ -13,12 +18,9 @@ export default async function resetPasswordTokenHandler({
   let urlPrefix = "";
 
   if (actor_type === "customer") {
-    urlPrefix = config.admin.storefrontUrl || "https://storefront.com";
+    urlPrefix = resolveStorefrontUrl(config.admin.storefrontUrl);
   } else {
-    const backendUrl =
-      config.admin.backendUrl !== "/"
-        ? config.admin.backendUrl
-        : "http://localhost:9000";
+    const backendUrl = resolveBackendUrl(config.admin.backendUrl);
     const adminPath = config.admin.path;
     urlPrefix = `${backendUrl}${adminPath}`;
   }

@@ -41,6 +41,9 @@ pnpm install
 cp apps/medusa/.env.template apps/medusa/.env
 cp apps/store/.env.template apps/store/.env
 # Edit both .env files with your own secrets (keys, passwords, etc.)
+# .env.template is LOCAL development only (URLs point at localhost). Production values
+# are listed in .env.production.template, but the production .env is created on the
+# servers by scripts/deploy.sh. Do not copy one environment's file into the other.
 
 # 3. Start databases (PostgreSQL on :5555, Redis on :6379)
 node --run db:start

@@ -1,5 +1,7 @@
 import { SubscriberArgs, type SubscriberConfig } from "@medusajs/framework";
 
+import { resolveBackendUrl } from "../lib/config/public-urls";
+
 export default async function inviteCreatedHandler({
   event: { data },
   container,
@@ -20,10 +22,7 @@ export default async function inviteCreatedHandler({
     },
   });
 
-  const backend_url =
-    config.admin.backendUrl !== "/"
-      ? config.admin.backendUrl
-      : "http://localhost:9000";
+  const backend_url = resolveBackendUrl(config.admin.backendUrl);
   const adminPath = config.admin.path;
 
   await notificationModuleService.createNotifications({

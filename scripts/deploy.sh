@@ -163,6 +163,31 @@ rm -f "$tmp"
 EOF
 }
 
+# Fail when a listed KEY holds a localhost address (a comma separated list such as
+# STORE_CORS is checked item by item). This catches a development value copied into
+# the production .env. Empty keys are skipped: require_env reports those.
+# ALLOW_LOCAL_URLS=1 turns the failure into a warning.
+LOCAL_URL_PATTERN='^[[:space:]]*[a-z][a-z0-9+.-]*://(localhost|127\.0\.0\.1|\[::1\])([:/?#]|$)'
+reject_local_urls() {
+  local host="$1" dir="$2"
+  shift 2
+  local bad="" key value
+  for key in "$@"; do
+    value="$(env_get "$host" "$dir" "$key")"
+    [ -n "$value" ] || continue
+    if printf '%s\n' "$value" | tr ',' '\n' | grep -Eiq "$LOCAL_URL_PATTERN"; then
+      bad="$bad $key"
+    fi
+  done
+  [ -n "$bad" ] || return 0
+  if [ "${ALLOW_LOCAL_URLS:-0}" = "1" ]; then
+    warn "local address in $dir/.env (continuing, ALLOW_LOCAL_URLS=1):$bad"
+  else
+    die "these values in $host:$dir/.env point at localhost:$bad
+That looks like a development .env. Fix them with 'scripts/deploy.sh set-env $T_NAME KEY' and run again."
+  fi
+}
+
 # Fail when any listed KEY is empty in the server .env.
 require_env() {
   local host="$1" dir="$2"
@@ -672,13 +697,18 @@ cmd_env() {
 
 BACKEND_REQUIRED=(
   JWT_SECRET COOKIE_SECRET POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD PAYLOAD_API_KEY
-  MEILISEARCH_MASTER_KEY SMTP_PASSWORD EMAIL_FROM
+  MEILISEARCH_MASTER_KEY SMTP_PASSWORD EMAIL_FROM BACKEND_URL STOREFRONT_URL
+)
+# Public addresses (emails, CORS, file links). None may point at a local machine.
+BACKEND_PUBLIC_URLS=(
+  BACKEND_URL STOREFRONT_URL STORE_CORS ADMIN_CORS AUTH_CORS S3_ENDPOINT S3_FILE_URL
 )
 
 release_backend() {
   target backend
   check_local
   require_env "$T_HOST" "$T_DIR" "${BACKEND_REQUIRED[@]}"
+  reject_local_urls "$T_HOST" "$T_DIR" "${BACKEND_PUBLIC_URLS[@]}"
   local tag
   tag="$(release_tag)"
 
@@ -752,7 +782,13 @@ EOF
 
 STORE_REQUIRED=(
   NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY PAYLOAD_SECRET DATABASE_URL SMTP_PASSWORD EMAIL_FROM
-  FCAPTCHA_SECRET FCAPTCHA_VERIFY_SECRET
+  FCAPTCHA_SECRET FCAPTCHA_VERIFY_SECRET NEXT_PUBLIC_BASE_URL
+)
+# NEXT_PUBLIC_* values are compiled into the browser bundle, so a local address
+# here ships to every visitor.
+STORE_PUBLIC_URLS=(
+  NEXT_PUBLIC_BASE_URL NEXT_PUBLIC_SERVER_URL NEXT_PUBLIC_WWW_URL PAYLOAD_SERVER_URL
+  S3_ENDPOINT S3_FILE_URL NEXT_PUBLIC_FCAPTCHA_ORIGIN NEXT_PUBLIC_IMGPROXY_URL
 )
 
 TUNNEL_SOCK=""
@@ -788,6 +824,7 @@ release_store() {
   target store
   check_local
   require_env "$T_HOST" "$T_DIR" "${STORE_REQUIRED[@]}"
+  reject_local_urls "$T_HOST" "$T_DIR" "${STORE_PUBLIC_URLS[@]}"
 
   # Payload's dev mode (`next dev`) writes a "dev" row into payload_migrations. Its
   # `migrate` then asks a yes/no question, which hangs a non-interactive build for

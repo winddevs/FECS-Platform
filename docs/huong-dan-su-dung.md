@@ -444,10 +444,21 @@ Ngôn ngữ giao diện cửa hàng: tiếng Việt là gốc. Khoá nào thiế
 ## 8. SEO
 
 - Mỗi trang có canonical `/{ngôn ngữ}/{quốc gia}/...` và hreflang `vi`, `en`, `x-default` (= vi).
-- Trang sản phẩm có dữ liệu có cấu trúc `Product` (tên, mô tả, SKU, ảnh, giá thấp/cao, `priceCurrency` = VND, tình trạng còn hàng). Để dữ liệu này đúng, mỗi variant cần giá VND và SKU.
+- Trang sản phẩm có dữ liệu có cấu trúc (JSON-LD) nằm ngay trong HTML để Google và các trợ lý AI đọc được:
+  - Sản phẩm có nhiều variant khác nhau về màu hoặc size: mỗi variant có giá, tình trạng còn hàng, SKU và mã vạch (GTIN) riêng.
+  - Sản phẩm một variant hoặc không có tuỳ chọn màu/size: một giá, hoặc khoảng giá thấp/cao.
+  - Thương hiệu lấy từ `metadata.brand` của sản phẩm trong Medusa Admin, nếu trống thì dùng "bibaestudios". Chất liệu lấy từ trường **Material**.
+  - Tên tuỳ chọn được nhận là màu nếu là "Color" hoặc "Màu sắc", là size nếu là "Size" hoặc "Kích cỡ". Tên khác sẽ không vào dữ liệu có cấu trúc.
+  - Để dữ liệu đúng, mỗi variant cần giá VND, SKU, và mã vạch EAN/UPC/Barcode (8, 12, 13 hoặc 14 chữ số) nếu có.
+- Trang chủ có dữ liệu `Organization` và `WebSite`. Trang sản phẩm, danh mục, bộ sưu tập có đường dẫn (breadcrumb) giống phần hiển thị.
 - Tiêu đề trang thêm hậu tố " \| bibaestudios".
 - Trang thanh toán và tài khoản đặt `noindex`.
-- Sơ đồ trang (sitemap): trong code chỉ có sơ đồ `pages-sitemap.xml` và `posts-sitemap.xml`, và một tệp liệt kê trang chủ từng ngôn ngữ. **Sản phẩm và danh mục có thể chưa nằm trong sitemap nào.** **[Cần kiểm tra]** `https://bibaestudios.com/sitemap.xml`.
+- `https://bibaestudios.com/robots.txt` cho mọi trình thu thập (kể cả bot AI) vào các trang công khai. Giỏ hàng, thanh toán, tài khoản, đơn hàng và `/admin` bị chặn. Ảnh tại `/api/media/` vẫn mở.
+- `https://bibaestudios.com/sitemap.xml` liệt kê trang chủ, cửa hàng, bài viết, sản phẩm, danh mục, bộ sưu tập và trang CMS, mỗi mục có bản `vi` và `en`. Sản phẩm mới hiện trong sitemap sau tối đa khoảng 1 giờ. **[Cần kiểm tra]** sau khi triển khai: mở hai địa chỉ trên và nộp sitemap trong Google Search Console.
+- Feed sản phẩm cho Google Merchant Center: `https://bibaestudios.com/feeds/google.xml?country=vn`. Mỗi variant là một dòng, có giá VND, giá khuyến mãi (nếu giá hiện tại thấp hơn giá gốc), tồn kho, GTIN, màu, size, chất liệu. Feed cập nhật tối đa mỗi giờ. Sản phẩm không có ảnh sẽ bị bỏ qua. Nếu Medusa lỗi hoặc không có sản phẩm nào, feed trả lỗi 503 để Merchant Center giữ dữ liệu lần lấy trước.
+  - Giới tính và nhóm tuổi chỉ vào feed khi sản phẩm có `metadata.gender` (`male`, `female`, `unisex`) và `metadata.age_group` (`newborn`, `infant`, `toddler`, `kids`, `adult`) trong Medusa Admin.
+  - Phí giao hàng và chính sách đổi trả khai báo trong Merchant Center, không nằm trong feed.
+  - Cách dùng: Merchant Center > Products > Data sources > thêm nguồn "Scheduled fetch", dán địa chỉ feed, chọn Việt Nam, tiếng Việt, tần suất hằng ngày. **[Cần kiểm tra]** Cloudflare không chặn trình lấy dữ liệu của Google với địa chỉ này.
 
 ---
 

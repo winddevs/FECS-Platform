@@ -4,6 +4,11 @@ import { listProductTags } from "@lib/data/product-tags";
 import { listProductTypes } from "@lib/data/product-types";
 import { listRegions } from "@lib/data/regions";
 import { localizedAlternates } from "@lib/seo/alternates";
+import {
+  buildBreadcrumbJsonLd,
+  buildCollectionPageJsonLd,
+} from "@lib/seo/breadcrumbs";
+import { JsonLd } from "@lib/seo/json-ld";
 import { StoreRegion } from "@medusajs/types";
 import CategoryTemplate from "@modules/categories/templates";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
@@ -73,7 +78,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     });
 
     const description =
-      productCategory.description ??
+      productCategory.description ||
       t("categoryDescription", { name: productCategory.name });
 
     return {
@@ -115,20 +120,45 @@ export default async function CategoryPage(props: Props) {
     label: c.name,
   }));
 
+  const tNav = await getTranslations({
+    locale: params.locale,
+    namespace: "layout.sideMenu",
+  });
+  const basePath = `/${params.locale}/${params.countryCode}`;
+  const path = `${basePath}/categories/${params.category.join("/")}`;
+
   return (
-    <CategoryTemplate
-      category={productCategory}
-      sortBy={sortBy}
-      page={page}
-      countryCode={params.countryCode}
-      subcategories={subcategories}
-      types={types.map((t) => ({ value: t.id, label: t.value }))}
-      tags={tags.map((t) => ({ value: t.id, label: t.value }))}
-      optionValues={optionValues.option_values}
-      typeId={typeId}
-      tagId={tagId}
-      priceFrom={price_from}
-      priceTo={price_to}
-    />
+    <>
+      <JsonLd
+        id="category-breadcrumb-json-ld"
+        code={buildBreadcrumbJsonLd([
+          { name: tNav("home"), path: basePath },
+          { name: productCategory.name, path },
+        ])}
+      />
+      <JsonLd
+        id="category-json-ld"
+        code={buildCollectionPageJsonLd({
+          name: productCategory.name,
+          description: productCategory.description,
+          path,
+          locale: params.locale,
+        })}
+      />
+      <CategoryTemplate
+        category={productCategory}
+        sortBy={sortBy}
+        page={page}
+        countryCode={params.countryCode}
+        subcategories={subcategories}
+        types={types.map((t) => ({ value: t.id, label: t.value }))}
+        tags={tags.map((t) => ({ value: t.id, label: t.value }))}
+        optionValues={optionValues.option_values}
+        typeId={typeId}
+        tagId={tagId}
+        priceFrom={price_from}
+        priceTo={price_to}
+      />
+    </>
   );
 }

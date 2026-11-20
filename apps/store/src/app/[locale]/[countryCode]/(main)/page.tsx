@@ -1,4 +1,9 @@
 import { localizedAlternates } from "@lib/seo/alternates";
+import { JsonLd } from "@lib/seo/json-ld";
+import {
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "@lib/seo/organization";
 import HomeContent from "@modules/home/components/home-content";
 import HomeFallback from "@modules/home/components/home-fallback";
 import type { Metadata } from "next";
@@ -19,14 +24,21 @@ export async function generateMetadata(props: {
 }
 
 export default async function Home(props: {
-  params: Promise<{ countryCode: string }>;
+  params: Promise<{ locale: string; countryCode: string }>;
 }) {
   const params = await props.params;
-  const { countryCode } = params;
+  const { locale, countryCode } = params;
 
   return (
-    <Suspense fallback={<HomeFallback />}>
-      <HomeContent countryCode={countryCode} />
-    </Suspense>
+    <>
+      <JsonLd id="organization-json-ld" code={buildOrganizationJsonLd()} />
+      <JsonLd
+        id="website-json-ld"
+        code={buildWebSiteJsonLd({ locale, countryCode })}
+      />
+      <Suspense fallback={<HomeFallback />}>
+        <HomeContent countryCode={countryCode} />
+      </Suspense>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import Script from "next/script";
 import type { Thing, WithContext } from "schema-dts";
 
 type JsonLdProps = {
@@ -16,8 +15,13 @@ const LESS_THAN = /</g;
 const serializeJsonLd = (code: WithContext<Thing>): string =>
   JSON.stringify(code).replace(LESS_THAN, "\\u003c");
 
+/**
+ * Renders a plain `<script type="application/ld+json">` so the markup is part
+ * of the server HTML. `next/script` must not be used here: it injects the tag
+ * on the client, which crawlers that do not run JavaScript never see.
+ */
 export const JsonLd = ({ id = "json-ld", code }: JsonLdProps) => (
-  <Script
+  <script
     id={id}
     type="application/ld+json"
     dangerouslySetInnerHTML={{ __html: serializeJsonLd(code) }}

@@ -1,12 +1,18 @@
 import { listProducts } from "@lib/data/products";
 import { getRegion, listRegions } from "@lib/data/regions";
 import { localizedAlternates } from "@lib/seo/alternates";
+import { buildBreadcrumbJsonLd } from "@lib/seo/breadcrumbs";
 import { JsonLd } from "@lib/seo/json-ld";
 import { createMetadata } from "@lib/seo/metadata";
-import { buildProductJsonLd, toMetaDescription } from "@lib/seo/product";
+import {
+  buildProductJsonLd,
+  toMetaDescription,
+  toStructuredDescription,
+} from "@lib/seo/product";
 import type { HttpTypes } from "@medusajs/types";
 import ProductTemplate from "@modules/products/templates";
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import type { StoreProductWithPayload } from "@/types/global";
@@ -118,18 +124,41 @@ export default async function ProductPage(props: Props) {
   const { payload_product: payloadProduct }: StoreProductWithPayload =
     pricedProduct;
   const title = payloadProduct?.title || pricedProduct.title;
+  const tNav = await getTranslations({
+    locale: params.locale,
+    namespace: "layout.sideMenu",
+  });
+  const path = productPath(params.locale, params.countryCode, params.handle);
+  const { collection } = pricedProduct;
+  // Same trail as the visible breadcrumb in the product template.
+  const breadcrumbs = [
+    { name: tNav("home"), path: `/${params.locale}/${params.countryCode}` },
+    ...(collection
+      ? [
+          {
+            name: collection.title,
+            path: `/${params.locale}/${params.countryCode}/collections/${collection.handle}`,
+          },
+        ]
+      : []),
+    { name: title, path },
+  ];
   return (
     <>
       <JsonLd
         id="product-json-ld"
         code={buildProductJsonLd({
           product: pricedProduct,
-          url: new URL(
-            productPath(params.locale, params.countryCode, params.handle),
-            getServerSideURL()
-          ).href,
-          description: toMetaDescription(pricedProduct.description, title),
+          url: new URL(path, getServerSideURL()).href,
+          description: toStructuredDescription(
+            pricedProduct.description,
+            title
+          ),
         })}
+      />
+      <JsonLd
+        id="product-breadcrumb-json-ld"
+        code={buildBreadcrumbJsonLd(breadcrumbs)}
       />
       <ProductTemplate
         product={pricedProduct}

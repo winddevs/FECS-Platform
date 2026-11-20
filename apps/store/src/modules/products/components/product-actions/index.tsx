@@ -2,6 +2,7 @@
 
 import { addToCart } from "@lib/data/cart";
 import { useIntersection } from "@lib/hooks/use-in-view";
+import { VARIANT_QUERY_PARAM } from "@lib/seo/variant-link";
 import { HttpTypes } from "@medusajs/types";
 import OptionSelect from "@modules/products/components/product-actions/option-select";
 import { isEqual } from "lodash";
@@ -58,6 +59,20 @@ export default function ProductActions({
       setOptions(variantOptions ?? {});
     }
   }, [product.variants]);
+
+  // Feed and structured-data links carry `?variant=<id>`: open the page with
+  // that variant selected. Read on the client so the page itself stays cacheable.
+  useEffect(() => {
+    const variantId = new URLSearchParams(window.location.search).get(
+      VARIANT_QUERY_PARAM
+    );
+    const linkedVariant = product.variants?.find((v) => v.id === variantId);
+    if (linkedVariant) {
+      setOptions(
+        optionsAsKeymap(linkedVariant.options, product.payload_product) ?? {}
+      );
+    }
+  }, [product.variants, product.payload_product]);
 
   const selectedVariant = useMemo(() => {
     if (!product.variants || product.variants.length === 0) {

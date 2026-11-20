@@ -12,7 +12,11 @@ Do not hand-roll metadata or JSON-LD. The store already has:
 
 - `lib/seo/metadata.ts` → `createMetadata({ title, description, image, locale, alternates })` (adds the site name suffix, Open Graph, Twitter card, default hreflang map)
 - `lib/seo/json-ld.tsx` → `<JsonLd id="..." code={...} />` (escapes `<` so catalog text cannot close the script tag)
-- `lib/seo/product.ts` → `toMetaDescription()` and `buildProductJsonLd()`
+- `lib/seo/product.ts` → `toMetaDescription()`, `toStructuredDescription()` and `buildProductJsonLd()` (`ProductGroup` with one `Offer` per variant, `Product` for a single variant)
+- `lib/seo/breadcrumbs.ts` → `buildBreadcrumbJsonLd()` and `buildCollectionPageJsonLd()`
+- `lib/seo/organization.ts` → `buildOrganizationJsonLd()` and `buildWebSiteJsonLd()` (home page)
+- `lib/seo/sitemap.ts` + `lib/data/sitemap.ts` → data and entries for `app/sitemap.ts`
+- `lib/feeds/google-merchant.ts` + `lib/data/feed.ts` → Google Merchant Center feed served at `/feeds/google.xml?country=vn` (`app/feeds/google.xml/route.ts`). Keep a dot in feed paths: the locale proxy skips paths containing ".", and would redirect anything else to `/vi/...`
 
 ## Metadata — required on every page
 
@@ -46,14 +50,14 @@ Notes:
 
 Use schema.org types that fit a fashion store:
 
-| Page                  | Type                                                            |
-| --------------------- | --------------------------------------------------------------- |
-| Product detail        | `Product` with `AggregateOffer` (price, currency, availability) |
-| Category / collection | `CollectionPage` or `ItemList`                                  |
-| Home                  | `Organization` + `WebSite` (with `SearchAction`)                |
-| FAQ / policy pages    | `FAQPage`                                                       |
-| Journal / posts       | `Article` or `BlogPosting`                                      |
-| Breadcrumbs           | `BreadcrumbList`                                                |
+| Page                  | Type                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| Product detail        | `ProductGroup` + per-variant `Offer`, or `Product` + `Offer` |
+| Category / collection | `CollectionPage` or `ItemList`                               |
+| Home                  | `Organization` + `WebSite` (with `SearchAction`)             |
+| FAQ / policy pages    | `FAQPage`                                                    |
+| Journal / posts       | `Article` or `BlogPosting`                                   |
+| Breadcrumbs           | `BreadcrumbList`                                             |
 
 ```tsx
 <JsonLd
@@ -81,8 +85,9 @@ Rules:
 - [ ] Canonical URL set on every page, using the locale + country path
 - [ ] `hreflang` alternates for every supported locale plus `x-default` (`vi`)
 - [ ] No duplicate titles or descriptions across routes
-- [ ] Sitemap includes new routes (`app/[locale]/[countryCode]/sitemap.ts`, `next-sitemap.mjs`)
-- [ ] `robots.ts` does not block public pages
+- [ ] Sitemap includes new routes (`app/sitemap.ts`, entries built in `lib/seo/sitemap.ts`). `sitemap.ts` and `robots.ts` must stay at the app root: crawlers only read `/sitemap.xml` and `/robots.txt` there, not under `/{locale}/{country}`
+- [ ] `app/robots.ts` does not block public pages (keep `/api/media/` open: product images are served from it)
+- [ ] JSON-LD uses `<JsonLd>` (a plain `<script>`). Never use `next/script`: it injects on the client and crawlers without JavaScript miss it
 - [ ] All images have descriptive `alt` text (product title for product images)
 - [ ] Core Web Vitals pass (measure with PageSpeed Insights or Lighthouse)
 - [ ] No orphan pages — every page is linked from navigation, a category, or a related-products block

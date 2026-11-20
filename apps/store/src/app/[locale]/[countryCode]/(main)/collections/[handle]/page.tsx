@@ -4,6 +4,11 @@ import { listProductTags } from "@lib/data/product-tags";
 import { listProductTypes } from "@lib/data/product-types";
 import { listRegions } from "@lib/data/regions";
 import { localizedAlternates } from "@lib/seo/alternates";
+import {
+  buildBreadcrumbJsonLd,
+  buildCollectionPageJsonLd,
+} from "@lib/seo/breadcrumbs";
+import { JsonLd } from "@lib/seo/json-ld";
 import { StoreCollection, StoreRegion } from "@medusajs/types";
 import CollectionTemplate from "@modules/collections/templates";
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products";
@@ -115,19 +120,43 @@ export default async function CollectionPage(props: Props) {
     listProductFilterOptions({ collection_id: collection.id }),
   ]);
 
+  const tNav = await getTranslations({
+    locale: params.locale,
+    namespace: "layout.sideMenu",
+  });
+  const basePath = `/${params.locale}/${params.countryCode}`;
+  const path = `${basePath}/collections/${params.handle}`;
+
   return (
-    <CollectionTemplate
-      collection={collection}
-      page={page}
-      sortBy={sortBy}
-      countryCode={params.countryCode}
-      types={types.map((t) => ({ value: t.id, label: t.value }))}
-      tags={tags.map((t) => ({ value: t.id, label: t.value }))}
-      optionValues={optionValues.option_values}
-      typeId={typeId}
-      tagId={tagId}
-      priceFrom={price_from}
-      priceTo={price_to}
-    />
+    <>
+      <JsonLd
+        id="collection-breadcrumb-json-ld"
+        code={buildBreadcrumbJsonLd([
+          { name: tNav("home"), path: basePath },
+          { name: collection.title, path },
+        ])}
+      />
+      <JsonLd
+        id="collection-json-ld"
+        code={buildCollectionPageJsonLd({
+          name: collection.title,
+          path,
+          locale: params.locale,
+        })}
+      />
+      <CollectionTemplate
+        collection={collection}
+        page={page}
+        sortBy={sortBy}
+        countryCode={params.countryCode}
+        types={types.map((t) => ({ value: t.id, label: t.value }))}
+        tags={tags.map((t) => ({ value: t.id, label: t.value }))}
+        optionValues={optionValues.option_values}
+        typeId={typeId}
+        tagId={tagId}
+        priceFrom={price_from}
+        priceTo={price_to}
+      />
+    </>
   );
 }

@@ -50,7 +50,7 @@ export type ProductVariant = NonNullable<
 >[number];
 export type VariantAttribute = "color" | "size";
 
-const isVariantPurchasable = (variant: ProductVariant): boolean =>
+export const isVariantPurchasable = (variant: ProductVariant): boolean =>
   !variant.manage_inventory ||
   Boolean(variant.allow_backorder) ||
   (variant.inventory_quantity ?? 0) > 0;

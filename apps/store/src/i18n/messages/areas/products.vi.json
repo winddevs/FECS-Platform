@@ -38,6 +38,15 @@
     "returnsTitle": "Trả hàng dễ dàng",
     "returnsText": "Bạn chỉ cần gửi trả sản phẩm, chúng tôi sẽ hoàn tiền cho bạn mà không hỏi lý do. Chúng tôi luôn cố gắng để việc trả hàng diễn ra thật nhẹ nhàng."
   },
+  "facts": {
+    "title": "Thông tin nhanh",
+    "availability": "Tình trạng",
+    "inStock": "Còn hàng",
+    "outOfStock": "Hết hàng",
+    "soldOutVariants": "hết hàng: {list}",
+    "delivery": "Giao hàng",
+    "returns": "Đổi trả"
+  },
   "related": {
     "title": "Sản phẩm liên quan",
     "subtitle": "Bạn có thể cũng sẽ thích những sản phẩm này."

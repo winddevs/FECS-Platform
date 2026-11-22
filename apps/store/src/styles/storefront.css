@@ -1595,6 +1595,38 @@
   color: var(--sf-ink-soft);
   margin-top: 18px;
 }
+.sf-pdp-facts {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--sf-line);
+}
+.sf-pdp-facts h2 {
+  font-family: var(--sf-sans);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sf-ink);
+  margin-bottom: 14px;
+}
+.sf-pdp-facts dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.sf-pdp-facts dl > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.sf-pdp-facts dt {
+  color: var(--sf-muted);
+}
+.sf-pdp-facts dd {
+  margin: 0;
+  color: var(--sf-ink-soft);
+}
 .sf-pdp-price {
   font-size: 20px;
   color: var(--sf-ink);

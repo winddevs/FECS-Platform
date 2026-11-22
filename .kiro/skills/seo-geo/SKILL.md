@@ -16,6 +16,8 @@ Do not hand-roll metadata or JSON-LD. The store already has:
 - `lib/seo/breadcrumbs.ts` → `buildBreadcrumbJsonLd()` and `buildCollectionPageJsonLd()`
 - `lib/seo/organization.ts` → `buildOrganizationJsonLd()` and `buildWebSiteJsonLd()` (home page)
 - `lib/seo/sitemap.ts` + `lib/data/sitemap.ts` → data and entries for `app/sitemap.ts`
+- `modules/products/components/product-facts` → server-rendered "Quick facts" block on the product page (stock, options, material, delivery, returns). Radix accordion panels are not in the HTML when closed, so facts agents need must not live only there
+- `lib/seo/llms.ts` + `lib/data/catalog-outline.ts` → `/llms.txt` (`app/llms.txt/route.ts`), text comes from the i18n files
 - `lib/feeds/google-merchant.ts` + `lib/data/feed.ts` → Google Merchant Center feed served at `/feeds/google.xml?country=vn` (`app/feeds/google.xml/route.ts`). Keep a dot in feed paths: the locale proxy skips paths containing ".", and would redirect anything else to `/vi/...`
 
 ## Metadata — required on every page

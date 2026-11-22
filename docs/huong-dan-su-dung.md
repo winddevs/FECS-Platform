@@ -450,6 +450,8 @@ Ngôn ngữ giao diện cửa hàng: tiếng Việt là gốc. Khoá nào thiế
   - Thương hiệu lấy từ `metadata.brand` của sản phẩm trong Medusa Admin, nếu trống thì dùng "bibaestudios". Chất liệu lấy từ trường **Material**.
   - Tên tuỳ chọn được nhận là màu nếu là "Color" hoặc "Màu sắc", là size nếu là "Size" hoặc "Kích cỡ". Tên khác sẽ không vào dữ liệu có cấu trúc.
   - Để dữ liệu đúng, mỗi variant cần giá VND, SKU, và mã vạch EAN/UPC/Barcode (8, 12, 13 hoặc 14 chữ số) nếu có.
+- Trang sản phẩm có khối **Thông tin nhanh** hiển thị sẵn trong HTML: tình trạng còn hàng, các tuỳ chọn (size, màu), chất liệu, xuất xứ, loại, thời gian giao hàng, đổi trả. Trợ lý AI và Google đọc được khối này, còn nội dung trong các mục thu gọn bên dưới thì không. Muốn khối này đầy đủ, hãy điền **Material**, **Country of origin** và **Type** cho sản phẩm trong Medusa Admin.
+- `https://bibaestudios.com/llms.txt`: bản hướng dẫn ngắn cho AI agent, gồm mô tả cửa hàng, giao hàng, đổi trả, link sitemap, feed, danh mục và bộ sưu tập. Nội dung lấy từ các bản dịch của cửa hàng nên luôn khớp với trang.
 - Trang chủ có dữ liệu `Organization` và `WebSite`. Trang sản phẩm, danh mục, bộ sưu tập có đường dẫn (breadcrumb) giống phần hiển thị.
 - Tiêu đề trang thêm hậu tố " \| bibaestudios".
 - Trang thanh toán và tài khoản đặt `noindex`.

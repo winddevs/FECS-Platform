@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types";
 import LocalizedClientLink from "@modules/common/components/localized-client-link";
 import ImageGallery from "@modules/products/components/image-gallery";
 import ProductActions from "@modules/products/components/product-actions";
+import ProductFacts from "@modules/products/components/product-facts";
 import ProductOnboardingCta from "@modules/products/components/product-onboarding-cta";
 import ProductTabs from "@modules/products/components/product-tabs";
 import RelatedProducts from "@modules/products/components/related-products";
@@ -75,6 +76,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
               <ProductActionsWrapper id={product.id} region={region} />
             </Suspense>
             <ProductDescription product={product} />
+            <ProductFacts product={product} />
             <div className="mt-8">
               <ProductTabs product={product} />
             </div>

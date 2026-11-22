@@ -38,6 +38,15 @@
     "returnsTitle": "Easy returns",
     "returnsText": "Just return your product and we'll refund your money. No questions asked – we'll do our best to make sure your return is hassle-free."
   },
+  "facts": {
+    "title": "Quick facts",
+    "availability": "Availability",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "soldOutVariants": "sold out: {list}",
+    "delivery": "Delivery",
+    "returns": "Returns"
+  },
   "related": {
     "title": "Related products",
     "subtitle": "You might also want to check out these products."
